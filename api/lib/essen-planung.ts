@@ -6,9 +6,9 @@ import {
   getDb,
   inTransaction,
   lockResource,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type {
   AnlegenInput,
@@ -463,7 +463,7 @@ export async function mitgliedAendern(
             : { rolle: aenderung.rolle }
         )
         .where('id', '=', mitgliedId)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
       if ('entziehen' in aenderung) {
@@ -654,7 +654,7 @@ export async function tagVerschieben(
       .updateTable('essen.tag')
       .set({ datum })
       .where('id', '=', tagId)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     await pruefeAnwesenheit(trx, zugang.planungId);
@@ -751,7 +751,7 @@ export async function mahlzeitAendern(
       .updateTable('essen.mahlzeit')
       .set({ name: input.name })
       .where('id', '=', mahlzeitId)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     if (input.position !== undefined) {

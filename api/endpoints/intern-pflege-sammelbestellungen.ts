@@ -5,7 +5,7 @@ import { CampflowError } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
 import { escapeHtml } from '../lib/mail';
 import { VersionConflictError } from '../lib/db';
-import { pflegeHandler, ok, readJsonBody, NOT_FOUND, NO_CONTENT } from '../lib/pflege-api';
+import { ok, NOT_FOUND, NO_CONTENT } from '../lib/pflege-api';
 import {
   InvalidSammelDataError,
   createSammelCampaign,
@@ -32,11 +32,11 @@ import {
   validateSammelInviteAction,
   validateSammelItemStatus,
 } from '../lib/validation/sammel-input';
-import { requireSammelVersion, sammelHandler } from './sammelbestellungen';
+import { requireSammelVersion, sammelStaffHandler } from './sammelbestellungen';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { sendSammelStaffMessage } from '../lib/sammelbestellung-mails';
 import { getSammelProduct, sammelProductReference } from '../lib/sammelbestellung-product-resolver';
-import { errorResponse } from '../lib/response-utils';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 import {
   guardSammelPaymentStatus,
@@ -44,8 +44,9 @@ import {
 } from '../lib/sammelbestellung-payments';
 
 /** Sends a validated staff message to the persisted recipient after version checks. */
-export const SammelStaffMessage = sammelHandler(
-  pflegeHandler('sammelbestellungen-nachricht', async (request, context, principal) => {
+export const SammelStaffMessage = sammelStaffHandler(
+  'sammelbestellungen-nachricht',
+  async (request, context, principal) => {
     const order = await getSammelOrder(request.params.id);
     const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
     if (!order || !campaign) return NOT_FOUND;
@@ -72,49 +73,46 @@ export const SammelStaffMessage = sammelHandler(
         'Die Nachricht konnte nicht verschickt werden. Bitte versuche es später erneut.'
       );
     }
-  })
+  }
 );
 
 /** Lists or creates campaigns after staff authentication and input validation. */
-export const SammelStaffCampaigns = sammelHandler(
-  pflegeHandler('sammelbestellungen', async (request) => {
-    if (request.method === 'GET') return ok(await getSammelCampaigns());
-    const body = object(await readJsonBody(request));
-    const creationKey = validateSammelCreationKey(body);
-    const input = validateSammelCampaign(body);
-    const id = await createSammelCampaign(input, creationKey);
-    return ok({ id }, 201);
-  })
-);
+export const SammelStaffCampaigns = sammelStaffHandler('sammelbestellungen', async (request) => {
+  if (request.method === 'GET') return ok(await getSammelCampaigns());
+  const body = object(await readJsonBody(request));
+  const creationKey = validateSammelCreationKey(body);
+  const input = validateSammelCampaign(body);
+  const id = await createSammelCampaign(input, creationKey);
+  return ok({ id }, 201);
+});
 
 /** Returns staff campaign details or applies a version-checked archive change. */
-export const SammelStaffCampaign = sammelHandler(
-  pflegeHandler('sammelbestellungen', async (request) => {
-    // The orders need only the ID, so they are read together with the campaign
-    const [campaign, orders] = await Promise.all([
-      getSammelCampaign(request.params.id),
-      request.method === 'PATCH' ? undefined : getSammelOrders(request.params.id),
-    ]);
-    if (!campaign) return NOT_FOUND;
-    if (request.method === 'PATCH') {
-      const body = object(await readJsonBody(request));
-      const versionError = requireSammelVersion(body.etag, campaign.etag);
-      if (versionError) return versionError;
-      const archived = validateSammelArchived(body);
-      await setSammelCampaignArchived(campaign.id, archived, campaign.etag);
-      return NO_CONTENT;
-    }
-    return ok({
-      campaign,
-      invitationUrl: sammelUrl(getSiteUrl(request), 'campaign', campaign.id),
-      orders: (orders ?? []).map(publicSammelOrder),
-    });
-  })
-);
+export const SammelStaffCampaign = sammelStaffHandler('sammelbestellungen', async (request) => {
+  // The orders need only the ID, so they are read together with the campaign
+  const [campaign, orders] = await Promise.all([
+    getSammelCampaign(request.params.id),
+    request.method === 'PATCH' ? undefined : getSammelOrders(request.params.id),
+  ]);
+  if (!campaign) return NOT_FOUND;
+  if (request.method === 'PATCH') {
+    const body = object(await readJsonBody(request));
+    const versionError = requireSammelVersion(body.etag, campaign.etag);
+    if (versionError) return versionError;
+    const archived = validateSammelArchived(body);
+    await setSammelCampaignArchived(campaign.id, archived, campaign.etag);
+    return NO_CONTENT;
+  }
+  return ok({
+    campaign,
+    invitationUrl: sammelUrl(getSiteUrl(request), 'campaign', campaign.id),
+    orders: (orders ?? []).map(publicSammelOrder),
+  });
+});
 
 /** Updates submitted orders with staff-only fields after checking their loaded version. */
-export const SammelStaffOrder = sammelHandler(
-  pflegeHandler('sammelbestellungen', async (request, _context, principal) => {
+export const SammelStaffOrder = sammelStaffHandler(
+  'sammelbestellungen',
+  async (request, _context, principal) => {
     const order = await getSammelOrder(request.params.id);
     if (!order) return NOT_FOUND;
     if (!order.submitted)
@@ -136,12 +134,13 @@ export const SammelStaffOrder = sammelHandler(
       order.etag
     );
     return NO_CONTENT;
-  })
+  }
 );
 
 /** Fetches indicative shop prices for authenticated staff without changing stored order totals. */
-export const SammelStaffProduct = sammelHandler(
-  pflegeHandler('sammelbestellungen-produkt', async (request, context) => {
+export const SammelStaffProduct = sammelStaffHandler(
+  'sammelbestellungen-produkt',
+  async (request, context) => {
     const body = object(await readJsonBody(request));
     const url = sammelProductReference(body.reference);
     try {
@@ -154,12 +153,13 @@ export const SammelStaffProduct = sammelHandler(
         'Der Shop-Preis konnte nicht geladen werden.'
       );
     }
-  })
+  }
 );
 
 /** Changes a persisted item without deleting it and informs its recipient. */
-export const SammelStaffItem = sammelHandler(
-  pflegeHandler('sammelbestellungen-artikel', async (request, context, principal) => {
+export const SammelStaffItem = sammelStaffHandler(
+  'sammelbestellungen-artikel',
+  async (request, context, principal) => {
     const order = await getSammelOrder(request.params.id);
     const campaign = order ? await getSammelCampaign(order.campaignId) : undefined;
     if (!order || !campaign) return NOT_FOUND;
@@ -208,12 +208,13 @@ export const SammelStaffItem = sammelHandler(
       context.error('Item status saved but notification failed', error);
       return ok({ confirmationMailSent: false });
     }
-  })
+  }
 );
 
 /** Counts the CampFlow audience or advances the confirmed, deduplicated invitation delivery. */
-export const SammelStaffInvite = sammelHandler(
-  pflegeHandler('sammelbestellungen-freigabe', async (request, context) => {
+export const SammelStaffInvite = sammelStaffHandler(
+  'sammelbestellungen-freigabe',
+  async (request, context) => {
     const campaign = await getSammelCampaign(request.params.id);
     if (!campaign) return NOT_FOUND;
     if (!isSammelOpen(campaign))
@@ -239,7 +240,7 @@ export const SammelStaffInvite = sammelHandler(
         'Der Versand wurde unterbrochen. Bereits versuchte Adressen werden nicht automatisch erneut angeschrieben. Lade den Versandstand erneut.'
       );
     }
-  })
+  }
 );
 
 app.http('sammelStaffCampaigns', {

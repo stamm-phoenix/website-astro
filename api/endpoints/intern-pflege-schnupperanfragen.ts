@@ -1,17 +1,7 @@
 import type { HttpRequest, InvocationContext } from '@azure/functions';
 import { parseId } from '../lib/db';
-import {
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  NO_CONTENT,
-  ok,
-  pflegeHandler,
-  readEtag,
-  readIfMatch,
-  readJsonBody,
-  requireVersion,
-} from '../lib/pflege-api';
-import { withErrorHandling } from '../lib/response-utils';
+import { NOT_FOUND, NO_CONTENT, ok, readEtag, readIfMatch, requireEtag } from '../lib/pflege-api';
+import { readJsonBody } from '../lib/response-utils';
 import {
   schnupperAbgesagtMail,
   schnupperBestaetigtMail,
@@ -30,6 +20,7 @@ import {
   validateSchnupperAbsage,
   validateSchnupperBestaetigung,
 } from '../lib/validation/schnupper';
+import { staffHandler } from '../lib/handler';
 
 const AREA = 'schnupperanfragen';
 
@@ -64,37 +55,31 @@ async function deliver(
 }
 
 /** GET: all requests; opening the module also deletes requests past their retention. */
-export const SchnupperAnfragenCollectionEndpoint = pflegeHandler(
-  AREA,
-  async (request: HttpRequest) => {
-    if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
-    await purgeExpiredSchnupperAnfragen();
-    return ok(await getSchnupperAnfragen());
-  }
-);
+export const SchnupperAnfragenCollectionEndpoint = staffHandler(AREA, async () => {
+  await purgeExpiredSchnupperAnfragen();
+  return ok(await getSchnupperAnfragen());
+});
 
 /** DELETE: removes a request in the loaded version; a concurrent change returns 409. */
-export const SchnupperAnfrageItemEndpoint = pflegeHandler(AREA, async (request: HttpRequest) => {
+export const SchnupperAnfrageItemEndpoint = staffHandler(AREA, async (request: HttpRequest) => {
   const id = parseId(request.params.id ?? '');
   if (id === undefined) return NOT_FOUND;
-  if (request.method !== 'DELETE') return METHOD_NOT_ALLOWED;
-  await deleteSchnupperAnfrage(id, requireVersion(readIfMatch(request)));
+  await deleteSchnupperAnfrage(id, requireEtag(readIfMatch(request)));
   return NO_CONTENT;
 });
 
 /** POST: confirms a date and mails it to the family. */
-export const SchnupperAnfrageBestaetigenEndpoint = pflegeHandler(
+export const SchnupperAnfrageBestaetigenEndpoint = staffHandler(
   AREA,
   async (request: HttpRequest, context, principal) => {
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const input = validateSchnupperBestaetigung(body);
     const anfrage = await confirmSchnupperAnfrage(
       id,
       input,
-      requireVersion(readEtag(body)),
+      requireEtag(readEtag(body)),
       principal.userDetails
     );
     return ok(await deliver(anfrage, context));
@@ -102,25 +87,19 @@ export const SchnupperAnfrageBestaetigenEndpoint = pflegeHandler(
 );
 
 /** POST: cancels the request and tells the family. */
-export const SchnupperAnfrageAbsagenEndpoint = pflegeHandler(
+export const SchnupperAnfrageAbsagenEndpoint = staffHandler(
   AREA,
   async (request: HttpRequest, context, principal) => {
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const input = validateSchnupperAbsage(body);
     const anfrage = await cancelSchnupperAnfrage(
       id,
       input,
-      requireVersion(readEtag(body)),
+      requireEtag(readEtag(body)),
       principal.userDetails
     );
     return ok(await deliver(anfrage, context));
   }
 );
-
-export const SchnupperAnfragenCollection = withErrorHandling(SchnupperAnfragenCollectionEndpoint);
-export const SchnupperAnfrageItem = withErrorHandling(SchnupperAnfrageItemEndpoint);
-export const SchnupperAnfrageBestaetigen = withErrorHandling(SchnupperAnfrageBestaetigenEndpoint);
-export const SchnupperAnfrageAbsagen = withErrorHandling(SchnupperAnfrageAbsagenEndpoint);

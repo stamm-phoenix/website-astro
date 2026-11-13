@@ -1,6 +1,6 @@
 import type { Transaction } from 'kysely';
 import type { Database } from './db-schema';
-import { VersionConflictError, requireVersion, toDateString } from './db';
+import { VersionConflictError, toDateString, requireRowversion } from './db';
 import { einplanungDerPlanung, mahlzeitDerPlanung } from './essen-einplanung';
 import type { AbhakenInput, Verbrauch } from './essen-kochen-model';
 import type { Zugang } from './essen-zugang';
@@ -51,7 +51,7 @@ export async function einplanungAbhaken(
       .updateTable('essen.einplanung')
       .set({ status: input.status })
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     await trx.deleteFrom('essen.einplanung_verbrauch').where('einplanung_id', '=', id).execute();

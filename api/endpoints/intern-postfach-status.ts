@@ -1,6 +1,6 @@
 import { app } from '@azure/functions';
-import { METHOD_NOT_ALLOWED, NO_STORE_HEADERS, ok, readJsonBody } from '../lib/pflege-api';
-import { errorResponse } from '../lib/response-utils';
+import { ok } from '../lib/pflege-api';
+import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
 import { eigenerLogin } from '../lib/postfach';
 import {
   KeinArchivError,
@@ -37,7 +37,6 @@ const JETZT = {
  */
 export const PostfachStatusRoute = postfachAenderung(
   async (request, postfach, principal, context) => {
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const eingabe = validateStatus(await readJsonBody(request));
     try {
       const zeile = await setzeStatus(

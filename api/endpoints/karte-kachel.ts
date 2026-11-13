@@ -1,6 +1,6 @@
 import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { getMapAttribution, getMapTile, isTileStyle, parseTileAddress } from '../lib/map-tiles';
-import { withErrorHandling } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 /** Invalid tile addresses stay invalid; they are no Azure Maps content and may be kept by anyone. */
 const INVALID_CACHE = 'public, max-age=86400';
@@ -56,8 +56,8 @@ export async function GetKarteQuelleEndpoint(request: HttpRequest): Promise<Http
   };
 }
 
-export const KarteKachel = withErrorHandling(GetKarteKachelEndpoint);
-export const KarteQuelle = withErrorHandling(GetKarteQuelleEndpoint);
+export const KarteKachel = publicHandler(GetKarteKachelEndpoint);
+export const KarteQuelle = publicHandler(GetKarteQuelleEndpoint);
 
 // Map tiles of the Nikolaus maps and their copyright notices from Azure Maps, so browsers load
 // them from our own origin

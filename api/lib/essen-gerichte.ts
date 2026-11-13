@@ -1,6 +1,6 @@
 import { sql } from 'kysely';
 import type { Db } from './db';
-import { VersionConflictError, getDb, getSqlErrorNumber, requireVersion, toVersion } from './db';
+import { VersionConflictError, getDb, getSqlErrorNumber, toVersion, requireRowversion } from './db';
 import type {
   EssenKatalog,
   Gericht,
@@ -349,7 +349,7 @@ export async function planungZutatAendern(
             : { kategorie_id: input.kategorieId, einheitenart: input.einheitenart }
         )
         .where('id', '=', id)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
       if (eigene) await setzeAllergene(trx, id, input.allergene ?? []);
@@ -371,7 +371,7 @@ export async function planungZutatLoeschen(
       const result = await trx
         .deleteFrom('essen.planung_zutat')
         .where('id', '=', id)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     } catch (error: unknown) {

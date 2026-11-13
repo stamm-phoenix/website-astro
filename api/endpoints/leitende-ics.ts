@@ -1,7 +1,7 @@
 import type { HttpResponseInit } from '@azure/functions';
 import { getAktionen, isLeitendeOnly } from '../lib/aktionen-list';
 import { buildIcs } from '../lib/ics-builder';
-import { withErrorHandling } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 export async function GetLeitendeIcsEndpoint(): Promise<HttpResponseInit> {
   const aktionen = await getAktionen();
@@ -19,4 +19,4 @@ export async function GetLeitendeIcsEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-export default withErrorHandling(GetLeitendeIcsEndpoint);
+export default publicHandler(GetLeitendeIcsEndpoint);

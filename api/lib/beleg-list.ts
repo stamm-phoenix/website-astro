@@ -15,9 +15,9 @@ import {
   VersionConflictError,
   getDb,
   inTransaction,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { BelegCampflowState, BelegCampflowTable, BelegTable } from './db-schema';
 import type { BelegArt, BelegInput, BelegStatus } from './validation/beleg';
@@ -399,7 +399,7 @@ export async function updateBeleg(
     .updateTable('organisation.beleg')
     .set({ ...toColumns(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .output('inserted.version')
     .executeTakeFirst();
   if (!row) return notChanged(id);
@@ -416,7 +416,7 @@ export async function deleteBeleg(id: number, etag: string): Promise<void> {
     const deleted = await trx
       .deleteFrom('organisation.beleg')
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .output('deleted.photo')
       .executeTakeFirst();
     if (deleted) {
@@ -462,7 +462,7 @@ export async function setBelegPhoto(
         updated_at: sql<Date>`SYSUTCDATETIME()`,
       })
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .outputAll('inserted')
       .executeTakeFirst();
   } finally {

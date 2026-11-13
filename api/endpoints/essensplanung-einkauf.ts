@@ -23,7 +23,7 @@ import {
   readId,
   zugangVon,
 } from '../lib/essen-planung-http';
-import { readJsonBody } from '../lib/nikolaus-api';
+import { readJsonBody } from '../lib/response-utils';
 
 /**
  * Shops, stock and extra needs of a Planung (`docs/essensplanung.md`, Einkaufsliste), with the
@@ -32,7 +32,6 @@ import { readJsonBody } from '../lib/nikolaus-api';
 
 /** POST `{ name }`: adds a shop. */
 export const EssensplanungGeschaefte = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   await geschaeftAnlegen(zugang, validateGeschaeft(await readJsonBody(request)));
   return ok(await ladeAnsicht(zugang), 201);
@@ -46,7 +45,6 @@ export const EssensplanungGeschaeft = planungHandler(async (request) => {
     await geschaeftLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   await geschaeftAendern(zugang, id, validateGeschaeft(body), readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
@@ -54,7 +52,6 @@ export const EssensplanungGeschaeft = planungHandler(async (request) => {
 
 /** PUT `{ geschaeftId, etag }` (null: none; the version of the ingredient): where it is bought. */
 export const EssensplanungZutatGeschaeft = planungHandler(async (request) => {
-  if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   const geschaeftId = validateZutatGeschaeft(body);

@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
-import { pflegeHandler, ok } from '../lib/pflege-api';
+import { ok } from '../lib/pflege-api';
 import { PUBLIC_CONTENT_AREAS, requestSiteRebuild } from '../lib/site-rebuild';
+import { staffHandler } from '../lib/handler';
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -51,7 +52,7 @@ function request(method: string): HttpRequest {
 
 test('a successful change of public content requests one content build', async (t) => {
   const { context, dispatches } = setup(t);
-  const handler = pflegeHandler('faq', async () => ok({ id: '1' }, 201));
+  const handler = staffHandler('faq', async () => ok({ id: '1' }, 201));
 
   const response = await handler(request('POST'), context);
 
@@ -74,11 +75,11 @@ test('a successful change of public content requests one content build', async (
 test('reads, failed changes and internal areas do not start a build', async (t) => {
   const { context, dispatches } = setup(t);
 
-  await pflegeHandler('faq', async () => ok([]))(request('GET'), context);
-  await pflegeHandler('blog', async () => ({ status: 400 }))(request('PATCH'), context);
+  await staffHandler('faq', async () => ok([]))(request('GET'), context);
+  await staffHandler('blog', async () => ({ status: 400 }))(request('PATCH'), context);
   for (const area of ['belege', 'sammelbestellungen', 'nikolaus-dispo']) {
     assert.equal(PUBLIC_CONTENT_AREAS.has(area), false);
-    await pflegeHandler(area, async () => ok({}))(request('POST'), context);
+    await staffHandler(area, async () => ok({}))(request('POST'), context);
   }
 
   assert.equal(dispatches.length, 0);
@@ -86,7 +87,7 @@ test('reads, failed changes and internal areas do not start a build', async (t) 
 
 test('a refused or failed dispatch is logged but never fails the change', async (t) => {
   const refused = setup(t, new Response('{}', { status: 401 }));
-  const response = await pflegeHandler('leitende', async () => ok({}))(
+  const response = await staffHandler('leitende', async () => ok({}))(
     request('PATCH'),
     refused.context
   );

@@ -15,16 +15,13 @@ import {
 } from '../lib/essen-belege-validation';
 import { KiNichtVerfuegbar } from '../lib/essen-ki';
 import { ladeAnsicht } from '../lib/essen-ansicht';
+import { ok, planungHandler, readEtag, readId, zugangVon } from '../lib/essen-planung-http';
 import {
-  METHOD_NOT_ALLOWED,
-  ok,
-  planungHandler,
-  readEtag,
-  readId,
-  zugangVon,
-} from '../lib/essen-planung-http';
-import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
-import { encodeContentDisposition, errorResponse } from '../lib/response-utils';
+  encodeContentDisposition,
+  errorResponse,
+  NO_STORE_HEADERS,
+  readJsonBody,
+} from '../lib/response-utils';
 import { isPhotos, readCheckRequest, readPhotos } from '../lib/validation/beleg-upload';
 import { ValidationError } from '../lib/validation/errors';
 
@@ -51,7 +48,6 @@ function istAntwort(value: BelegFotos | null | HttpResponseInit): value is HttpR
 
 /** POST `{ datum, betragCent, haendler, notiz, bezahltVonId | bezahltVonText, erstattet?, photo?, original?, pdf? }`. */
 export const EssensplanungBelege = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   const input = validateBeleg(body);
@@ -69,7 +65,6 @@ export const EssensplanungBeleg = planungHandler(async (request) => {
     await belegLoeschen(zugang, id, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   await belegAendern(zugang, id, validateBelegAenderung(body), readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
@@ -107,7 +102,6 @@ export const EssensplanungBelegFoto = planungHandler(async (request) => {
     await belegFotoSetzen(zugang, id, null, readEtag(null, request));
     return ok(await ladeAnsicht(zugang));
   }
-  if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
   const etag = readEtag(body, request);
   const fotos = fotosVon(body);
@@ -123,7 +117,6 @@ export const EssensplanungBelegFoto = planungHandler(async (request) => {
  * the Leitendenbereich. Nothing is stored.
  */
 export const EssensplanungBelegPruefung = planungHandler(async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const nurDrehung = request.query.get('nur') === 'drehung';
   // A photo comes as it is, the pages of a PDF as `{ pages }` in JSON

@@ -19,20 +19,19 @@ import {
   getFotoFile,
   listFotoFolder,
 } from '../lib/fotos';
-import { METHOD_NOT_ALLOWED, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
+import { ok } from '../lib/pflege-api';
 import { ValidationError } from '../lib/validation/errors';
 import { mitEigenerAdresse } from '../lib/personen';
 import { audienceVersion, protokollDeliveryAddresses } from '../lib/protokolle';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 import { getPrincipalFirstName } from '../lib/staff-auth';
+import { staffHandler } from '../lib/handler';
 
 /** Largest file SharePoint accepts in an upload session. */
 const MAX_FILE_BYTES = 250 * 1024 ** 3;
 /** Names held by other files of an upload that one request may skip; at most every name tried. */
-const MAX_RESERVED_NAMES = 50;
 /** Files one note about new photos may name; far more than one upload of a weekend. */
-const MAX_NOTE_FILES = 5000;
 
 const FOLDER_NOT_FOUND = errorResponse(
   404,
@@ -99,8 +98,7 @@ async function withFotoErrors(work: () => Promise<HttpResponseInit>): Promise<Ht
 }
 
 /** GET `?pfad=`: folders and files of a folder; without `pfad` the top folder of the library. */
-export const FotosFolderEndpoint = pflegeHandler('fotos', async (request) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
+export const FotosFolderEndpoint = staffHandler('fotos', async (request) => {
   const path = request.query.get('pfad') ?? '';
   if (!splitFotoPath(path)) return INVALID_PATH;
   return withFotoErrors(async () => {
@@ -110,8 +108,7 @@ export const FotosFolderEndpoint = pflegeHandler('fotos', async (request) => {
 });
 
 /** GET: a file with a large version, a fresh download link and, for videos, the player. */
-export const FotosFileEndpoint = pflegeHandler('fotos', async (request) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
+export const FotosFileEndpoint = staffHandler('fotos', async (request) => {
   const id = request.params.id ?? '';
   if (!/^[A-Za-z0-9!_-]{1,200}$/.test(id)) return FILE_NOT_FOUND;
   return withFotoErrors(async () => {
@@ -129,9 +126,8 @@ export const FotosFileEndpoint = pflegeHandler('fotos', async (request) => {
  *   logged-in person.
  * - `{ pfad, unterordner? }`: a folder chosen freely, optionally with a new folder inside.
  */
-export const FotosTargetEndpoint = pflegeHandler('fotos-ziel', async (request, _context, user) => {
+export const FotosTargetEndpoint = staffHandler('fotos-ziel', async (request, _context, user) => {
   if (request.method === 'GET') return ok({ vorname: getPrincipalFirstName(user) });
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const body = await readJsonBody(request);
 
   let path: string | null;
@@ -169,10 +165,9 @@ export const FotosTargetEndpoint = pflegeHandler('fotos-ziel', async (request, _
  * already there. With `neu: true` an existing file never counts as the same one; names in
  * `belegt` (held by other files of the same upload) are skipped.
  */
-export const FotosUploadEndpoint = pflegeHandler(
+export const FotosUploadEndpoint = staffHandler(
   'fotos-upload',
   async (request) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const path = string(body?.pfad);
     const name = string(body?.name);
@@ -181,7 +176,7 @@ export const FotosUploadEndpoint = pflegeHandler(
     const reserved = body?.belegt ?? [];
     if (
       !Array.isArray(reserved) ||
-      reserved.length > MAX_RESERVED_NAMES ||
+      reserved.length > 50 ||
       !reserved.every((entry) => typeof entry === 'string' && entry.length <= 255)
     ) {
       return invalid('belegt', 'Die Liste der belegten Namen ist ungültig.');
@@ -229,10 +224,9 @@ export const FotosUploadEndpoint = pflegeHandler(
  *   files named in `dateien` that are in the folder, to that list without the addresses in
  *   `excluded` and with those in `extra`, if the list still matches the confirmed version.
  */
-export const FotosNoteEndpoint = pflegeHandler(
+export const FotosNoteEndpoint = staffHandler(
   'fotos-benachrichtigung',
   async (request, context, user) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const action = body?.action;
     if (action !== 'preview' && action !== 'send') {
@@ -263,7 +257,7 @@ export const FotosNoteEndpoint = pflegeHandler(
     if (
       !Array.isArray(names) ||
       names.length === 0 ||
-      names.length > MAX_NOTE_FILES ||
+      names.length > 5000 ||
       !names.every((name) => typeof name === 'string' && name.length <= 255)
     ) {
       return invalid('dateien', 'Die Liste der hochgeladenen Dateien ist ungültig.');
@@ -305,43 +299,37 @@ export const FotosNoteEndpoint = pflegeHandler(
   }
 );
 
-export const FotosFolder = withErrorHandling(FotosFolderEndpoint);
-export const FotosNote = withErrorHandling(FotosNoteEndpoint);
-export const FotosFile = withErrorHandling(FotosFileEndpoint);
-export const FotosTarget = withErrorHandling(FotosTargetEndpoint);
-export const FotosUpload = withErrorHandling(FotosUploadEndpoint);
-
 app.http('internFotosOrdner', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/fotos/ordner',
-  handler: FotosFolder,
+  handler: FotosFolderEndpoint,
 });
 
 app.http('internFotosDatei', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/fotos/dateien/{id}',
-  handler: FotosFile,
+  handler: FotosFileEndpoint,
 });
 
 app.http('internFotosZiel', {
   methods: ['GET', 'POST'],
   authLevel: 'anonymous',
   route: 'intern/fotos/ziel',
-  handler: FotosTarget,
+  handler: FotosTargetEndpoint,
 });
 
 app.http('internFotosUpload', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/fotos/upload',
-  handler: FotosUpload,
+  handler: FotosUploadEndpoint,
 });
 
 app.http('internFotosBenachrichtigung', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/fotos/benachrichtigung',
-  handler: FotosNote,
+  handler: FotosNoteEndpoint,
 });

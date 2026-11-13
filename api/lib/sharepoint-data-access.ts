@@ -1,6 +1,7 @@
 import { getClient } from './token';
 import { ResponseType } from '@microsoft/microsoft-graph-client';
 import { CONFIG } from './config';
+import { getErrorStatus } from './response-utils';
 
 interface GraphCollectionPage {
   value?: unknown;
@@ -40,12 +41,6 @@ export async function collectGraphCollectionPages(
   }
 
   return items;
-}
-
-/** HTTP status of a Microsoft Graph error, if available. */
-export function getGraphStatus(error: unknown): number | undefined {
-  const status = (error as { statusCode?: unknown })?.statusCode;
-  return typeof status === 'number' ? status : undefined;
 }
 
 /** Graph path of a drive of the site, e.g. for requests the helpers here do not cover. */
@@ -130,7 +125,7 @@ export async function getSharePointDriveItemWithFields(
       .expand('listItem($expand=fields)')
       .get();
   } catch (error: unknown) {
-    if (getGraphStatus(error) === 404) return undefined;
+    if (getErrorStatus(error) === 404) return undefined;
     throw error;
   }
 }
@@ -231,7 +226,7 @@ export async function getSharePointDriveItem(
       .api(`${getDrivePath(driveId)}/items/${encodeURIComponent(itemId)}`)
       .get();
   } catch (error) {
-    if (getGraphStatus(error) === 404) return undefined;
+    if (getErrorStatus(error) === 404) return undefined;
     throw error;
   }
 }

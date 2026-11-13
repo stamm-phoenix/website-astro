@@ -10,21 +10,15 @@ import { confirmedOfDay } from '../lib/nikolaus-day';
 import { timeToMinutes } from '../lib/nikolaus-dispo';
 import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { computeVisitProgress } from '../lib/nikolaus-progress';
-import {
-  NO_STORE_HEADERS,
-  isErrorResponse,
-  loadAuthorizedBooking,
-  withNikolausNoStore,
-} from '../lib/nikolaus-api';
+import { isErrorResponse, loadAuthorizedBooking, withNikolausNoStore } from '../lib/nikolaus-api';
+import { NO_STORE_HEADERS } from '../lib/response-utils';
 
 /**
  * On the visit day many families may keep this page open, each asking every few minutes.
  * The lists are therefore read at most every 30 seconds per instance.
  */
-const CACHE_MS = 30_000;
 
 /** The phone contact of the day is only for emergencies: shown from this long before the slot. */
-export const DAY_CONTACT_LEAD_MINUTES = 120;
 
 const cache = new Map<string, { expires: number; value: Promise<unknown> }>();
 
@@ -32,7 +26,7 @@ function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   const hit = cache.get(key);
   if (hit && hit.expires > Date.now()) return hit.value as Promise<T>;
   const value = load();
-  cache.set(key, { expires: Date.now() + CACHE_MS, value });
+  cache.set(key, { expires: Date.now() + 30_000, value });
   // A failed read is not kept, the next request tries again
   value.catch(() => cache.delete(key));
   return value;
@@ -79,9 +73,7 @@ export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise
   ]);
   const [, slotTime] = booking.slotKey.split('T');
   const contact =
-    timeToMinutes(now.time) >= timeToMinutes(slotTime) - DAY_CONTACT_LEAD_MINUTES
-      ? settings.dayContact
-      : null;
+    timeToMinutes(now.time) >= timeToMinutes(slotTime) - 120 ? settings.dayContact : null;
   // Visits of bookings cancelled or moved to another day since the Dispo was saved are not
   // on the route any more and must not count as visits ahead
   const confirmed = new Set(confirmedOfDay(bookings, date).map((b) => b.id));

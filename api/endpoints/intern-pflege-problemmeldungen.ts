@@ -1,14 +1,6 @@
 import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { GithubIssueError, githubIssuesUnavailable } from '../lib/github-issues';
-import {
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  ok,
-  pflegeHandler,
-  readEtag,
-  readJsonBody,
-  requireVersion,
-} from '../lib/pflege-api';
+import { NOT_FOUND, ok, readEtag, requireEtag } from '../lib/pflege-api';
 import { HELP_CONTACTS } from '../lib/help-contacts';
 import { CONFIG } from '../lib/config';
 import { PROBLEM_LABELS, PROBLEM_MAX_LENGTH } from '../lib/problemmeldung-model';
@@ -23,8 +15,9 @@ import {
   purgeExpiredProblemMeldungen,
   saveProblemDraft,
 } from '../lib/problemmeldungen';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { parseWith } from '../lib/validation/zod';
+import { staffHandler } from '../lib/handler';
 
 /** Maps what the hand-over can fail with to a response; other errors are rethrown. */
 function toResponse(error: unknown): HttpResponseInit {
@@ -70,22 +63,18 @@ function toResponse(error: unknown): HttpResponseInit {
  * GET: all reports with the state of the hand-over to GitHub, the labels to choose from and
  * the limits of the form; opening the module also deletes reports past their retention.
  */
-export const ProblemMeldungenCollectionEndpoint = pflegeHandler(
-  'problemmeldungen',
-  async (request: HttpRequest) => {
-    if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
-    await purgeExpiredProblemMeldungen();
-    return ok({
-      items: await getProblemMeldungen(),
-      labels: PROBLEM_LABELS,
-      github: {
-        repository: CONFIG.problemmeldung.githubRepository,
-        unavailable: githubIssuesUnavailable(),
-      },
-      maxLength: { title: PROBLEM_MAX_LENGTH.title, body: PROBLEM_MAX_LENGTH.body },
-    });
-  }
-);
+export const ProblemMeldungenCollectionEndpoint = staffHandler('problemmeldungen', async () => {
+  await purgeExpiredProblemMeldungen();
+  return ok({
+    items: await getProblemMeldungen(),
+    labels: PROBLEM_LABELS,
+    github: {
+      repository: CONFIG.problemmeldung.githubRepository,
+      unavailable: githubIssuesUnavailable(),
+    },
+    maxLength: { title: PROBLEM_MAX_LENGTH.title, body: PROBLEM_MAX_LENGTH.body },
+  });
+});
 
 function readId(request: HttpRequest): string | null {
   const id = request.params.id ?? '';
@@ -93,16 +82,15 @@ function readId(request: HttpRequest): string | null {
 }
 
 /** PATCH: saves the issue draft (title, text, label) of an open report; 409 if it was changed. */
-export const ProblemMeldungItemEndpoint = pflegeHandler(
+export const ProblemMeldungItemEndpoint = staffHandler(
   'problemmeldungen',
   async (request: HttpRequest, _context, principal) => {
     const id = readId(request);
     if (!id) return NOT_FOUND;
-    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const draft = validateProblemDraft(body);
     try {
-      await saveProblemDraft(id, draft, requireVersion(readEtag(body)), principal.userDetails);
+      await saveProblemDraft(id, draft, requireEtag(readEtag(body)), principal.userDetails);
     } catch (error: unknown) {
       return toResponse(error);
     }
@@ -112,21 +100,15 @@ export const ProblemMeldungItemEndpoint = pflegeHandler(
 );
 
 /** POST: discards an open report, with a reason if given. */
-export const ProblemMeldungDiscardEndpoint = pflegeHandler(
+export const ProblemMeldungDiscardEndpoint = staffHandler(
   'problemmeldungen',
   async (request: HttpRequest, _context, principal) => {
     const id = readId(request);
     if (!id) return NOT_FOUND;
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const { reason } = parseWith(problemDiscardSchema, body);
     try {
-      await discardProblemMeldung(
-        id,
-        reason,
-        requireVersion(readEtag(body)),
-        principal.userDetails
-      );
+      await discardProblemMeldung(id, reason, requireEtag(readEtag(body)), principal.userDetails);
     } catch (error: unknown) {
       return toResponse(error);
     }
@@ -139,17 +121,16 @@ export const ProblemMeldungDiscardEndpoint = pflegeHandler(
  * POST: sends the saved draft of an open report to GitHub and stores the issue. Only a leader's
  * request does this; the assessment of the model never does.
  */
-export const ProblemMeldungGithubEndpoint = pflegeHandler(
+export const ProblemMeldungGithubEndpoint = staffHandler(
   'problemmeldungen',
   async (request: HttpRequest, _context, principal) => {
     const id = readId(request);
     if (!id) return NOT_FOUND;
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     try {
       const { meldung, found } = await sendProblemToGithub(
         id,
-        requireVersion(readEtag(body)),
+        requireEtag(readEtag(body)),
         principal.userDetails
       );
       return ok({ meldung, found });
@@ -160,12 +141,11 @@ export const ProblemMeldungGithubEndpoint = pflegeHandler(
 );
 
 /** POST: asks the model again after a failed or missing assessment. */
-export const ProblemMeldungAssessEndpoint = pflegeHandler(
+export const ProblemMeldungAssessEndpoint = staffHandler(
   'problemmeldungen',
   async (request: HttpRequest) => {
     const id = readId(request);
     if (!id) return NOT_FOUND;
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const { meldung, started } = await runProblemAssessment(id);
     if (!meldung) return NOT_FOUND;
     if (!started) {
@@ -179,43 +159,37 @@ export const ProblemMeldungAssessEndpoint = pflegeHandler(
   }
 );
 
-export const ProblemMeldungenCollection = withErrorHandling(ProblemMeldungenCollectionEndpoint);
-export const ProblemMeldungItem = withErrorHandling(ProblemMeldungItemEndpoint);
-export const ProblemMeldungDiscard = withErrorHandling(ProblemMeldungDiscardEndpoint);
-export const ProblemMeldungGithub = withErrorHandling(ProblemMeldungGithubEndpoint);
-export const ProblemMeldungAssess = withErrorHandling(ProblemMeldungAssessEndpoint);
-
 app.http('internPflegeProblemmeldungen', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/pflege/problemmeldungen',
-  handler: ProblemMeldungenCollection,
+  handler: ProblemMeldungenCollectionEndpoint,
 });
 
 app.http('internPflegeProblemmeldung', {
   methods: ['PATCH'],
   authLevel: 'anonymous',
   route: 'intern/pflege/problemmeldungen/{id}',
-  handler: ProblemMeldungItem,
+  handler: ProblemMeldungItemEndpoint,
 });
 
 app.http('internPflegeProblemmeldungVerwerfen', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/problemmeldungen/{id}/verwerfen',
-  handler: ProblemMeldungDiscard,
+  handler: ProblemMeldungDiscardEndpoint,
 });
 
 app.http('internPflegeProblemmeldungGithub', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/problemmeldungen/{id}/github',
-  handler: ProblemMeldungGithub,
+  handler: ProblemMeldungGithubEndpoint,
 });
 
 app.http('internPflegeProblemmeldungBewerten', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/problemmeldungen/{id}/bewerten',
-  handler: ProblemMeldungAssess,
+  handler: ProblemMeldungAssessEndpoint,
 });

@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { NIKOLAUS_MAX_LENGTH, isValidNikolausPostalCode } from '../lib/nikolaus-validation';
 import { geocodeAddress } from '../lib/geocoding';
-import { readJsonBody, withNikolausWriteHandling } from '../lib/nikolaus-api';
-import { errorResponse } from '../lib/response-utils';
+import { withNikolausWriteHandling } from '../lib/nikolaus-api';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
 
 /** The trimmed text, or `null` if it is no text, empty or too long. */
 function readText(value: unknown, maxLength: number): string | null {

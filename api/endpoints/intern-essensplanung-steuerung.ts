@@ -28,20 +28,18 @@ import {
   validateListName,
   validateZutat,
 } from '../lib/essen-validation';
-import type { PflegeHandler } from '../lib/pflege-api';
 import {
   METHOD_NOT_ALLOWED,
   NOT_FOUND,
   ok,
-  pflegeHandler,
   readEtag,
   readIfMatch,
-  readJsonBody,
-  requireVersion,
+  requireEtag,
 } from '../lib/pflege-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
-/** The area in `pflegeHandler`; it is no public content, so no website build follows. */
+/** The area in `staffHandler`; it is no public content, so no website build follows. */
 const AREA = 'essensplanung-steuerung';
 
 const NOT_ALLOWED = errorResponse(
@@ -50,26 +48,24 @@ const NOT_ALLOWED = errorResponse(
   'Die Steuerung der Essensplanung ist nur für die Teams Admin und Vorstand. Bist du gerade erst in eines der Teams gekommen, melde dich ab und wieder an.'
 );
 
-/** Like `pflegeHandler`, and the user must be in the team Admin or Vorstand. */
-function steuerungHandler(handler: PflegeHandler) {
-  return pflegeHandler(AREA, async (request, context, principal) => {
+/** Like `staffHandler`, and the user must be in the team Admin or Vorstand. */
+function steuerungHandler(handler: StaffRequestHandler) {
+  return staffHandler(AREA, async (request, context, principal) => {
     if (!hasTeam(principal, 'admin') && !hasTeam(principal, 'vorstand')) return NOT_ALLOWED;
     return handler(request, context, principal);
   });
 }
 
 /** GET: settings, central lists and log. */
-export const EssensplanungSteuerung = steuerungHandler(async (request) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
+export const EssensplanungSteuerung = steuerungHandler(async () => {
   return ok(await loadEssenSteuerung());
 });
 
 /** PUT `{ etag, einstellungen }`: saves switches and templates; answers with the whole view. */
 export const EssensplanungEinstellungen = steuerungHandler(
   async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
-    const etag = requireVersion(readEtag(body));
+    const etag = requireEtag(readEtag(body));
     const einstellungen = validateEssenEinstellungen(body?.einstellungen);
     await saveEssenEinstellungen(einstellungen, etag, principal.userDetails);
     return ok(await loadEssenSteuerung());
@@ -88,7 +84,6 @@ export const EssensplanungListe = steuerungHandler(
   async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
     const liste = readListe(request);
     if (!liste || liste === 'planungen') return NOT_FOUND;
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const actor = principal.userDetails;
     let id: number;
@@ -115,18 +110,17 @@ export const EssensplanungListeEintrag = steuerungHandler(
     const actor = principal.userDetails;
 
     if (request.method === 'DELETE') {
-      const etag = requireVersion(readIfMatch(request));
+      const etag = requireEtag(readIfMatch(request));
       if (liste === 'planungen') await deletePlanungSteuerung(id, etag, actor);
       else if (liste === 'zutaten') await deleteZutat(id, etag, actor);
       else if (liste === 'kategorien') await deleteKategorie(id, etag, actor);
       else await deleteUnvertraeglichkeit(id, etag, actor);
       return ok(await loadEssenSteuerung());
     }
-    if (request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
 
     if (liste === 'planungen') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
-    const etag = requireVersion(readEtag(body));
+    const etag = requireEtag(readEtag(body));
     if (liste === 'zutaten') await updateZutat(id, validateZutat(body), etag, actor);
     else if (liste === 'kategorien') await renameKategorie(id, validateListName(body), etag, actor);
     else await renameUnvertraeglichkeit(id, validateListName(body), etag, actor);
@@ -134,36 +128,31 @@ export const EssensplanungListeEintrag = steuerungHandler(
   }
 );
 
-export const EssensplanungSteuerungEndpoint = withErrorHandling(EssensplanungSteuerung);
-export const EssensplanungEinstellungenEndpoint = withErrorHandling(EssensplanungEinstellungen);
-export const EssensplanungListeEndpoint = withErrorHandling(EssensplanungListe);
-export const EssensplanungListeEintragEndpoint = withErrorHandling(EssensplanungListeEintrag);
-
 // Essensplanung: the Steuerung for the teams Admin and Vorstand (docs/essensplanung.md).
 app.http('internEssensplanungSteuerung', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/essensplanung/steuerung',
-  handler: EssensplanungSteuerungEndpoint,
+  handler: EssensplanungSteuerung,
 });
 
 app.http('internPflegeEssensplanungEinstellungen', {
   methods: ['PUT'],
   authLevel: 'anonymous',
   route: 'intern/pflege/essensplanung/einstellungen',
-  handler: EssensplanungEinstellungenEndpoint,
+  handler: EssensplanungEinstellungen,
 });
 
 app.http('internPflegeEssensplanungListe', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/pflege/essensplanung/{liste}',
-  handler: EssensplanungListeEndpoint,
+  handler: EssensplanungListe,
 });
 
 app.http('internPflegeEssensplanungListeEintrag', {
   methods: ['PATCH', 'DELETE'],
   authLevel: 'anonymous',
   route: 'intern/pflege/essensplanung/{liste}/{id}',
-  handler: EssensplanungListeEintragEndpoint,
+  handler: EssensplanungListeEintrag,
 });

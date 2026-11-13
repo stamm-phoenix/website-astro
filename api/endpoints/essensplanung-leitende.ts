@@ -3,9 +3,7 @@ import { getDb } from '../lib/db';
 import { istStammAdresse } from '../lib/essen-leitung-model';
 import { darfMitgliederVerwalten } from '../lib/essen-planung-model';
 import { planungHandler, zugangVon } from '../lib/essen-planung-http';
-import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
-import { METHOD_NOT_ALLOWED } from '../lib/pflege-api';
-import { errorResponse } from '../lib/response-utils';
+import { errorResponse, NO_STORE_HEADERS } from '../lib/response-utils';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
 import { readTaskDirectory } from '../lib/task-directory';
 
@@ -34,7 +32,6 @@ const VERZEICHNIS_FEHLT = errorResponse(
  * so a link alone never shows the Leitende.
  */
 export const EssensplanungLeitende = planungHandler(async (request) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const planung = await getDb()
     .selectFrom('essen.planung')

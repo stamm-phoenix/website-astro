@@ -2,15 +2,8 @@ import { app } from '@azure/functions';
 import { einplanungAbhaken } from '../lib/essen-kochen';
 import { validateAbhaken } from '../lib/essen-kochen-validation';
 import { ladeAnsicht } from '../lib/essen-ansicht';
-import {
-  METHOD_NOT_ALLOWED,
-  ok,
-  planungHandler,
-  readEtag,
-  readId,
-  zugangVon,
-} from '../lib/essen-planung-http';
-import { readJsonBody } from '../lib/nikolaus-api';
+import { ok, planungHandler, readEtag, readId, zugangVon } from '../lib/essen-planung-http';
+import { readJsonBody } from '../lib/response-utils';
 
 /**
  * Ticking off planned dishes after their meal (`docs/essensplanung.md`, Kochen abhaken), with the
@@ -19,7 +12,6 @@ import { readJsonBody } from '../lib/nikolaus-api';
 
 /** PUT `{ etag, status, verbrauch: [{ planungZutatId, menge, einheit }] }`. */
 export const EssensplanungEinplanungStatus = planungHandler(async (request) => {
-  if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
   const body = await readJsonBody(request);
   await einplanungAbhaken(zugang, readId(request), validateAbhaken(body), readEtag(body, request));

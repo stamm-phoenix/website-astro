@@ -7,8 +7,8 @@ import {
   VersionConflictError,
   getDb,
   getSqlErrorNumber,
-  requireVersion,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { PersonTable } from './db-schema';
 import type {
@@ -123,7 +123,7 @@ export async function updatePerson(
       .updateTable('organisation.person')
       .set({ ...toRow(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst()
   );
   if (Number(result.numUpdatedRows) === 0) await notChanged(id);
@@ -136,7 +136,7 @@ export async function deletePerson(id: number, etag: string): Promise<void> {
   const result = await getDb()
     .deleteFrom('organisation.person')
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numDeletedRows) === 0) await notChanged(id);
   forgetIch();

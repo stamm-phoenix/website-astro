@@ -3,8 +3,8 @@ import {
   RecordNotFoundError,
   VersionConflictError,
   lockResource,
-  requireVersion,
   toVersion,
+  requireRowversion,
 } from './db';
 import { MAX_GERICHTE, gerichtSperre, gerichtStand } from './essen-gerichte-model';
 import type { GerichtInput } from './essen-gerichte-validation';
@@ -90,7 +90,7 @@ export async function gerichtAendern(
           ...(input.werkzeuge !== undefined ? { werkzeuge: JSON.stringify(input.werkzeuge) } : {}),
         })
         .where('id', '=', id)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
       return {

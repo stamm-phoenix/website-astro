@@ -1,21 +1,14 @@
-import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
+import { app } from '@azure/functions';
 import { parseId } from '../lib/db';
-import {
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  NO_STORE_HEADERS,
-  ok,
-  pflegeHandler,
-  readJsonBody,
-} from '../lib/pflege-api';
+import { NOT_FOUND, ok } from '../lib/pflege-api';
 import { NotEditableError, SperreError, getEditorProtokoll } from '../lib/protokoll-editor';
 import { KorrekturFehler, pruefeProtokoll } from '../lib/protokoll-korrektur';
 import type { KorrekturPruefung } from '../lib/protokoll-korrektur-model';
 import { uebernehmeKorrekturen } from '../lib/protokoll-korrektur-uebernahme';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
+import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
 import { ValidationError } from '../lib/validation/errors';
 import { validateKorrekturUebernahme } from '../lib/validation/protokoll-korrektur';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 /**
  * Correction proposals for minutes of the editor (#553, `docs/protokoll-editor.md`): a check on
@@ -29,10 +22,7 @@ const NICHT_PRUEFBAR = errorResponse(
 );
 
 /** POST: checks the stored minutes and returns the proposals; changes nothing. */
-export async function KorrekturPruefenEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+const korrekturPruefen: StaffRequestHandler = async (request) => {
   const id = parseId(request.params.id ?? '');
   if (id === undefined) return NOT_FOUND;
   const detail = await getEditorProtokoll(id, null);
@@ -53,16 +43,19 @@ export async function KorrekturPruefenEndpoint(request: HttpRequest): Promise<Ht
     }
     throw error;
   }
-}
+};
+
+export const KorrekturPruefen = staffHandler('protokoll-editor-korrektur', korrekturPruefen, {
+  readOnly: true,
+});
 
 /**
  * POST `{ etag, vorschlaege }`: takes the proposals over, if the minutes are still the version
  * `etag` (else 409) and nobody writes (else 423). Answers which proposals no longer fit.
  */
-export const KorrekturUebernehmenEndpoint = pflegeHandler(
+export const KorrekturUebernehmen = staffHandler(
   'protokoll-editor',
   async (request, context, principal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
     const input = validateKorrekturUebernahme(await readJsonBody(request));
@@ -91,9 +84,6 @@ export const KorrekturUebernehmenEndpoint = pflegeHandler(
   },
   { quiet: true }
 );
-
-export const KorrekturPruefen = withErrorHandling(KorrekturPruefenEndpoint);
-export const KorrekturUebernehmen = withErrorHandling(KorrekturUebernehmenEndpoint);
 
 app.http('internProtokollEditorKorrekturPruefen', {
   methods: ['POST'],

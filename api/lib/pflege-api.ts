@@ -1,26 +1,8 @@
-import { withServerTiming } from './server-timing';
-import { ProtokollMaintenanceError, withProtokollGate } from './protokoll-cutover';
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import type { ClientPrincipal } from './staff-auth';
-import { isStaffError, requireStaff } from './staff-auth';
-import { NO_STORE_HEADERS, nikolausMaintenanceResponse, readJsonBody } from './nikolaus-api';
-import { errorResponse, withErrorHandling } from './response-utils';
-import { getGraphStatus } from './sharepoint-data-access';
+import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { NO_STORE_HEADERS, errorResponse } from './response-utils';
 import { ValidationError } from './validation/errors';
-import { NikolausStateConflictError } from './nikolaus-state';
-import { NikolausMaintenanceError } from './nikolaus-write-gate';
-import { getNikolausSettings } from './nikolaus-settings';
-import { NIKOLAUS_STAFF_INACTIVE, getNikolausSettingsForRead } from './nikolaus-staff';
-import { RecordNotFoundError, VersionConflictError } from './db';
-import { requestSiteRebuild } from './site-rebuild';
 
-export { NO_STORE_HEADERS, readJsonBody };
-
-export type PflegeHandler = (
-  request: HttpRequest,
-  context: InvocationContext,
-  principal: ClientPrincipal
-) => Promise<HttpResponseInit>;
+/** The answers the staff endpoints share; their pipeline is `staffHandler` (`handler.ts`). */
 
 export function ok(jsonBody: unknown, status = 200): HttpResponseInit {
   return { status, headers: NO_STORE_HEADERS, jsonBody };
@@ -38,92 +20,6 @@ export const CONFLICT = errorResponse(
   'Der Eintrag wurde inzwischen von jemand anderem geändert. Bitte neu laden und erneut bearbeiten.'
 );
 
-/** Maps known SharePoint, database and validation errors to API responses; others are rethrown. */
-function toErrorResponse(error: unknown): HttpResponseInit {
-  if (error instanceof ProtokollMaintenanceError)
-    return { ...errorResponse(503, 'MAINTENANCE', error.message), headers: NO_STORE_HEADERS };
-  if (error instanceof NikolausMaintenanceError) return nikolausMaintenanceResponse(error);
-  if (error instanceof NikolausStateConflictError || error instanceof VersionConflictError)
-    return CONFLICT;
-  if (error instanceof RecordNotFoundError) return NOT_FOUND;
-  if (error instanceof ValidationError) {
-    return {
-      status: 400,
-      jsonBody: { error: 'INVALID', code: 'INVALID', message: error.message, fields: error.fields },
-    };
-  }
-  const status = getGraphStatus(error);
-  if (status === 404) return NOT_FOUND;
-  if (status === 409 || status === 412) return CONFLICT;
-  throw error;
-}
-
-/** Areas of the Nikolaus Steuerung: always reachable, also during maintenance. */
-const NIKOLAUS_CONTROL_AREA = 'nikolaus-steuerung';
-
-export interface PflegeOptions {
-  /**
-   * Skips the log line of successful writes, for requests a page sends every few seconds
-   * (autosave, renewing a lock); the endpoint logs the changes that matter itself.
-   */
-  quiet?: boolean;
-}
-
-/**
- * Wraps a handler of the edit modules: requires a logged-in staff member, maps SharePoint and
- * validation errors and logs every change with the acting user, because SharePoint itself
- * only records the app as editor. Changes to public content trigger a website build.
- * Nikolaus areas need the internal modules switched on, and their writes stop during the
- * maintenance mode; the Steuerung itself is exempt from both.
- */
-export function pflegeHandler(area: string, handler: PflegeHandler, options: PflegeOptions = {}) {
-  return async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
-    return withServerTiming(async () => {
-      const principal = requireStaff(request);
-      if (isStaffError(principal)) return principal;
-
-      const nikolaus = area.startsWith('nikolaus') && area !== NIKOLAUS_CONTROL_AREA;
-      const gated = nikolaus && request.method !== 'GET';
-      const markGate = (response: HttpResponseInit): HttpResponseInit => {
-        if (!gated) return response;
-        const headers = new Headers(response.headers);
-        headers.set('Cache-Control', 'no-store');
-        return { ...response, headers: Object.fromEntries(headers.entries()) };
-      };
-      const invoke = async (): Promise<HttpResponseInit> => {
-        try {
-          if (nikolaus) {
-            // Writes read fresh (maintenance mode); reads may use the short cache
-            const settings = gated
-              ? await getNikolausSettings()
-              : await getNikolausSettingsForRead();
-            if (!settings.staffActive) return NIKOLAUS_STAFF_INACTIVE;
-            if (gated && settings.maintenance) throw new NikolausMaintenanceError();
-          }
-          const response =
-            area === 'protokolle'
-              ? await withProtokollGate(() => handler(request, context, principal))
-              : await handler(request, context, principal);
-          if (request.method !== 'GET' && (response.status ?? 200) < 400) {
-            if (!options.quiet) {
-              context.log(
-                `[pflege] ${principal.userDetails} ${request.method} ${area} ${request.params.id ?? ''}`.trim()
-              );
-            }
-            // The public pages are baked at build time; changes to their content start a build
-            await requestSiteRebuild(area, context);
-          }
-          return response;
-        } catch (error: unknown) {
-          return toErrorResponse(error);
-        }
-      };
-      // Keep the no-store header on unexpected Nikolaus errors too.
-      return markGate(gated ? await withErrorHandling(invoke)(request, context) : await invoke());
-    });
-  };
-}
-
 /** The etag a bodyless or binary request (delete, photo upload) sends in `If-Match`. */
 export function readIfMatch(request: HttpRequest): string | undefined {
   return request.headers.get('if-match') || undefined;
@@ -134,8 +30,12 @@ export function readEtag(body: Record<string, unknown> | null): string | undefin
   return typeof body?.etag === 'string' && body.etag ? body.etag : undefined;
 }
 
-/** Requires the loaded version, preventing unconditional updates or deletes. */
-export function requireVersion(etag: string | undefined): string {
+/**
+ * Requires the etag the client loaded (an HTTP entity tag, e.g. `"…"` or `W/"…"`), preventing
+ * unconditional updates or deletes; a missing one is invalid input (400). The database's own
+ * check is `requireRowversion` (`db.ts`).
+ */
+export function requireEtag(etag: string | undefined): string {
   const version = etag?.trim();
   if (!version || !/^(?:W\/)?"[^"\r\n]+"$/.test(version)) {
     throw new ValidationError({

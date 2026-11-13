@@ -1,7 +1,7 @@
 import { app, type HttpResponseInit } from '@azure/functions';
 import type { Leitende } from '../lib/leitende-list';
 import { getLeitende } from '../lib/leitende-list';
-import { withErrorHandling } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 interface VorstandData {
   id: string;
@@ -40,7 +40,7 @@ export async function GetVorstandEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-const defaultHandler = withErrorHandling(GetVorstandEndpoint);
+const defaultHandler = publicHandler(GetVorstandEndpoint);
 export default defaultHandler;
 
 app.http('vorstand', {

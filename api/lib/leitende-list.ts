@@ -9,8 +9,8 @@ import {
   getDb,
   inTransaction,
   parseId,
-  requireVersion,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { Database, LeitendeTable } from './db-schema';
 import type { LeitendeInput } from './validation/content';
@@ -170,7 +170,7 @@ export async function updateLeitende(
       .updateTable('content.leitende')
       .set({ ...toColumns(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) return false;
     await writeTeams(trx, id, input.teams);
@@ -184,7 +184,7 @@ export async function deleteLeitende(id: number, etag: string): Promise<void> {
   const result = await getDb()
     .deleteFrom('content.leitende')
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numDeletedRows) === 0) await notChanged(id);
   await removeFiles(() => deleteBlobs(`leitende/${id}/`));
@@ -255,7 +255,7 @@ export async function setLeitendePhoto(
   actor: string
 ): Promise<string> {
   const current = await loadPhoto(id);
-  const expected = etag === undefined ? current.version : requireVersion(etag);
+  const expected = etag === undefined ? current.version : requireRowversion(etag);
   const file = newPhotoFileName();
   await putBlob(photoBlobName(id, file), await toStoredPhoto(bytes), photoContentType(file));
   const result = await getDb()
@@ -283,7 +283,7 @@ export async function removeLeitendePhoto(
   actor: string
 ): Promise<string> {
   const current = await loadPhoto(id);
-  const expected = etag === undefined ? current.version : requireVersion(etag);
+  const expected = etag === undefined ? current.version : requireRowversion(etag);
   const result = await getDb()
     .updateTable('content.leitende')
     .set({ photo: null, updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })

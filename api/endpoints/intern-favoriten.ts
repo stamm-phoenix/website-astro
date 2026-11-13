@@ -1,12 +1,13 @@
 import { app, type HttpRequest } from '@azure/functions';
-import { METHOD_NOT_ALLOWED, NO_CONTENT, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
+import { NO_CONTENT, ok } from '../lib/pflege-api';
 import { validateStaffFavorites } from '../lib/validation/staff';
-import { withErrorHandling } from '../lib/response-utils';
+import { readJsonBody } from '../lib/response-utils';
 import {
   getStaffFavorites,
   saveStaffFavorites,
   takeOverStaffFavorites,
 } from '../lib/staff-favorites';
+import { staffHandler } from '../lib/handler';
 
 /**
  * The favorites of the logged-in person on the start page of the Leitendenbereich. GET:
@@ -14,11 +15,10 @@ import {
  * takeover: true }` saves favorites from the browser only if none are saved yet and answers with
  * the favorites that apply. Each person only reaches their own. Quiet, because every tick of a checkbox saves.
  */
-export const StaffFavoritesEndpoint = pflegeHandler(
+export const StaffFavorites = staffHandler(
   'favoriten',
   async (request: HttpRequest, _context, principal) => {
     if (request.method === 'GET') return ok({ modules: await getStaffFavorites(principal.userId) });
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const body = await readJsonBody(request);
     const modules = validateStaffFavorites(body);
     if (body?.takeover === true) {
@@ -31,8 +31,6 @@ export const StaffFavoritesEndpoint = pflegeHandler(
   },
   { quiet: true }
 );
-
-export const StaffFavorites = withErrorHandling(StaffFavoritesEndpoint);
 
 app.http('internFavoriten', {
   methods: ['GET', 'PUT'],

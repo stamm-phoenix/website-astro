@@ -8,7 +8,7 @@ Die Website von DPSG Stamm Phoenix: Astro 7, Svelte 5 Runes, Tailwind CSS 4, Azu
 
 ## Besonders prüfen
 
-- Jeder neue `/api/intern/*`-Endpunkt beginnt mit `requireStaff(request)` (bzw. `requireNikolausStaff`); Pflege-Schreibendpunkte nutzen `pflegeHandler` und prüfen Eingaben in `api/lib/pflege-validation.ts`.
+- Jeder neue `/api/intern/*`-Endpunkt läuft in `staffHandler` (`api/lib/handler.ts`), öffentliche Endpunkte in `publicHandler`; Regeln eines Bereichs kommen als Gate aus seinem Modul (`nikolausGate`, `protokollGate`), nie als Prüfung des Bereichsnamens. Eingaben werden mit zod-Schemas in `api/lib/validation/` geprüft.
 - Migrationen sind neue Dateien, ändern keine bestehenden und bleiben rückwärtskompatibel; neue Tabellen bekommen Testdaten in `api/scripts/db-preview.ts` und ein höheres `SEEDED_KEY`.
 - `content.ts` wird nur im Frontmatter von Seiten importiert, nie in Islands; Sanitizer nutzen `parseHtml`.
 - Barrierefreiheit: `aria-labelledby`, `width`/`height` an Bildern, ARIA an interaktiven Elementen.

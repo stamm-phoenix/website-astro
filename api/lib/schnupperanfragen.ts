@@ -7,9 +7,9 @@ import {
   getDb,
   inTransaction,
   lockResource,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { Db } from './db';
 import type { SchnupperAnfrageTable } from './db-schema-schnupper';
@@ -150,7 +150,7 @@ async function answer(
         bearbeitet_am: sql<Date>`SYSUTCDATETIME()`,
       })
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) await notChanged(trx, id);
     const updated = await getSchnupperAnfrage(id, trx);
@@ -218,7 +218,7 @@ export async function markSchnupperMail(
     .set({ antwort_mail: sent })
     .outputAll('inserted')
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (row) return { anfrage: toStaffItem(row), ueberholt: false };
   const current = await getSchnupperAnfrage(id);
@@ -231,7 +231,7 @@ export async function deleteSchnupperAnfrage(id: number, etag: string): Promise<
   const result = await db
     .deleteFrom(TABLE)
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numDeletedRows) === 0) await notChanged(db, id);
 }

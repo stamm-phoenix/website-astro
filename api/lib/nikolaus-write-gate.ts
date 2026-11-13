@@ -1,10 +1,8 @@
 import { getNikolausSettings } from './nikolaus-settings';
+import { MaintenanceError } from './response-utils';
 
 /** All Nikolaus writes are stopped (maintenance mode in the Steuerung). */
-export class NikolausMaintenanceError extends Error {
-  readonly statusCode = 503;
-  readonly code = 'MAINTENANCE';
-
+export class NikolausMaintenanceError extends MaintenanceError {
   constructor() {
     super(
       // Families and Leitende both see it, so it addresses nobody directly

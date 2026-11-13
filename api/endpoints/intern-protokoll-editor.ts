@@ -3,17 +3,7 @@ import { CampflowError } from '../lib/campflow';
 import { CONFIG } from '../lib/config';
 import { RecordNotFoundError, parseId } from '../lib/db';
 import { getLeitende } from '../lib/leitende-list';
-import type { PflegeHandler } from '../lib/pflege-api';
-import {
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  NO_CONTENT,
-  NO_STORE_HEADERS,
-  ok,
-  pflegeHandler,
-  readEtag,
-  readJsonBody,
-} from '../lib/pflege-api';
+import { NOT_FOUND, NO_CONTENT, ok, readEtag } from '../lib/pflege-api';
 import {
   validateProtokollEditorAufgabe,
   validateProtokollEditorCreate,
@@ -73,15 +63,22 @@ import {
   loadProtokollRecipients,
   protokollDeliveryAddresses,
 } from '../lib/protokolle';
-import { getGraphStatus, getSharePointDriveFileContent } from '../lib/sharepoint-data-access';
+import { getSharePointDriveFileContent } from '../lib/sharepoint-data-access';
 import { getSiteUrl } from '../lib/site-url';
-import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
+import {
+  encodeContentDisposition,
+  errorResponse,
+  getErrorStatus,
+  NO_STORE_HEADERS,
+  readJsonBody,
+} from '../lib/response-utils';
 import type { ClientPrincipal } from '../lib/staff-auth';
-import { getClaim, isStaffError, requireStaff } from '../lib/staff-auth';
+import { getClaim } from '../lib/staff-auth';
 import { getTaskDirectoryUsers } from '../lib/task-directory';
 import { mitEigenerAdresse } from '../lib/personen';
 import { loadEditorPersonen } from '../lib/protokoll-editor-personen';
 import { benachrichtigeErwaehnte } from '../lib/protokoll-erwaehnungen';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 /**
  * Protokoll-Editor (#277, `docs/protokoll-editor.md`): every logged-in leader may read all
@@ -167,10 +164,10 @@ async function withEditorErrors(work: () => Promise<HttpResponseInit>): Promise<
 
 /** A write endpoint of one set of minutes: 404 for an invalid ID. */
 function editorHandler(
-  work: (id: number, ...rest: Parameters<PflegeHandler>) => Promise<HttpResponseInit>,
+  work: (id: number, ...rest: Parameters<StaffRequestHandler>) => Promise<HttpResponseInit>,
   quiet = false
 ) {
-  return pflegeHandler(
+  return staffHandler(
     AREA,
     async (request, context, principal) => {
       const id = parseId(request.params.id ?? '');
@@ -182,82 +179,67 @@ function editorHandler(
 }
 
 /** GET: all minutes of the editor, newest first, with who is writing. */
-export async function GetEditorOverviewEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+export const GetEditorOverview = staffHandler(AREA, async () => {
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: await getEditorOverview() };
-}
+});
 
 /** GET: one set of minutes. */
-export async function GetEditorProtokollEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+export const GetEditorProtokoll = staffHandler(AREA, async (request) => {
   const id = parseId(request.params.id ?? '');
   if (id === undefined) return NOT_FOUND;
   const detail = await getEditorProtokoll(id, readToken(request));
   return detail ? { status: 200, headers: NO_STORE_HEADERS, jsonBody: detail } : NOT_FOUND;
-}
+});
 
 /**
  * GET `?etag=`: the live check of the readers, every few seconds. Sends the minutes only if
  * they changed since `etag`.
  */
-export async function GetEditorLiveEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+export const GetEditorLive = staffHandler(AREA, async (request) => {
   const id = parseId(request.params.id ?? '');
   if (id === undefined) return NOT_FOUND;
   const live = await getEditorLive(id, request.query.get('etag') ?? '', readToken(request));
   return live ? { status: 200, headers: NO_STORE_HEADERS, jsonBody: live } : NOT_FOUND;
-}
+});
 
 /** GET: the kept versions of one set of minutes, newest first. */
-export async function GetEditorRevisionsEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+export const GetEditorRevisions = staffHandler(AREA, async (request) => {
   const id = parseId(request.params.id ?? '');
   if (id === undefined) return NOT_FOUND;
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: await listRevisions(id) };
-}
+});
 
 /** GET: one kept version with its content. */
-export async function GetEditorRevisionEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+export const GetEditorRevision = staffHandler(AREA, async (request) => {
   const id = parseId(request.params.id ?? '');
   const revisionId = parseId(request.params.revisionId ?? '');
   if (id === undefined || revisionId === undefined) return NOT_FOUND;
   const revision = await getRevision(id, revisionId);
   return revision ? { status: 200, headers: NO_STORE_HEADERS, jsonBody: revision } : NOT_FOUND;
-}
+});
 
 /** GET: the people to pick in the minutes and to mention with `@` (`loadEditorPersonen`). */
-export async function GetEditorPersonenEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+export const GetEditorPersonen = staffHandler(AREA, async () => {
   const body: ProtokollEditorPersonen = await loadEditorPersonen();
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: body };
-}
+});
 
 /**
  * GET: the projects and open tasks of the module Aufgaben, to link projects to agenda items and
  * show their open tasks (#277, step 3).
  */
-export async function GetEditorAufgabenEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+export const GetEditorAufgaben = staffHandler(AREA, async () => {
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: await getProtokollEditorAufgaben() };
-}
+});
 
 /**
  * PUT `{ erledigt, etag }`: ticks an open task off in the meeting, or opens it again, if it is
  * still the version the editor loaded (else 409). The task of the module Aufgaben changes at
  * once; the minutes keep their copy. Answers with the new version.
  */
-export const EditorAufgabeEndpoint = pflegeHandler(
+export const EditorAufgabe = staffHandler(
   AREA,
   async (request, context, principal) => {
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
     const body = await readJsonBody(request);
@@ -323,7 +305,7 @@ async function vorbelegung(date: string): Promise<Vorbelegung> {
  * POST: new minutes with the standard agenda after the open tasks from earlier minutes, the
  * Vorstand and the writer preset, and the start of the meeting if the browser sent it.
  */
-export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, principal) => {
+export const EditorCollection = staffHandler(AREA, async (request, _c, principal) => {
   const input = validateProtokollEditorCreate(await readJsonBody(request));
   const [person, sitzungsleitung, offen, vorlage] = await Promise.all([
     editorPerson(principal),
@@ -346,7 +328,7 @@ export const EditorCollectionEndpoint = pflegeHandler(AREA, async (request, _c, 
 });
 
 /** PUT: autosave of the whole document. DELETE: a draft with its versions. */
-export const EditorItemEndpoint = editorHandler(async (id, request, context, principal) => {
+export const EditorItem = editorHandler(async (id, request, context, principal) => {
   if (request.method === 'DELETE') {
     const deleted = await deleteEditorProtokoll(id);
     if (deleted) context.log(`[pflege] ${principal.userDetails} DELETE ${AREA} ${id}`);
@@ -364,7 +346,7 @@ export const EditorItemEndpoint = editorHandler(async (id, request, context, pri
  * POST: takes or renews the lock of the writing tab (every few seconds); `uebernehmen` takes
  * it from another tab. DELETE: gives it up when the page is left.
  */
-export const EditorSperreEndpoint = editorHandler(async (id, request, context, principal) => {
+export const EditorSperre = editorHandler(async (id, request, context, principal) => {
   const input = validateProtokollSperre(await readJsonBody(request));
   if (request.method === 'DELETE') {
     await releaseSperre(id, input.token);
@@ -385,9 +367,7 @@ function editorUrl(request: HttpRequest, id: number): string {
  * GET: the PDF of the minutes. Approved minutes get the PDF filed in SharePoint, drafts and
  * minutes in review a fresh one marked as draft.
  */
-export async function GetEditorPdfEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+export const GetEditorPdf = staffHandler(AREA, async (request) => {
   const id = parseId(request.params.id ?? '');
   if (id === undefined) return NOT_FOUND;
   let pdf: { fileName: string; content: Uint8Array };
@@ -406,7 +386,7 @@ export async function GetEditorPdfEndpoint(request: HttpRequest): Promise<HttpRe
     },
     body: pdf.content,
   };
-}
+});
 
 /**
  * POST: a step of the review. `review` gives a draft to the review and `approve` files the PDF
@@ -414,8 +394,7 @@ export async function GetEditorPdfEndpoint(request: HttpRequest): Promise<HttpRe
  * writes; one's own minutes only with `ownConfirmed`). `reject` sends minutes in review back
  * with a note that goes to the author by mail.
  */
-export const EditorReviewEndpoint = editorHandler(async (id, request, context, principal) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
+export const EditorReview = editorHandler(async (id, request, context, principal) => {
   const body = await readJsonBody(request);
   const { action, token, ownConfirmed, note } = validateProtokollEditorReview(body);
   const etag = readEtag(body);
@@ -476,10 +455,9 @@ export const EditorReviewEndpoint = editorHandler(async (id, request, context, p
  * `send`: mails the filed PDF to that list, without the addresses in `excluded` and with those in
  * `extra`, if the list still matches the confirmed version.
  */
-export const EditorVersandEndpoint = pflegeHandler(
+export const EditorVersand = staffHandler(
   'protokoll-editor-versand',
   async (request, context, principal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     if (!CONFIG.protokolle.sender) return SENDING_NOT_CONFIGURED;
     const id = parseId(request.params.id ?? '');
     if (id === undefined) return NOT_FOUND;
@@ -523,7 +501,7 @@ export const EditorVersandEndpoint = pflegeHandler(
       try {
         pdf = await getSharePointDriveFileContent(quelle.pdf.driveId, quelle.pdf.itemId);
       } catch (error: unknown) {
-        if (getGraphStatus(error) !== 404) throw error;
+        if (getErrorStatus(error) !== 404) throw error;
         throw new ValidationError({
           form: `Das PDF „${quelle.pdf.fileName}“ fehlt im Protokoll-Ordner. Bitte aus dem SharePoint-Papierkorb wiederherstellen.`,
         });
@@ -545,7 +523,7 @@ export const EditorVersandEndpoint = pflegeHandler(
       } catch (error: unknown) {
         // Graph refused the mail with a client error, so it did not go out. After a timeout or
         // a server error it may have, so the reservation stays.
-        const status = getGraphStatus(error);
+        const status = getErrorStatus(error);
         if (status !== undefined && status >= 400 && status < 500 && status !== 408) {
           await finishEditorVersand(id, attempt, 'failed');
         }
@@ -556,21 +534,6 @@ export const EditorVersandEndpoint = pflegeHandler(
     });
   }
 );
-
-export const GetEditorOverview = withErrorHandling(GetEditorOverviewEndpoint);
-export const GetEditorProtokoll = withErrorHandling(GetEditorProtokollEndpoint);
-export const GetEditorLive = withErrorHandling(GetEditorLiveEndpoint);
-export const GetEditorRevisions = withErrorHandling(GetEditorRevisionsEndpoint);
-export const GetEditorRevision = withErrorHandling(GetEditorRevisionEndpoint);
-export const GetEditorPersonen = withErrorHandling(GetEditorPersonenEndpoint);
-export const GetEditorAufgaben = withErrorHandling(GetEditorAufgabenEndpoint);
-export const EditorAufgabe = withErrorHandling(EditorAufgabeEndpoint);
-export const EditorCollection = withErrorHandling(EditorCollectionEndpoint);
-export const EditorItem = withErrorHandling(EditorItemEndpoint);
-export const EditorSperre = withErrorHandling(EditorSperreEndpoint);
-export const GetEditorPdf = withErrorHandling(GetEditorPdfEndpoint);
-export const EditorReview = withErrorHandling(EditorReviewEndpoint);
-export const EditorVersand = withErrorHandling(EditorVersandEndpoint);
 
 app.http('internProtokollEditor', {
   methods: ['GET'],

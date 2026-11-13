@@ -1,8 +1,8 @@
 import { app } from '@azure/functions';
-import { pflegeHandler, ok, readJsonBody } from '../lib/pflege-api';
+import { ok } from '../lib/pflege-api';
 import { getCampflowEvents } from '../lib/campflow';
 import { berlinDay } from '../lib/calendar-day';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { readQuelle } from '../lib/validation/zeitplan-quelle';
 import {
   MIN_MODEL_MS,
@@ -12,6 +12,7 @@ import {
   readZeitplan,
 } from '../lib/kurzbeschreibung-zeitplan';
 import { EVENT_ID_PATTERN } from './intern-abrechnung';
+import { staffHandler } from '../lib/handler';
 
 function invalid(message: string): ReturnType<typeof errorResponse> {
   return errorResponse(400, 'INVALID', message);
@@ -22,7 +23,7 @@ function invalid(message: string): ReturnType<typeof errorResponse> {
  * or `tabelle`: `{ name, data }` of an .xlsx or .csv) or from a description (`freitext`), and
  * answers with days and blocks to prefill the Kurzbeschreibung. Nothing is stored. `available` is false without a model.
  */
-export const AbrechnungZeitplanEndpoint = pflegeHandler('abrechnung-zeitplan', async (request) => {
+export const AbrechnungZeitplanEndpoint = staffHandler('abrechnung-zeitplan', async (request) => {
   const started = Date.now();
   const id = request.params.id ?? '';
   if (!EVENT_ID_PATTERN.test(id) || id.length > 128) return invalid('Ungültige Aktion.');
@@ -73,11 +74,10 @@ export const AbrechnungZeitplanEndpoint = pflegeHandler('abrechnung-zeitplan', a
     );
   }
 });
-export const AbrechnungZeitplanHandler = withErrorHandling(AbrechnungZeitplanEndpoint);
 
 app.http('internAbrechnungZeitplan', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/abrechnung/{id}/zeitplan',
-  handler: AbrechnungZeitplanHandler,
+  handler: AbrechnungZeitplanEndpoint,
 });

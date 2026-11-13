@@ -1,4 +1,4 @@
-import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
+import { app } from '@azure/functions';
 import type { CampflowColumn, CampflowPerson } from '../lib/campflow';
 import {
   CAMPFLOW_EVENT_ID_PATTERN,
@@ -8,16 +8,12 @@ import {
 } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
 import { getAktionArt } from '../lib/aktion-art';
-import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { eigeneAnmeldungen } from '../lib/personen';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, NO_STORE_HEADERS } from '../lib/response-utils';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 /** A single CampFlow event with its custom fields, participants and the own registrations. */
-export async function GetInternAktionEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
-
+const getInternAktion: StaffRequestHandler = async (request, _context, principal) => {
   const id = request.params.id ?? '';
   if (!CAMPFLOW_EVENT_ID_PATTERN.test(id)) {
     return errorResponse(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
@@ -51,14 +47,15 @@ export async function GetInternAktionEndpoint(request: HttpRequest): Promise<Htt
   } catch (error: unknown) {
     return campflowErrorResponse(error);
   }
-}
+};
 
-const defaultHandler = withErrorHandling(GetInternAktionEndpoint);
-export default defaultHandler;
+export const GetInternAktionEndpoint = staffHandler('aktion', getInternAktion);
+
+export default GetInternAktionEndpoint;
 
 app.http('internAktion', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/aktionen/{id}',
-  handler: defaultHandler,
+  handler: GetInternAktionEndpoint,
 });

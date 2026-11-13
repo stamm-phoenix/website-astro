@@ -1,6 +1,6 @@
 import { app, type HttpResponseInit } from '@azure/functions';
 import { getQuestionsAndAnswers } from '../lib/qa-list';
-import { withErrorHandling } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 /** The published questions and answers. */
 export async function GetQuestionsAndAnswersEndpoint(): Promise<HttpResponseInit> {
@@ -10,7 +10,7 @@ export async function GetQuestionsAndAnswersEndpoint(): Promise<HttpResponseInit
   };
 }
 
-const defaultHandler = withErrorHandling(GetQuestionsAndAnswersEndpoint, {
+const defaultHandler = publicHandler(GetQuestionsAndAnswersEndpoint, {
   exposeErrorDetails: false,
 });
 export default defaultHandler;

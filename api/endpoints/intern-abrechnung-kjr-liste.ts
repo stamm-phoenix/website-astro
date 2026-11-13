@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
+import { app } from '@azure/functions';
 import { getAktionArt } from '../lib/aktion-art';
 import { CONFIG } from '../lib/config';
 import { countNights } from '../lib/kjr-zuschuss';
@@ -11,10 +11,9 @@ import {
   parseKjrListeRequest,
 } from '../lib/kjr-teilnahmeliste';
 import type { KjrListeRequest } from '../lib/kjr-teilnahmeliste';
-import { readJsonBody } from '../lib/nikolaus-api';
-import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
+import { encodeContentDisposition, errorResponse, readJsonBody } from '../lib/response-utils';
 import { EVENT_ID_PATTERN, loadAktion } from './intern-abrechnung';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -40,12 +39,7 @@ function fileName(title: string): string {
  * shown in the Abrechnung (registrations it excluded left out, persons it added included) and
  * the header fields CampFlow does not have; title and dates come from the CampFlow event.
  */
-export async function PostInternAbrechnungKjrListeEndpoint(
-  request: HttpRequest
-): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
-
+const postInternAbrechnungKjrListe: StaffRequestHandler = async (request) => {
   const id = request.params.id ?? '';
   if (!EVENT_ID_PATTERN.test(id)) {
     return errorResponse(400, 'INVALID_ID', 'Ungültige Aktions-ID.');
@@ -111,14 +105,19 @@ export async function PostInternAbrechnungKjrListeEndpoint(
     },
     body: new Uint8Array(file),
   };
-}
+};
 
-const defaultHandler = withErrorHandling(PostInternAbrechnungKjrListeEndpoint);
-export default defaultHandler;
+export const PostInternAbrechnungKjrListeEndpoint = staffHandler(
+  'abrechnung-kjr-liste',
+  postInternAbrechnungKjrListe,
+  { readOnly: true }
+);
+
+export default PostInternAbrechnungKjrListeEndpoint;
 
 app.http('internAbrechnungKjrListe', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/abrechnung/{id}/kjr-liste',
-  handler: defaultHandler,
+  handler: PostInternAbrechnungKjrListeEndpoint,
 });

@@ -2,18 +2,18 @@ import { app, type HttpRequest } from '@azure/functions';
 import { setZuschussfaehig } from '../lib/aktion-zuschuss';
 import { CAMPFLOW_EVENT_ID_PATTERN, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
-import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
+import { NOT_FOUND, ok } from '../lib/pflege-api';
 import { validateAktionZuschuss } from '../lib/validation/aktion-art';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
+import { staffHandler } from '../lib/handler';
 
 /**
  * PUT `{ zuschussfaehig }`: whether the KJR grant is applied for a CampFlow Aktion. Only
  * Aktionen that exist in CampFlow can be switched; switching to the current value is fine.
  */
-export const AktionZuschussEndpoint = pflegeHandler(
+export const AktionZuschussEndpoint = staffHandler(
   'aktionen-zuschuss',
   async (request: HttpRequest, _context, principal) => {
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const id = request.params.id ?? '';
     if (!CAMPFLOW_EVENT_ID_PATTERN.test(id)) return NOT_FOUND;
 
@@ -33,12 +33,11 @@ export const AktionZuschussEndpoint = pflegeHandler(
   }
 );
 
-const AktionZuschuss = withErrorHandling(AktionZuschussEndpoint);
-export default AktionZuschuss;
+export default AktionZuschussEndpoint;
 
 app.http('internPflegeAktionZuschuss', {
   methods: ['PUT'],
   authLevel: 'anonymous',
   route: 'intern/pflege/aktionen-zuschuss/{id}',
-  handler: AktionZuschuss,
+  handler: AktionZuschussEndpoint,
 });

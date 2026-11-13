@@ -1,6 +1,6 @@
 import { app } from '@azure/functions';
-import { METHOD_NOT_ALLOWED, ok, readJsonBody } from '../lib/pflege-api';
-import { errorResponse } from '../lib/response-utils';
+import { ok } from '../lib/pflege-api';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { eigenerLogin, ladePersonen } from '../lib/postfach';
 import { NachrichtGeaendertError, PostfachSchreibError } from '../lib/postfach-graph-basis';
 import type { KonversationZeile, PostfachStatus, Zustaendigkeit } from '../lib/postfach-model';
@@ -47,7 +47,6 @@ export interface ZuweisungErgebnis {
  */
 export const PostfachZustaendigMehrereRoute = postfachAenderung(
   async (request, postfach, principal, context) => {
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const eingabe = validateZustaendigMehrere(await readJsonBody(request));
     const ich = eigenerLogin(principal);
     const personen = await ladePersonen(postfach);

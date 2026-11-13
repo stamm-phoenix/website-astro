@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
-import { HttpRequest } from '@azure/functions';
+import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as aktionArt from '../lib/aktion-art';
 import * as campflow from '../lib/campflow';
 import { city, countPersons, kjrPersons, postalCode } from '../lib/abrechnung';
@@ -13,6 +13,10 @@ import {
   PostInternAbrechnungKjrListeEndpoint,
   kjrTemplate,
 } from '../endpoints/intern-abrechnung-kjr-liste';
+
+const context = new InvocationContext({ functionName: 'kjr-teilnahmeliste-test' });
+const postKjrListe = (request: HttpRequest) =>
+  PostInternAbrechnungKjrListeEndpoint(request, context);
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -268,7 +272,7 @@ test('packs and unpacks ZIP archives', () => {
 test('downloads the list with the persons and header sent by the page', async (t) => {
   mockCampflow(t);
 
-  const response = await PostInternAbrechnungKjrListeEndpoint(
+  const response = await postKjrListe(
     request({
       ort: 'Zeltplatz Zellhof',
       plz: '83620',
@@ -323,7 +327,7 @@ test('younger persons can be Betreuer*innen, from 27 on always', () => {
 
 test('lists persons chosen as Betreuer*in in part I, and keeps everyone from 27 there', async (t) => {
   mockCampflow(t);
-  const response = await PostInternAbrechnungKjrListeEndpoint(
+  const response = await postKjrListe(
     request({
       persons: [
         {
@@ -362,8 +366,7 @@ test('rejects invalid input and anonymous requests', async (t) => {
     body: unknown,
     principal: object | null = PRINCIPAL,
     id = 'evt_Lager'
-  ): Promise<number | undefined> =>
-    (await PostInternAbrechnungKjrListeEndpoint(request(body, principal, id))).status;
+  ): Promise<number | undefined> => (await postKjrListe(request(body, principal, id))).status;
 
   assert.equal(await status(valid, null), 401);
   assert.equal(await status(valid, PRINCIPAL, 'x'), 400);
@@ -381,14 +384,14 @@ test('rejects invalid input and anonymous requests', async (t) => {
 
 test('refuses the list for an Aktion without KJR grant', async (t) => {
   mockCampflow(t, false);
-  const response = await PostInternAbrechnungKjrListeEndpoint(request({ persons: BODY_PERSONS }));
+  const response = await postKjrListe(request({ persons: BODY_PERSONS }));
   assert.equal(response.status, 409);
   assert.equal((response.jsonBody as { code: string }).code, 'OHNE_ZUSCHUSS');
 });
 
 test('refuses the list for an event that is no real Aktion', async (t) => {
   mockCampflow(t, true, true);
-  const response = await PostInternAbrechnungKjrListeEndpoint(request({ persons: BODY_PERSONS }));
+  const response = await postKjrListe(request({ persons: BODY_PERSONS }));
   assert.equal(response.status, 409);
   assert.match((response.jsonBody as { message: string }).message, /keine Aktion/);
 });

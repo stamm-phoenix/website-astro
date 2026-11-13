@@ -10,7 +10,7 @@ import {
   renameDownload,
   stageUploadPart,
 } from '../lib/downloads';
-import { requireVersion as parseVersion } from '../lib/db';
+import { requireRowversion as parseVersion } from '../lib/db';
 import { ValidationError } from '../lib/validation/errors';
 import {
   UPLOAD_PART_BYTES,
@@ -18,18 +18,9 @@ import {
   validateUploadComplete,
   validateUploadStart,
 } from '../lib/validation/downloads';
-import {
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  NO_CONTENT,
-  ok,
-  pflegeHandler,
-  readEtag,
-  readIfMatch,
-  readJsonBody,
-  requireVersion,
-} from '../lib/pflege-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { NOT_FOUND, NO_CONTENT, ok, readEtag, readIfMatch, requireEtag } from '../lib/pflege-api';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
+import { staffHandler } from '../lib/handler';
 
 const FILE_EXISTS = errorResponse(409, 'EXISTS', 'Eine Datei mit diesem Namen gibt es bereits.');
 
@@ -58,9 +49,7 @@ function firstProblem<T>(read: () => T): { value: T } | { response: HttpResponse
 }
 
 /** GET: all download files. */
-export const DownloadsCollectionEndpoint = pflegeHandler('downloads', async (request) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
-
+export const DownloadsCollection = staffHandler('downloads', async () => {
   const files = await listDownloads();
   return ok(
     files.map((file) => ({
@@ -79,13 +68,11 @@ export const DownloadsCollectionEndpoint = pflegeHandler('downloads', async (req
 
 /**
  * POST: starts an upload. Checks name and size and returns the key under which the browser
- * sends the parts (`DownloadUploadPartEndpoint`) and then completes the upload.
+ * sends the parts (`DownloadUploadPart`) and then completes the upload.
  */
-export const DownloadUploadStartEndpoint = pflegeHandler(
+export const DownloadUploadStart = staffHandler(
   'downloads-upload-start',
   async (request) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-
     const body = await readJsonBody(request);
     const parsed = firstProblem(() => validateUploadStart(body));
     if ('response' in parsed) return parsed.response;
@@ -98,10 +85,9 @@ export const DownloadUploadStartEndpoint = pflegeHandler(
 );
 
 /** PUT: one part of an upload, `index` counted from 0, each `partSize` bytes but the last. */
-export const DownloadUploadPartEndpoint = pflegeHandler(
+export const DownloadUploadPart = staffHandler(
   'downloads-upload-part',
   async (request: HttpRequest) => {
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const key = request.params.uploadId ?? '';
     const index = Number(request.params.index);
     if (!isDownloadKey(key) || !/^\d+$/.test(request.params.index ?? '') || !isPartIndex(index)) {
@@ -122,10 +108,9 @@ export const DownloadUploadPartEndpoint = pflegeHandler(
  * browser made (`preview`, a JPEG as base64). With `replace`, a file of the same name is
  * replaced and keeps its link.
  */
-export const DownloadUploadCompleteEndpoint = pflegeHandler(
+export const DownloadUploadComplete = staffHandler(
   'downloads-upload',
   async (request, _context, principal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const key = request.params.uploadId ?? '';
     if (!isDownloadKey(key)) return NOT_FOUND;
 
@@ -148,16 +133,15 @@ export const DownloadUploadCompleteEndpoint = pflegeHandler(
  * PATCH: rename a file and set its topic (`etag` in the body); DELETE: delete it with its previews (`If-Match`).
  * Both only in the loaded version, so a file replaced in the meantime is never hit.
  */
-export const DownloadItemEndpoint = pflegeHandler(
+export const DownloadItem = staffHandler(
   'downloads',
   async (request: HttpRequest, _context, principal) => {
     const id = request.params.id ?? '';
-    if (request.method !== 'DELETE' && request.method !== 'PATCH') return METHOD_NOT_ALLOWED;
 
     if (request.method === 'DELETE') {
       await deleteDownload(
         id,
-        parseVersion(requireVersion(readIfMatch(request))),
+        parseVersion(requireEtag(readIfMatch(request))),
         principal.userDetails
       );
       return NO_CONTENT;
@@ -167,18 +151,12 @@ export const DownloadItemEndpoint = pflegeHandler(
     const named = firstProblem(() => validateDownloadRename(body));
     if ('response' in named) return named.response;
     const { fileName, category } = named.value;
-    const version = parseVersion(requireVersion(readEtag(body)));
+    const version = parseVersion(requireEtag(readEtag(body)));
     if (!(await renameDownload(id, fileName, category, version, principal.userDetails)))
       return FILE_EXISTS;
     return NO_CONTENT;
   }
 );
-
-export const DownloadsCollection = withErrorHandling(DownloadsCollectionEndpoint);
-export const DownloadUploadStart = withErrorHandling(DownloadUploadStartEndpoint);
-export const DownloadUploadPart = withErrorHandling(DownloadUploadPartEndpoint);
-export const DownloadUploadComplete = withErrorHandling(DownloadUploadCompleteEndpoint);
-export const DownloadItem = withErrorHandling(DownloadItemEndpoint);
 
 app.http('internPflegeDownloads', {
   methods: ['GET'],

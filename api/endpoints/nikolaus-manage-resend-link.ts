@@ -5,7 +5,7 @@ import {
   type InvocationContext,
 } from '@azure/functions';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
-import { getErrorStatus } from '../lib/response-utils';
+import { getErrorStatus, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
 import { findNikolausSlot } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { isValidNikolausEmail } from '../lib/nikolaus-validation';
@@ -17,12 +17,7 @@ import {
   rotateToken,
 } from '../lib/nikolaus-bookings';
 import { sendManageLinkMail } from '../lib/nikolaus-mails';
-import {
-  NO_STORE_HEADERS,
-  getPublicStatus,
-  readJsonBody,
-  withNikolausWriteHandling,
-} from '../lib/nikolaus-api';
+import { getPublicStatus, withNikolausWriteHandling } from '../lib/nikolaus-api';
 import { errorResponse } from '../lib/response-utils';
 import { getSiteUrl } from '../lib/site-url';
 import { reserveNikolausMailQuota } from '../lib/nikolaus-mail-quota';

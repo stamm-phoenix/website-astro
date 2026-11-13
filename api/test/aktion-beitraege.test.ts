@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
-import { HttpRequest } from '@azure/functions';
+import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as env from '../lib/environment';
 import { GetInternAktionBeitraegeEndpoint } from '../endpoints/intern-aktion-beitraege';
+
+const context = new InvocationContext({ functionName: 'aktion-beitraege-test' });
 
 const PRINCIPAL = {
   identityProvider: 'aad',
@@ -62,16 +64,22 @@ const ANSWER = {
 
 test('the Beiträge of an Aktion need a login and a valid ID', async (t) => {
   const fetch = mockPlaywright(t, 200, ANSWER);
-  assert.equal((await GetInternAktionBeitraegeEndpoint(request('evt_1', '', null))).status, 401);
-  assert.equal((await GetInternAktionBeitraegeEndpoint(request('evt_1/../x'))).status, 400);
+  assert.equal(
+    (await GetInternAktionBeitraegeEndpoint(request('evt_1', '', null), context)).status,
+    401
+  );
+  assert.equal(
+    (await GetInternAktionBeitraegeEndpoint(request('evt_1/../x'), context)).status,
+    400
+  );
   assert.equal(fetch.mock.callCount(), 0);
 });
 
 test('the Beiträge of an Aktion come per person and in cents', async (t) => {
   const fetch = mockPlaywright(t, 200, ANSWER);
-  const response = await GetInternAktionBeitraegeEndpoint(request());
+  const response = await GetInternAktionBeitraegeEndpoint(request(), context);
   assert.equal(response.status, 200);
-  assert.deepEqual(response.headers, { 'Cache-Control': 'no-store' });
+  assert.equal(new Headers(response.headers).get('Cache-Control'), 'no-store');
   const url = new URL(String(fetch.mock.calls[0].arguments[0]));
   assert.equal(url.pathname, '/campflow/aktionen/evt_1/beitraege');
   assert.equal(url.searchParams.get('refresh'), null);
@@ -99,7 +107,7 @@ test('the Beiträge of an Aktion come per person and in cents', async (t) => {
 test('refresh=true reads the Aktion from CampFlow again', async (t) => {
   const fetch = mockPlaywright(t, 200, ANSWER);
   assert.equal(
-    (await GetInternAktionBeitraegeEndpoint(request('evt_1', '?refresh=true'))).status,
+    (await GetInternAktionBeitraegeEndpoint(request('evt_1', '?refresh=true'), context)).status,
     200
   );
   const url = new URL(String(fetch.mock.calls[0].arguments[0]));
@@ -113,7 +121,7 @@ test('a broken answer is an error, not a wrong payment status', async (t) => {
     [{ ...ANSWER.persons[0], fees: null }],
   ]) {
     mockPlaywright(t, 200, { ...ANSWER, persons });
-    const response = await GetInternAktionBeitraegeEndpoint(request());
+    const response = await GetInternAktionBeitraegeEndpoint(request(), context);
     assert.equal(response.status, 502);
     assert.equal((response.jsonBody as { code: string }).code, 'BEITRAEGE_UNAVAILABLE');
     t.mock.restoreAll();
@@ -124,7 +132,7 @@ test('a broken answer is an error, not a wrong payment status', async (t) => {
     { ...ANSWER, eventId: undefined },
   ]) {
     mockPlaywright(t, 200, answer);
-    const response = await GetInternAktionBeitraegeEndpoint(request());
+    const response = await GetInternAktionBeitraegeEndpoint(request(), context);
     assert.equal(response.status, 502);
     assert.equal((response.jsonBody as { code: string }).code, 'BEITRAEGE_UNAVAILABLE');
     t.mock.restoreAll();
@@ -133,10 +141,10 @@ test('a broken answer is an error, not a wrong payment status', async (t) => {
 
 test('an Aktion CampFlow does not know is a 404, other failures say what to do next', async (t) => {
   mockPlaywright(t, 404, { error: 'Die Aktion gibt es nicht' });
-  assert.equal((await GetInternAktionBeitraegeEndpoint(request())).status, 404);
+  assert.equal((await GetInternAktionBeitraegeEndpoint(request(), context)).status, 404);
   t.mock.restoreAll();
   mockPlaywright(t, 504, { error: 'Job exceeded' });
-  const response = await GetInternAktionBeitraegeEndpoint(request());
+  const response = await GetInternAktionBeitraegeEndpoint(request(), context);
   assert.equal(response.status, 502);
   assert.match(JSON.stringify(response.jsonBody), /admin@stamm-phoenix\.de/);
 });

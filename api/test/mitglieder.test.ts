@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { HttpRequest } from '@azure/functions';
+import { HttpRequest, InvocationContext } from '@azure/functions';
 import * as campflow from '../lib/campflow';
 import { GetInternMitgliederEndpoint } from '../endpoints/intern-mitglieder';
+
+const context = new InvocationContext({ functionName: 'mitglieder-test' });
 
 const STAFF = {
   identityProvider: 'aad',
@@ -59,7 +61,7 @@ test('the member list comes with its custom fields, without payment details, hea
   }));
   const getAll = t.mock.method(campflow, 'campflowGetAll', async () => COLUMNS);
 
-  const response = await GetInternMitgliederEndpoint(request());
+  const response = await GetInternMitgliederEndpoint(request(), context);
 
   assert.equal(response.status, 200);
   assert.equal(getAll.mock.calls[0].arguments[0], '/lists/member/custom_columns');
@@ -89,7 +91,7 @@ test('the member list still loads when its custom fields cannot be read', async 
     throw new campflow.CampflowError(404, 'not found');
   });
 
-  const response = await GetInternMitgliederEndpoint(request());
+  const response = await GetInternMitgliederEndpoint(request(), context);
 
   assert.equal(response.status, 200);
   assert.deepEqual((response.jsonBody as Body).columns, []);
@@ -100,14 +102,14 @@ test('a failing CampFlow is reported with what to do', async (t) => {
   t.mock.method(campflow, 'getCampflowMembersWithTime', async () => {
     throw new campflow.CampflowError(504, 'timeout');
   });
-  const unavailable = await GetInternMitgliederEndpoint(request());
+  const unavailable = await GetInternMitgliederEndpoint(request(), context);
   assert.equal(unavailable.status, 502);
   assert.match(JSON.stringify(unavailable.jsonBody), /admin@stamm-phoenix\.de/);
 
   t.mock.method(campflow, 'getCampflowMembersWithTime', async () => {
     throw new campflow.CampflowError(403, 'forbidden');
   });
-  const forbidden = await GetInternMitgliederEndpoint(request());
+  const forbidden = await GetInternMitgliederEndpoint(request(), context);
   assert.equal(forbidden.status, 502);
   assert.match(JSON.stringify(forbidden.jsonBody), /CAMPFLOW_FORBIDDEN/);
 });
@@ -118,9 +120,10 @@ test('only Leitende see the member list', async (t) => {
     loadedAt: LOADED_AT,
   }));
 
-  const anonymous = await GetInternMitgliederEndpoint(request(null));
+  const anonymous = await GetInternMitgliederEndpoint(request(null), context);
   const other = await GetInternMitgliederEndpoint(
-    request({ ...STAFF, userRoles: ['authenticated'] })
+    request({ ...STAFF, userRoles: ['authenticated'] }),
+    context
   );
 
   assert.equal(anonymous.status, 401);
@@ -135,8 +138,8 @@ test('only „Neu aus CampFlow laden“ asks CampFlow again', async (t) => {
     loadedAt: LOADED_AT,
   }));
 
-  await GetInternMitgliederEndpoint(request());
-  await GetInternMitgliederEndpoint(request(STAFF, '?refresh=true'));
+  await GetInternMitgliederEndpoint(request(), context);
+  await GetInternMitgliederEndpoint(request(STAFF, '?refresh=true'), context);
 
   assert.deepEqual(
     members.mock.calls.map((call) => call.arguments[0]),

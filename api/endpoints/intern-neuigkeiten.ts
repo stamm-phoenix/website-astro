@@ -1,8 +1,9 @@
 import { app, type HttpRequest } from '@azure/functions';
-import { METHOD_NOT_ALLOWED, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
+import { ok } from '../lib/pflege-api';
 import { validateChangelogSeen } from '../lib/validation/staff';
-import { withErrorHandling } from '../lib/response-utils';
+import { readJsonBody } from '../lib/response-utils';
 import { getChangelogSeen, saveChangelogSeen } from '../lib/staff-changelog';
+import { staffHandler } from '../lib/handler';
 
 /**
  * The newest changelog entry the logged-in person has seen. GET: `{ lastSeenId }`, `null` before
@@ -10,20 +11,17 @@ import { getChangelogSeen, saveChangelogSeen } from '../lib/staff-changelog';
  * answers with the ID that applies. Each person only reaches their own. Quiet, because opening
  * the changelog saves it on its own.
  */
-export const StaffChangelogEndpoint = pflegeHandler(
+export const StaffChangelog = staffHandler(
   'neuigkeiten',
   async (request: HttpRequest, _context, principal) => {
     if (request.method === 'GET') {
       return ok({ lastSeenId: await getChangelogSeen(principal.userId) });
     }
-    if (request.method !== 'PUT') return METHOD_NOT_ALLOWED;
     const id = validateChangelogSeen(await readJsonBody(request));
     return ok({ lastSeenId: await saveChangelogSeen(principal.userId, principal.userDetails, id) });
   },
   { quiet: true }
 );
-
-export const StaffChangelog = withErrorHandling(StaffChangelogEndpoint);
 
 app.http('internNeuigkeiten', {
   methods: ['GET', 'PUT'],

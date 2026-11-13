@@ -1,6 +1,7 @@
 import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { serveLeitendePhoto } from '../lib/leitende-list';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 /** GET: the photo of a person from the Leitende, if there is one. */
 export async function GetLeitendeImageInternal(request: HttpRequest): Promise<HttpResponseInit> {
@@ -10,7 +11,7 @@ export async function GetLeitendeImageInternal(request: HttpRequest): Promise<Ht
   );
 }
 
-export const GetLeitendeImage = withErrorHandling(GetLeitendeImageInternal);
+export const GetLeitendeImage = publicHandler(GetLeitendeImageInternal);
 
 app.http('image', {
   methods: ['GET'],

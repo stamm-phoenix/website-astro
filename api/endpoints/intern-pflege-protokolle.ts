@@ -22,7 +22,6 @@ import { CampflowError } from '../lib/campflow';
 import {
   createSharePointDriveFile,
   deleteSharePointDriveItem,
-  getGraphStatus,
   getSharePointDriveFileContent,
   getSharePointDriveFolderChildren,
   getSharePointDriveItemPreviewUrl,
@@ -72,20 +71,24 @@ import {
 } from '../lib/validation/protokolle';
 import {
   CONFLICT,
-  METHOD_NOT_ALLOWED,
   NO_CONTENT,
   NOT_FOUND,
-  NO_STORE_HEADERS,
   ok,
-  pflegeHandler,
   readEtag,
   readIfMatch,
-  readJsonBody,
-  requireVersion,
+  requireEtag,
 } from '../lib/pflege-api';
 import { mitEigenerAdresse } from '../lib/personen';
 import { getSiteUrl } from '../lib/site-url';
-import { encodeContentDisposition, errorResponse, withErrorHandling } from '../lib/response-utils';
+import {
+  encodeContentDisposition,
+  errorResponse,
+  getErrorStatus,
+  NO_STORE_HEADERS,
+  readJsonBody,
+} from '../lib/response-utils';
+import { staffHandler } from '../lib/handler';
+import { protokollGate } from '../lib/protokoll-gate';
 
 const ACTIONS = [
   'review',
@@ -147,7 +150,7 @@ function describeTerminError(error: unknown): string {
   ) {
     return error.message;
   }
-  const status = getGraphStatus(error);
+  const status = getErrorStatus(error);
   if (status !== undefined) return `Graph ${status}`;
   return error instanceof Error ? error.name : 'unknown error';
 }
@@ -214,7 +217,7 @@ async function listProtokolle(driveId: string): Promise<ProtokollDriveItem[]> {
 }
 
 /** GET: all minutes with the role of the user; POST: new minutes from the template. */
-export const ProtokolleCollectionEndpoint = pflegeHandler(
+export const ProtokolleCollection = staffHandler(
   'protokolle',
   async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
     if (request.method === 'GET') {
@@ -229,7 +232,6 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
         items,
       });
     }
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const driveId = await findDrive();
     if (!driveId) return NOT_CONFIGURED;
 
@@ -243,7 +245,7 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
         `${CONFIG.protokolle.folderPath}/${CONFIG.protokolle.templateFileName}`
       );
     } catch (error: unknown) {
-      const status = getGraphStatus(error);
+      const status = getErrorStatus(error);
       if (status !== 403 && status !== 404) throw error;
       return errorResponse(
         503,
@@ -261,7 +263,7 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
         template
       )) as ProtokollDriveItem;
     } catch (error: unknown) {
-      if (getGraphStatus(error) === 409) return FILE_EXISTS;
+      if (getErrorStatus(error) === 409) return FILE_EXISTS;
       throw error;
     }
     try {
@@ -275,7 +277,8 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
       throw error;
     }
     return ok({ id: created.id, webUrl: created.webUrl ?? '' }, 201);
-  }
+  },
+  { gate: protokollGate }
 );
 
 /**
@@ -283,17 +286,16 @@ export const ProtokolleCollectionEndpoint = pflegeHandler(
  * the next date is read from exactly the approved version, best effort. DELETE: moves minutes
  * that were not sent yet to the recycle bin.
  */
-export const ProtokollItemEndpoint = pflegeHandler(
+export const ProtokollItem = staffHandler(
   'protokolle',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'POST' && request.method !== 'DELETE') return METHOD_NOT_ALLOWED;
     const id = request.params.id ?? '';
     if (!isValidId(id)) return NOT_FOUND;
     const driveId = await findDrive();
     if (!driveId) return NOT_CONFIGURED;
 
     if (request.method === 'DELETE') {
-      const version = requireVersion(readIfMatch(request));
+      const version = requireEtag(readIfMatch(request));
       const current = await loadProtokoll(driveId, id);
       if (!current) return NOT_FOUND;
       if (current.protokoll.etag !== version) return CONFLICT;
@@ -305,7 +307,7 @@ export const ProtokollItemEndpoint = pflegeHandler(
 
     const body = await readJsonBody(request);
     const action: ProtokollAction = validateProtokollAction(body, ACTIONS);
-    const etag = requireVersion(readEtag(body));
+    const etag = requireEtag(readEtag(body));
     const note = readProtokollNote(body);
 
     const loaded = await loadProtokoll(
@@ -340,7 +342,7 @@ export const ProtokollItemEndpoint = pflegeHandler(
           protokollContentVersion(approved.item, sourceVersion) === sourceVersion &&
           approved.item.metadata?.fields.Termin === loaded.item.metadata?.fields.Termin
         ) {
-          const version = requireVersion(approved.protokoll.etag);
+          const version = requireEtag(approved.protokoll.etag);
           const termin = await readTermin(driveId, id, approved.item, sourceVersion, context);
           // Someone may have decided, reopened or sent the minutes while the model ran.
           await updateProtokollMetadata(
@@ -375,7 +377,8 @@ export const ProtokollItemEndpoint = pflegeHandler(
       }
     }
     return ok({ mailSent });
-  }
+  },
+  { gate: protokollGate }
 );
 
 /**
@@ -383,10 +386,9 @@ export const ProtokollItemEndpoint = pflegeHandler(
  * the approved file again and resets the decision; `bestaetigen` stores the date (from the
  * suggestion, corrected or entered by hand); `ablehnen` means there is no next date.
  */
-export const ProtokollTerminEndpoint = pflegeHandler(
+export const ProtokollTermin = staffHandler(
   'protokolle',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const id = request.params.id ?? '';
     if (!isValidId(id)) return NOT_FOUND;
     const driveId = await findDrive();
@@ -394,7 +396,7 @@ export const ProtokollTerminEndpoint = pflegeHandler(
 
     const body = await readJsonBody(request);
     const action = validateProtokollAction(body, TERMIN_ACTIONS);
-    const etag = requireVersion(readEtag(body));
+    const etag = requireEtag(readEtag(body));
 
     const loaded = await loadProtokoll(driveId, id, 'current-version');
     if (!loaded) return NOT_FOUND;
@@ -448,44 +450,49 @@ export const ProtokollTerminEndpoint = pflegeHandler(
       etag
     );
     return ok({ termin });
-  }
+  },
+  { gate: protokollGate }
 );
 
 /** GET: the minutes converted to PDF by SharePoint. */
-export const ProtokollPdfEndpoint = pflegeHandler('protokolle', async (request: HttpRequest) => {
-  if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
-  const id = request.params.id ?? '';
-  if (!isValidId(id)) return NOT_FOUND;
-  const driveId = await findDrive();
-  if (!driveId) return NOT_CONFIGURED;
-
-  const loaded = await loadProtokoll(driveId, id);
-  if (!loaded) return NOT_FOUND;
-  assertProtokollSize(loaded.item.size);
-  const pdf = await getSharePointDriveFileContent(
-    driveId,
-    id,
-    /\.docx$/i.test(loaded.protokoll.fileName) ? 'pdf' : undefined
-  );
-  assertProtokollSize(pdf.byteLength);
-  return {
-    status: 200,
-    headers: {
-      ...NO_STORE_HEADERS,
-      'Content-Type': /\.txt$/i.test(loaded.protokoll.fileName) ? 'text/plain' : 'application/pdf',
-      'Content-Disposition': encodeContentDisposition(
-        loaded.protokoll.fileName.replace(/\.docx$/i, '.pdf')
-      ),
-    },
-    body: pdf,
-  };
-});
-
-/** GET: a short-lived URL that shows the minutes read-only in an iframe. */
-export const ProtokollVorschauEndpoint = pflegeHandler(
+export const ProtokollPdf = staffHandler(
   'protokolle',
   async (request: HttpRequest) => {
-    if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
+    const id = request.params.id ?? '';
+    if (!isValidId(id)) return NOT_FOUND;
+    const driveId = await findDrive();
+    if (!driveId) return NOT_CONFIGURED;
+
+    const loaded = await loadProtokoll(driveId, id);
+    if (!loaded) return NOT_FOUND;
+    assertProtokollSize(loaded.item.size);
+    const pdf = await getSharePointDriveFileContent(
+      driveId,
+      id,
+      /\.docx$/i.test(loaded.protokoll.fileName) ? 'pdf' : undefined
+    );
+    assertProtokollSize(pdf.byteLength);
+    return {
+      status: 200,
+      headers: {
+        ...NO_STORE_HEADERS,
+        'Content-Type': /\.txt$/i.test(loaded.protokoll.fileName)
+          ? 'text/plain'
+          : 'application/pdf',
+        'Content-Disposition': encodeContentDisposition(
+          loaded.protokoll.fileName.replace(/\.docx$/i, '.pdf')
+        ),
+      },
+      body: pdf,
+    };
+  },
+  { gate: protokollGate }
+);
+
+/** GET: a short-lived URL that shows the minutes read-only in an iframe. */
+export const ProtokollVorschau = staffHandler(
+  'protokolle',
+  async (request: HttpRequest) => {
     const id = request.params.id ?? '';
     if (!isValidId(id)) return NOT_FOUND;
     const driveId = await findDrive();
@@ -500,7 +507,8 @@ export const ProtokollVorschauEndpoint = pflegeHandler(
       return ok({ text: await protokollToText(bytes, loaded.protokoll.fileName) });
     }
     return ok({ url: await getSharePointDriveItemPreviewUrl(driveId, id) });
-  }
+  },
+  { gate: protokollGate }
 );
 
 /**
@@ -508,14 +516,13 @@ export const ProtokollVorschauEndpoint = pflegeHandler(
  * `send`: mails the approved minutes as PDF to that list, without the addresses in `excluded` and
  * with those in `extra`, if the list still matches the confirmed version.
  */
-export const ProtokollVersandEndpoint = pflegeHandler(
+export const ProtokollVersand = staffHandler(
   'protokolle-versand',
   async (
     request: HttpRequest,
     context: InvocationContext,
     principal: ClientPrincipal
   ): Promise<HttpResponseInit> => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     if (!CONFIG.protokolle.sender) return SENDING_NOT_CONFIGURED;
     const id = request.params.id ?? '';
     if (!isValidId(id)) return NOT_FOUND;
@@ -551,7 +558,7 @@ export const ProtokollVersandEndpoint = pflegeHandler(
       });
     }
 
-    const etag = requireVersion(readEtag(body));
+    const etag = requireEtag(readEtag(body));
     if (protokoll.etag !== etag) return CONFLICT;
     if (body?.version !== version) {
       throw new ValidationError({
@@ -600,7 +607,7 @@ export const ProtokollVersandEndpoint = pflegeHandler(
     } catch (error: unknown) {
       // Graph refused the mail with a client error, so it did not go out. After a timeout or a
       // server error it may have, so the reservation stays.
-      const status = getGraphStatus(error);
+      const status = getErrorStatus(error);
       if (status !== undefined && status >= 400 && status < 500 && status !== 408) {
         await completeProtokollDelivery(driveId, id, attempt);
       }
@@ -610,13 +617,6 @@ export const ProtokollVersandEndpoint = pflegeHandler(
     return ok({ recipients: addresses.length });
   }
 );
-
-export const ProtokolleCollection = withErrorHandling(ProtokolleCollectionEndpoint);
-export const ProtokollItem = withErrorHandling(ProtokollItemEndpoint);
-export const ProtokollPdf = withErrorHandling(ProtokollPdfEndpoint);
-export const ProtokollTermin = withErrorHandling(ProtokollTerminEndpoint);
-export const ProtokollVersand = withErrorHandling(ProtokollVersandEndpoint);
-export const ProtokollVorschau = withErrorHandling(ProtokollVorschauEndpoint);
 
 app.http('internPflegeProtokolle', {
   methods: ['GET', 'POST'],

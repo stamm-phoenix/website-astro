@@ -4,15 +4,16 @@ import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings } from '../lib/nikolaus-bookings';
 import { getNikolausTeams } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
-import { isNikolausStaffError, readAsNikolausStaff } from '../lib/nikolaus-staff';
+import { isNikolausStaffError, readAsNikolausStaff, nikolausGate } from '../lib/nikolaus-staff';
 import { getVisitedTime } from '../lib/nikolaus-visit-time';
 import { getDispoRows, getDispoVisitVersion, setDispoVisited } from '../lib/nikolaus-dispo-list';
 import { confirmedOfDay, getTeamMembers, readDate, readDateParam } from '../lib/nikolaus-day';
-import { NO_STORE_HEADERS, toLocation } from '../lib/nikolaus-api';
+import { toLocation } from '../lib/nikolaus-api';
 import { validateDispoVisit } from '../lib/validation/nikolaus-dispo';
-import { METHOD_NOT_ALLOWED, NOT_FOUND, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
+import { NOT_FOUND, ok } from '../lib/pflege-api';
 import { NikolausStateConflictError } from '../lib/nikolaus-state';
-import { withErrorHandling } from '../lib/response-utils';
+import { NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
+import { publicHandler, staffHandler } from '../lib/handler';
 
 /** One visit of a team's route with what the team needs at the door. */
 function toFahrtStop(row: DispoRow, booking: NikolausBooking) {
@@ -107,30 +108,33 @@ export async function GetInternNikolausFahrtEndpoint(
  * POST: checks off a visit of a day (or undoes it). The time is taken from the server, so it
  * does not depend on the clock of the phone.
  */
-export const NikolausFahrtVisit = pflegeHandler('nikolaus-fahrt', async (request) => {
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
-  const date = readDate(request, await getNikolausSettings());
-  if (!date) return NOT_FOUND;
+export const NikolausFahrtVisit = staffHandler(
+  'nikolaus-fahrt',
+  async (request) => {
+    const date = readDate(request, await getNikolausSettings());
+    if (!date) return NOT_FOUND;
 
-  const input = validateDispoVisit(await readJsonBody(request));
-  const [bookings, rows] = await Promise.all([getAllBookings(), getDispoRows(date)]);
-  const row = rows.find((r) => r.bookingId === input.bookingId);
-  // Like the GET: only visits of bookings still confirmed on this day
-  const confirmed = confirmedOfDay(bookings, date).find((b) => b.id === input.bookingId);
-  if (!row || !confirmed) return NOT_FOUND;
-  if (confirmed.slotKey !== input.slotKey) throw new NikolausStateConflictError();
+    const input = validateDispoVisit(await readJsonBody(request));
+    const [bookings, rows] = await Promise.all([getAllBookings(), getDispoRows(date)]);
+    const row = rows.find((r) => r.bookingId === input.bookingId);
+    // Like the GET: only visits of bookings still confirmed on this day
+    const confirmed = confirmedOfDay(bookings, date).find((b) => b.id === input.bookingId);
+    if (!row || !confirmed) return NOT_FOUND;
+    if (confirmed.slotKey !== input.slotKey) throw new NikolausStateConflictError();
 
-  const visitedAt = input.visited ? new Date().toISOString() : '';
-  const saved = await setDispoVisited(row, input.visited, visitedAt, input);
-  return ok({
-    bookingId: row.bookingId,
-    visited: saved.visited,
-    visitedAt: getVisitedTime(saved.visitedAt),
-    visitVersion: getDispoVisitVersion(saved),
-  });
-});
+    const visitedAt = input.visited ? new Date().toISOString() : '';
+    const saved = await setDispoVisited(row, input.visited, visitedAt, input);
+    return ok({
+      bookingId: row.bookingId,
+      visited: saved.visited,
+      visitedAt: getVisitedTime(saved.visitedAt),
+      visitVersion: getDispoVisitVersion(saved),
+    });
+  },
+  { gate: nikolausGate }
+);
 
-const defaultHandler = withErrorHandling(GetInternNikolausFahrtEndpoint);
+const defaultHandler = publicHandler(GetInternNikolausFahrtEndpoint);
 export default defaultHandler;
 
 app.http('internNikolausFahrt', {

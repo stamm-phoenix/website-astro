@@ -16,7 +16,7 @@ import {
   VersionConflictError,
   getDb,
   getSqlErrorNumber,
-  requireVersion,
+  requireRowversion,
 } from './db';
 import { PREVIEW_DATABASE } from './deployment';
 import { EnvironmentVariable, getEnvironment } from './environment';
@@ -259,7 +259,7 @@ function snapshot(beleg: StoredBeleg) {
     aktion: beleg.aktion,
     note: beleg.note,
     submitted_by: beleg.submittedBy,
-    beleg_version: requireVersion(beleg.etag),
+    beleg_version: requireRowversion(beleg.etag),
   };
 }
 
@@ -365,7 +365,8 @@ export async function transferBelegToCampflow(
   const beleg = await getBeleg(id);
   if (!beleg) throw new RecordNotFoundError();
   // Transfer exactly what the Kasse has seen, and only accepted receipts
-  if (!requireVersion(etag).equals(requireVersion(beleg.etag))) throw new VersionConflictError();
+  if (!requireRowversion(etag).equals(requireRowversion(beleg.etag)))
+    throw new VersionConflictError();
   if (beleg.status !== 'Angenommen') {
     throw new BelegCampflowError(
       422,
@@ -469,7 +470,8 @@ export async function transferBelegToCampflow(
       // unclear attempt even a new booking may use the file that attempt uploaded, so it counts
       // as this receipt only if nothing changed since; otherwise it stays here to be checked.
       const sentNow =
-        created && (!wasUnclear || row?.beleg_version.equals(requireVersion(beleg.etag)) === true);
+        created &&
+        (!wasUnclear || row?.beleg_version.equals(requireRowversion(beleg.etag)) === true);
       await finishAttempt(
         id,
         attempt,
@@ -509,7 +511,7 @@ export async function transferBelegToCampflow(
   // Only a receipt that still looks like what CampFlow got is deleted; a correction made after
   // the upload stays, so the Kasse can fix CampFlow and then delete it by hand. If a newer
   // attempt took over meanwhile, its result decides.
-  let deleted = row.state === 'Hochgeladen' && row.beleg_version.equals(requireVersion(etag));
+  let deleted = row.state === 'Hochgeladen' && row.beleg_version.equals(requireRowversion(etag));
   if (deleted) {
     try {
       await deleteBeleg(id, etag);

@@ -1,7 +1,6 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
-import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
 import {
   schnupperEingangMail,
   sendSchnupperFamilienMail,
@@ -10,6 +9,7 @@ import {
 import { validateSchnupperAnfrage } from '../lib/schnupper-model';
 import { storeSchnupperAnfrage } from '../lib/schnupperanfragen';
 import { getSiteUrl } from '../lib/site-url';
+import { publicHandler } from '../lib/handler';
 
 const MAIL = 'kontakt@stamm-phoenix.de';
 
@@ -108,4 +108,4 @@ export async function SchnupperAnfrageSendEndpoint(
   return sent(true);
 }
 
-export const SchnupperAnfrageSend = withErrorHandling(SchnupperAnfrageSendEndpoint);
+export const SchnupperAnfrageSend = publicHandler(SchnupperAnfrageSendEndpoint);

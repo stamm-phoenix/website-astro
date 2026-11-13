@@ -1,9 +1,10 @@
 import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { getAllBookings, isBlocking } from '../lib/nikolaus-bookings';
 import { getNikolausSlots } from '../lib/nikolaus-config';
-import { NO_STORE_HEADERS, toStaffBooking } from '../lib/nikolaus-api';
+import { toStaffBooking } from '../lib/nikolaus-api';
 import { isNikolausStaffError, readAsNikolausStaff } from '../lib/nikolaus-staff';
-import { withErrorHandling } from '../lib/response-utils';
+import { NO_STORE_HEADERS } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 interface StaffSlotOverview {
   key: string;
@@ -48,7 +49,7 @@ export async function GetInternNikolausBookingsEndpoint(
   };
 }
 
-const defaultHandler = withErrorHandling(GetInternNikolausBookingsEndpoint);
+const defaultHandler = publicHandler(GetInternNikolausBookingsEndpoint);
 export default defaultHandler;
 
 // Leitendenbereich: only reachable for logged-in members of our tenant

@@ -3,9 +3,9 @@ import {
   RecordNotFoundError,
   VersionConflictError,
   getSqlErrorNumber,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { Zugang } from './essen-zugang';
 import { aendere } from './essen-aendern';
@@ -158,7 +158,7 @@ export async function gruppeAendern(
         .updateTable('essen.planung_gruppe')
         .set({ name: input.name, faktor: input.faktor })
         .where('id', '=', id)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst()
     );
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
@@ -187,7 +187,7 @@ export async function gruppeLoeschen(zugang: Zugang, id: number, etag: string): 
     const result = await trx
       .deleteFrom('essen.planung_gruppe')
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     return { result: undefined, details: { name: gruppe.name } };
@@ -326,7 +326,7 @@ export async function teilnehmendeAendern(
       .updateTable('essen.teilnehmende')
       .set(werte(input))
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     await setzeUnvertraeglichkeiten(trx, id, input.unvertraeglichkeiten);
@@ -350,7 +350,7 @@ export async function teilnehmendeLoeschen(
     const result = await trx
       .deleteFrom('essen.teilnehmende')
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     return { result: undefined, details: { name: zeile.name, anzahl: zeile.anzahl } };

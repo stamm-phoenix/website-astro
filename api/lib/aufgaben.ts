@@ -8,10 +8,10 @@ import {
   isForeignKeyViolation,
   inTransaction,
   lockResource,
-  requireVersion,
   toDateString,
   toVersion,
   VersionConflictError,
+  requireRowversion,
 } from './db';
 import { ValidationError } from './validation/errors';
 import { validateTemplate } from './aufgaben-validation';
@@ -123,7 +123,7 @@ export async function saveTaskProject(
         .updateTable('organisation.project')
         .set(values)
         .where('id', '=', id)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .output('inserted.id')
         .executeTakeFirst();
       if (!changed) throw new VersionConflictError();
@@ -136,7 +136,7 @@ export async function deleteTaskProject(
   etag: string | undefined,
   actor: string
 ): Promise<void> {
-  const version = requireVersion(etag);
+  const version = requireRowversion(etag);
   await inTransaction(async (trx) => {
     await lockProject(trx, id);
     // Claim the parent row after serializing references to this project.
@@ -172,7 +172,7 @@ export async function saveTaskTemplate(
       .updateTable('organisation.template')
       .set(values)
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .output('inserted.id')
       .executeTakeFirst();
     if (!changed) throw new VersionConflictError();
@@ -237,7 +237,7 @@ export async function updateTask(
       .updateTable('organisation.task')
       .set({ ...columns(input, actor), state: done ? 'erledigt' : 'offen' })
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .where('state', 'in', ['offen', 'erledigt'])
       .outputAll('inserted')
       .executeTakeFirst();
@@ -256,7 +256,7 @@ export async function deleteTask(id: number, etag: string | undefined): Promise<
   const result = await getDb()
     .deleteFrom('organisation.task')
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .where('source_id', '=', '')
     .output('deleted.id')
     .executeTakeFirst();
@@ -293,7 +293,7 @@ export async function applyTaskTemplate(
       .selectFrom('organisation.template')
       .selectAll()
       .where('id', '=', templateId)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (!project || !template) throw new VersionConflictError();
     const applied = await trx
@@ -459,7 +459,7 @@ export async function decideTaskSuggestion(
       })
       .where('id', '=', id)
       .where('state', '=', 'vorschlag')
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .output('inserted.id')
       .executeTakeFirst();
     if (!result) throw new VersionConflictError();

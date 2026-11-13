@@ -13,6 +13,8 @@ import { GetInternAktionEndpoint } from '../endpoints/intern-aktion';
 import { AktionZuschussEndpoint } from '../endpoints/intern-pflege-aktion-zuschuss';
 import { dbTest } from './fixtures/database';
 
+const context = new InvocationContext({ functionName: 'aktion-zuschuss-test' });
+
 const PRINCIPAL = {
   identityProvider: 'aad',
   userId: 'staff',
@@ -113,7 +115,7 @@ dbTest('the Aktionen of the Leitendenbereich say whether they get the KJR grant'
   t.mock.method(campflow, 'campflowGetAll', async () => []);
   await setZuschussfaehig('evt_Dioezese', false, 'a@example.test');
 
-  const list = await GetInternAktionenEndpoint(request('GET', 'intern/aktionen', {}));
+  const list = await GetInternAktionenEndpoint(request('GET', 'intern/aktionen', {}), context);
   assert.equal(list.status, 200);
   assert.deepEqual(
     (list.jsonBody as { id: string; zuschussfaehig: boolean }[]).map((e) => [
@@ -127,7 +129,8 @@ dbTest('the Aktionen of the Leitendenbereich say whether they get the KJR grant'
   );
 
   const detail = await GetInternAktionEndpoint(
-    request('GET', 'intern/aktionen/evt_Dioezese', { id: 'evt_Dioezese' })
+    request('GET', 'intern/aktionen/evt_Dioezese', { id: 'evt_Dioezese' }),
+    context
   );
   assert.equal(detail.status, 200);
   assert.equal(

@@ -8,8 +8,8 @@ import {
   VersionConflictError,
   getDb,
   inTransaction,
-  requireVersion,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { GruppenstundeTable } from './db-schema';
 import type { GruppenstundeInput } from './validation/content';
@@ -127,7 +127,7 @@ export async function updateGruppenstunde(
     .updateTable('content.gruppenstunde')
     .set({ ...toColumns(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numUpdatedRows) === 0) await notChanged(id);
 }
@@ -137,7 +137,7 @@ export async function deleteGruppenstunde(id: number, etag: string): Promise<voi
   const result = await getDb()
     .deleteFrom('content.gruppenstunde')
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numDeletedRows) === 0) await notChanged(id);
 }
@@ -157,7 +157,7 @@ export async function updateGruppenstundenHinweis(
       updated_at: sql<Date>`SYSUTCDATETIME()`,
     })
     .where('id', '=', id)
-    .where('version', '=', requireVersion(etag))
+    .where('version', '=', requireRowversion(etag))
     .executeTakeFirst();
   if (Number(result.numUpdatedRows) === 0) await notChanged(id);
 }

@@ -8,15 +8,10 @@ import { getPublicStatus } from '../lib/nikolaus-api';
 import { sendStaffRescheduleMail } from '../lib/nikolaus-mails';
 import { ValidationError } from '../lib/validation/errors';
 import { sanitizeRichTextWithLength } from '../lib/validation/rich-text';
-import {
-  CONFLICT,
-  METHOD_NOT_ALLOWED,
-  NOT_FOUND,
-  ok,
-  pflegeHandler,
-  readJsonBody,
-} from '../lib/pflege-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { CONFLICT, NOT_FOUND, ok } from '../lib/pflege-api';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
+import { staffHandler } from '../lib/handler';
+import { nikolausGate } from '../lib/nikolaus-staff';
 
 const MAX_MESSAGE_LENGTH = 5000;
 
@@ -26,10 +21,9 @@ const MAX_MESSAGE_LENGTH = 5000;
  * Unlike families, staff may move bookings after the change deadline and while the booking
  * form is inactive. The capacity check and the kept token come from `rescheduleBooking`.
  */
-export const NikolausRescheduleEndpoint = pflegeHandler(
+export const NikolausRescheduleEndpoint = staffHandler(
   'nikolaus-verlegen',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const id = request.params.id ?? '';
     if (!/^\d+$/.test(id)) return NOT_FOUND;
 
@@ -102,15 +96,15 @@ export const NikolausRescheduleEndpoint = pflegeHandler(
     }
 
     return ok({ id: moved.booking.id, mailSent });
-  }
+  },
+  { gate: nikolausGate }
 );
 
-const defaultHandler = withErrorHandling(NikolausRescheduleEndpoint);
-export default defaultHandler;
+export default NikolausRescheduleEndpoint;
 
 app.http('internNikolausReschedule', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/nikolaus/bookings/{id}/reschedule',
-  handler: defaultHandler,
+  handler: NikolausRescheduleEndpoint,
 });

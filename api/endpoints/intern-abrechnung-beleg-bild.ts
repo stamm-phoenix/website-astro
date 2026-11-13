@@ -1,31 +1,25 @@
-import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
+import { app } from '@azure/functions';
 import { getBelegBild, getBelegVorschau, playwrightErrorResponse } from '../lib/playwright-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
-import { isStaffError, requireStaff } from '../lib/staff-auth';
+import { errorResponse } from '../lib/response-utils';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 /**
  * Like the Playwright API: CampFlow's receipt numbers, e.g. `2026-94`, or the ID of a receipt
  * not booked yet (`rcp_…`).
  */
 const RECEIPT_NUMBER_PATTERN = /^[A-Za-z0-9_.-]{1,50}$/;
-const MAX_PAGE = 100;
 
 /**
  * A page of a receipt from CampFlow as PNG, for the printable PDF of the Einzelnachweise.
  * `x-campflow-pages` tells how many pages the receipt has.
  */
-export async function GetInternAbrechnungBelegBildEndpoint(
-  request: HttpRequest
-): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
-
+const getInternAbrechnungBelegBild: StaffRequestHandler = async (request) => {
   const nummer = request.params.nummer ?? '';
   if (!RECEIPT_NUMBER_PATTERN.test(nummer)) {
     return errorResponse(400, 'INVALID_NUMBER', 'Ungültige Belegnummer.');
   }
   const page = Number(request.query.get('page') ?? '1');
-  if (!Number.isInteger(page) || page < 1 || page > MAX_PAGE) {
+  if (!Number.isInteger(page) || page < 1 || page > 100) {
     return errorResponse(400, 'INVALID_PAGE', 'Ungültige Seite.');
   }
 
@@ -47,18 +41,18 @@ export async function GetInternAbrechnungBelegBildEndpoint(
       errorResponse(404, 'BELEG_NOT_FOUND', `Den Beleg ${nummer} gibt es in CampFlow nicht.`)
     );
   }
-}
+};
+
+export const GetInternAbrechnungBelegBildEndpoint = staffHandler(
+  'abrechnung',
+  getInternAbrechnungBelegBild
+);
 
 /**
  * The small preview of a receipt from CampFlow, for the gallery of the Belege. It does not
  * change, so the browser may keep it.
  */
-export async function GetInternAbrechnungBelegVorschauEndpoint(
-  request: HttpRequest
-): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
-
+const getInternAbrechnungBelegVorschau: StaffRequestHandler = async (request) => {
   const nummer = request.params.nummer ?? '';
   if (!RECEIPT_NUMBER_PATTERN.test(nummer)) {
     return errorResponse(400, 'INVALID_NUMBER', 'Ungültige Belegnummer.');
@@ -76,25 +70,25 @@ export async function GetInternAbrechnungBelegVorschauEndpoint(
       errorResponse(404, 'BELEG_NOT_FOUND', `Den Beleg ${nummer} gibt es in CampFlow nicht.`)
     );
   }
-}
+};
 
-export const GetInternAbrechnungBelegVorschau = withErrorHandling(
-  GetInternAbrechnungBelegVorschauEndpoint
+export const GetInternAbrechnungBelegVorschauEndpoint = staffHandler(
+  'abrechnung',
+  getInternAbrechnungBelegVorschau
 );
 
-const defaultHandler = withErrorHandling(GetInternAbrechnungBelegBildEndpoint);
-export default defaultHandler;
+export default GetInternAbrechnungBelegBildEndpoint;
 
 app.http('internAbrechnungBelegBild', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/abrechnung/belege/{nummer}/bild',
-  handler: defaultHandler,
+  handler: GetInternAbrechnungBelegBildEndpoint,
 });
 
 app.http('internAbrechnungBelegVorschau', {
   methods: ['GET'],
   authLevel: 'anonymous',
   route: 'intern/abrechnung/belege/{nummer}/vorschau',
-  handler: GetInternAbrechnungBelegVorschau,
+  handler: GetInternAbrechnungBelegVorschauEndpoint,
 });

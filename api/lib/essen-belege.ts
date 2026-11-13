@@ -4,9 +4,9 @@ import {
   RecordNotFoundError,
   VersionConflictError,
   getDb,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import { isPdfFileName, originalFileName } from './beleg-photos';
 import type {
@@ -279,7 +279,7 @@ export async function belegAendern(
       .updateTable('essen.beleg')
       .set(set)
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     return { result: undefined, details };
@@ -293,7 +293,7 @@ export async function belegLoeschen(zugang: Zugang, id: number, etag: string): P
     const result = await trx
       .deleteFrom('essen.beleg')
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     return { result: beleg.foto, details: logDetails(beleg) };
@@ -320,7 +320,7 @@ export async function belegFotoSetzen(
         .updateTable('essen.beleg')
         .set({ foto: neu })
         .where('id', '=', id)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
       return { result: beleg.foto, details: { ...logDetails(beleg), foto: neu !== null } };

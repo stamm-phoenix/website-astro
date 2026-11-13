@@ -1,13 +1,12 @@
-import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
+import { app } from '@azure/functions';
 import { leitungPlanungen } from '../lib/essen-leitung';
 import { leitungPlanungAnlegen } from '../lib/essen-leitung-anlegen';
 import { anzeigeName, istStammAdresse } from '../lib/essen-leitung-model';
-import { planungHandler } from '../lib/essen-planung-http';
+import { mapPlanungErrors } from '../lib/essen-planung-http';
 import { validateLeitungAnlegen } from '../lib/essen-planung-validation';
-import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
-import { METHOD_NOT_ALLOWED, readJsonBody } from '../lib/pflege-api';
-import { errorResponse } from '../lib/response-utils';
-import { getClaim, isStaffError, requireStaff } from '../lib/staff-auth';
+import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
+import { getClaim } from '../lib/staff-auth';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 const KEINE_STAMM_ADRESSE = errorResponse(
   403,
@@ -23,28 +22,25 @@ const KEINE_STAMM_ADRESSE = errorResponse(
  * - POST `{ planungName, ersterTag, letzterTag }`: creates a Planung with the Leitende:r as owner
  *   at once and answers with the token to open it (201).
  */
-export async function EssensplanungMeineEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
+const meinePlanungen: StaffRequestHandler = async (request, _context, principal) => {
   if (!istStammAdresse(principal.userDetails)) return KEINE_STAMM_ADRESSE;
   if (request.method === 'GET') {
     const planungen = await leitungPlanungen(principal.userDetails);
     return { status: 200, headers: NO_STORE_HEADERS, jsonBody: { planungen } };
   }
-  if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
   const input = validateLeitungAnlegen(await readJsonBody(request));
   const name = anzeigeName(principal.userDetails, getClaim(principal, ['name']));
   const angelegt = await leitungPlanungAnlegen(principal.userDetails, name, input);
   return { status: 201, headers: NO_STORE_HEADERS, jsonBody: angelegt };
-}
+};
 
-const defaultHandler = planungHandler(EssensplanungMeineEndpoint);
-export default defaultHandler;
+const EssensplanungMeine = staffHandler('essensplanung-meine', mapPlanungErrors(meinePlanungen));
+export default EssensplanungMeine;
 
 // Essensplanung: the own Planungen of a Leitende:r with an address of the Stamm.
 app.http('internEssensplanungMeine', {
   methods: ['GET', 'POST'],
   authLevel: 'anonymous',
   route: 'intern/essensplanung/meine',
-  handler: defaultHandler,
+  handler: EssensplanungMeine,
 });

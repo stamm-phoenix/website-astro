@@ -193,7 +193,7 @@ export function fromVersion(version: string | undefined): Buffer | undefined {
 }
 
 /** Requires a well-formed version, so a missing one never becomes an unconditional write. */
-export function requireVersion(version: string | undefined): Buffer {
+export function requireRowversion(version: string | undefined): Buffer {
   const parsed = fromVersion(version);
   if (!parsed) throw new VersionConflictError();
   return parsed;

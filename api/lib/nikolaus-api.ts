@@ -5,8 +5,14 @@ import type { NikolausConfig, NikolausSettings, NikolausSlotDefinition } from '.
 import type { NikolausBookingDetails } from './nikolaus-validation';
 import { findNikolausSlot, getChangeDeadline } from './nikolaus-config';
 import { getNikolausSettings } from './nikolaus-settings';
-import { errorResponse, withErrorHandling } from './response-utils';
-import { getErrorStatus } from './response-utils';
+import { publicHandler } from './handler';
+import {
+  NO_STORE_HEADERS,
+  errorResponse,
+  getErrorStatus,
+  maintenanceResponse,
+  readJsonBody,
+} from './response-utils';
 import { NikolausMaintenanceError, runWithNikolausWriteGate } from './nikolaus-write-gate';
 
 export type PublicBookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'expired';
@@ -28,12 +34,6 @@ export interface PublicBookingInfo extends NikolausBookingDetails {
   changeDeadlineHours: number;
   /** Whether details, slot and cancellation can currently be changed online. */
   canChange: boolean;
-}
-
-export const NO_STORE_HEADERS = { 'Cache-Control': 'no-store' };
-
-export function nikolausMaintenanceResponse(error: NikolausMaintenanceError): HttpResponseInit {
-  return { ...errorResponse(503, 'MAINTENANCE', error.message), headers: NO_STORE_HEADERS };
 }
 
 export function getPublicStatus(
@@ -148,17 +148,6 @@ export function bookingResponse(
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: toPublicBookingInfo(booking, config) };
 }
 
-export async function readJsonBody(request: HttpRequest): Promise<Record<string, unknown> | null> {
-  try {
-    const body: unknown = await request.json();
-    return body !== null && typeof body === 'object' && !Array.isArray(body)
-      ? (body as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 export function deadlinePassed(config: NikolausConfig): HttpResponseInit {
   return errorResponse(
     403,
@@ -236,7 +225,7 @@ export const BOOKING_CONFLICT = errorResponse(
 export function withNikolausNoStore(
   handler: (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit>
 ): (request: HttpRequest, context: InvocationContext) => Promise<HttpResponseInit> {
-  const handled = withErrorHandling(handler);
+  const handled = publicHandler(handler);
   return async (request, context) => {
     const response = await handled(request, context);
     const headers = new Headers(response.headers);
@@ -268,7 +257,7 @@ export function withNikolausWriteHandling(
       return await runWithNikolausWriteGate(() => handler(request, context));
     } catch (error: unknown) {
       if (error instanceof NikolausMaintenanceError) {
-        return nikolausMaintenanceResponse(error);
+        return maintenanceResponse(error);
       }
       throw error;
     }

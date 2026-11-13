@@ -5,7 +5,7 @@ import {
   VersionConflictError,
   getSqlErrorNumber,
   inTransaction,
-  requireVersion,
+  requireRowversion,
 } from './db';
 import type { ZutatInput } from './essen-validation';
 import { audit, readRouteId } from './essen-audit';
@@ -145,7 +145,7 @@ export async function updateZutat(
         .updateTable('essen.zutat')
         .set({ ...zutatColumns(input, actor), geaendert_am: sql<Date>`SYSUTCDATETIME()` })
         .where('id', '=', numericId)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) await notChanged(trx, 'essen.zutat', numericId);
       await setAllergene(trx, numericId, input.allergene);
@@ -183,7 +183,7 @@ export async function deleteZutat(id: string, etag: string, actor: string): Prom
       const result = await trx
         .deleteFrom('essen.zutat')
         .where('id', '=', numericId)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       deleted = result.numDeletedRows;
     } catch (error: unknown) {
@@ -233,7 +233,7 @@ export async function renameKategorie(
         .updateTable('essen.kategorie')
         .set({ name })
         .where('id', '=', numericId)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) await notChanged(trx, 'essen.kategorie', numericId);
       await katalogGeaendert(trx);
@@ -257,7 +257,7 @@ export async function deleteKategorie(id: string, etag: string, actor: string): 
       const result = await trx
         .deleteFrom('essen.kategorie')
         .where('id', '=', numericId)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       deleted = result.numDeletedRows;
     } catch (error: unknown) {
@@ -307,7 +307,7 @@ export async function renameUnvertraeglichkeit(
         .updateTable('essen.unvertraeglichkeit')
         .set({ name })
         .where('id', '=', numericId)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       if (Number(result.numUpdatedRows) === 0) {
         await notChanged(trx, 'essen.unvertraeglichkeit', numericId);
@@ -345,7 +345,7 @@ export async function deleteUnvertraeglichkeit(
       const result = await trx
         .deleteFrom('essen.unvertraeglichkeit')
         .where('id', '=', numericId)
-        .where('version', '=', requireVersion(etag))
+        .where('version', '=', requireRowversion(etag))
         .executeTakeFirst();
       deleted = result.numDeletedRows;
     } catch (error: unknown) {

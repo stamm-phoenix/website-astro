@@ -8,9 +8,9 @@ import {
   getDb,
   inTransaction,
   lockResource,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { Db } from './db';
 import type { EditorSperreTable } from './db-schema';
@@ -418,7 +418,7 @@ export async function saveEditorProtokoll(
   person: EditorPerson,
   now: Date = new Date()
 ): Promise<ProtokollSaveResponse> {
-  const version = requireVersion(input.etag);
+  const version = requireRowversion(input.etag);
   return inTransaction(async (trx) => {
     await lockResource(trx, editorResource(id));
     const row = await lockedProtokoll(trx, id);

@@ -1,6 +1,6 @@
 import { app } from '@azure/functions';
 import { z } from 'zod';
-import { pflegeHandler, ok, readJsonBody } from '../lib/pflege-api';
+import { ok } from '../lib/pflege-api';
 import { parseSession, sessionSizeOk, validAbrechnungSession } from '../lib/abrechnung-session';
 import {
   abrechnungDeleteAfter,
@@ -11,7 +11,8 @@ import { getCampflowEvents } from '../lib/campflow';
 import { ValidationError } from '../lib/validation/errors';
 import { parseWith } from '../lib/validation/zod';
 import { EVENT_ID_PATTERN } from './intern-abrechnung';
-import { withErrorHandling } from '../lib/response-utils';
+import { readJsonBody } from '../lib/response-utils';
+import { staffHandler } from '../lib/handler';
 
 const SAVE_MESSAGE = 'Die Eingaben konnten nicht gespeichert werden. Bitte prüfe die Felder.';
 
@@ -44,7 +45,7 @@ async function currentRetention(id: string, requireDate = false): Promise<string
   return abrechnungDeleteAfter(end);
 }
 
-export const AbrechnungEingabeEndpoint = pflegeHandler(
+export const AbrechnungEingabeEndpoint = staffHandler(
   'abrechnung-eingabe',
   async (request, _context, principal) => {
     const id = request.params.id ?? '';
@@ -87,11 +88,10 @@ export const AbrechnungEingabeEndpoint = pflegeHandler(
     );
   }
 );
-export const AbrechnungEingabeHandler = withErrorHandling(AbrechnungEingabeEndpoint);
 
 app.http('internAbrechnungEingabe', {
   methods: ['GET', 'PUT'],
   authLevel: 'anonymous',
   route: 'intern/abrechnung/{id}/eingaben',
-  handler: AbrechnungEingabeHandler,
+  handler: AbrechnungEingabeEndpoint,
 });

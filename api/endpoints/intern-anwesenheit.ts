@@ -31,15 +31,7 @@ import { parseId } from '../lib/db';
 import { getGruppenstunden } from '../lib/gruppenstunden-list';
 import { getLeitende } from '../lib/leitende-list';
 import { dateToLocalParts } from '../lib/nikolaus-config';
-import {
-  NOT_FOUND,
-  NO_CONTENT,
-  NO_STORE_HEADERS,
-  ok,
-  pflegeHandler,
-  readIfMatch,
-  readJsonBody,
-} from '../lib/pflege-api';
+import { NOT_FOUND, NO_CONTENT, ok, readIfMatch } from '../lib/pflege-api';
 import { ValidationError } from '../lib/validation/errors';
 import { isValidDate } from '../lib/calendar-date';
 import {
@@ -49,8 +41,9 @@ import {
   validateMeetingNotes,
   validateMeetingDeletion,
 } from '../lib/validation/nikolaus-besuch';
-import { withErrorHandling } from '../lib/response-utils';
-import { getClaim, isStaffError, requireStaff } from '../lib/staff-auth';
+import { NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
+import { getClaim } from '../lib/staff-auth';
+import { staffHandler, type StaffRequestHandler } from '../lib/handler';
 
 /** The Termin of a route, or `undefined` for an unknown Stufe or an invalid or future date. */
 function readTermin(request: HttpRequest, now: Date): Termin | undefined {
@@ -67,7 +60,7 @@ function readTermin(request: HttpRequest, now: Date): Termin | undefined {
 function terminHandler(
   work: (termin: Termin, request: HttpRequest, actor: string) => Promise<HttpResponseInit>
 ) {
-  return pflegeHandler('anwesenheit', async (request, _context, principal) => {
+  return staffHandler('anwesenheit', async (request, _context, principal) => {
     const now = new Date();
     const termin = readTermin(request, now);
     if (!termin) return NOT_FOUND;
@@ -85,10 +78,7 @@ function terminHandler(
  * suggestion from the list „Leitende & Teams“) and all recorded Termine with their counts.
  * Removes the names of Termine past the retention period along the way.
  */
-export async function GetAnwesenheitEndpoint(request: HttpRequest): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
-
+const getAnwesenheit: StaffRequestHandler = async (request, _context, principal) => {
   const now = new Date();
   // The counts hold no names, so the removal of expired ones runs along with the reads
   const [, gruppenstunden, leitende, meetings] = await Promise.all([
@@ -116,7 +106,9 @@ export async function GetAnwesenheitEndpoint(request: HttpRequest): Promise<Http
     meetings,
   };
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: overview };
-}
+};
+
+export const GetAnwesenheit = staffHandler('anwesenheit', getAnwesenheit);
 
 /** Children of the Stufe first, then visitors and unknown children, each by name. */
 function byName(a: ChildView, b: ChildView): number {
@@ -181,12 +173,7 @@ export function buildTerminView(
 }
 
 /** GET: the children of the Stufe from CampFlow and who was there on that date. */
-export async function GetAnwesenheitTerminEndpoint(
-  request: HttpRequest
-): Promise<HttpResponseInit> {
-  const principal = requireStaff(request);
-  if (isStaffError(principal)) return principal;
-
+const getAnwesenheitTermin: StaffRequestHandler = async (request) => {
   const now = new Date();
   const termin = readTermin(request, now);
   if (!termin) return NOT_FOUND;
@@ -212,14 +199,16 @@ export async function GetAnwesenheitTerminEndpoint(
   } catch (error: unknown) {
     return campflowErrorResponse(error);
   }
-}
+};
+
+export const GetAnwesenheitTermin = staffHandler('anwesenheit', getAnwesenheitTermin);
 
 /**
  * PUT: what the group did, saved against the loaded version. Returns the new version.
  * DELETE: removes the Termin with its attendance and notes, if it still has the version sent
  * in `If-Match` and the attendance snapshot sent in the body.
  */
-export const AnwesenheitNotesEndpoint = terminHandler(async (termin, request, actor) => {
+export const AnwesenheitNotes = terminHandler(async (termin, request, actor) => {
   if (request.method === 'DELETE') {
     const etag = readIfMatch(request);
     const attendance = validateMeetingDeletion(await readJsonBody(request));
@@ -234,7 +223,7 @@ export const AnwesenheitNotesEndpoint = terminHandler(async (termin, request, ac
  * PUT: whether the Gruppenstunde was cancelled, saved against the loaded version. Returns the
  * new version of the Termin.
  */
-export const AnwesenheitCancelledEndpoint = terminHandler(async (termin, request, actor) => {
+export const AnwesenheitCancelled = terminHandler(async (termin, request, actor) => {
   const input = validateCancelled(await readJsonBody(request));
   return ok({ etag: await setCancelled(termin, input, actor) });
 });
@@ -243,7 +232,7 @@ export const AnwesenheitCancelledEndpoint = terminHandler(async (termin, request
  * PUT: a current CampFlow member was there or was excused (`{ status }`). DELETE: neither.
  * Repeating a request changes nothing.
  */
-export const AnwesenheitChildEndpoint = terminHandler(async (termin, request, actor) => {
+export const AnwesenheitChild = terminHandler(async (termin, request, actor) => {
   const personId = request.params.id ?? '';
   if (!PERSON_ID_PATTERN.test(personId)) return NOT_FOUND;
   if (request.method === 'DELETE') {
@@ -261,26 +250,18 @@ export const AnwesenheitChildEndpoint = terminHandler(async (termin, request, ac
 });
 
 /** POST: adds a guest who is not in CampFlow. */
-export const AnwesenheitGuestsEndpoint = terminHandler(async (termin, request, actor) => {
+export const AnwesenheitGuests = terminHandler(async (termin, request, actor) => {
   const name = validateGuestName(await readJsonBody(request));
   return ok(await addGuest(termin, name, actor), 201);
 });
 
 /** DELETE: removes a guest; a guest that is already gone is fine. */
-export const AnwesenheitGuestEndpoint = terminHandler(async (termin, request) => {
+export const AnwesenheitGuest = terminHandler(async (termin, request) => {
   const id = parseId(request.params.id ?? '');
   if (id === undefined) return NOT_FOUND;
   await removeGuest(termin, id);
   return NO_CONTENT;
 });
-
-export const GetAnwesenheit = withErrorHandling(GetAnwesenheitEndpoint);
-export const GetAnwesenheitTermin = withErrorHandling(GetAnwesenheitTerminEndpoint);
-export const AnwesenheitNotes = withErrorHandling(AnwesenheitNotesEndpoint);
-export const AnwesenheitCancelled = withErrorHandling(AnwesenheitCancelledEndpoint);
-export const AnwesenheitChild = withErrorHandling(AnwesenheitChildEndpoint);
-export const AnwesenheitGuests = withErrorHandling(AnwesenheitGuestsEndpoint);
-export const AnwesenheitGuest = withErrorHandling(AnwesenheitGuestEndpoint);
 
 app.http('internAnwesenheit', {
   methods: ['GET'],

@@ -1,7 +1,8 @@
 import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { PreviewSize } from '../lib/downloads';
 import { serveDownloadPreview } from '../lib/downloads';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 const NOT_FOUND = errorResponse(404, 'NOT_FOUND', 'Für diese Datei gibt es keine Vorschau.');
 
@@ -22,7 +23,7 @@ export async function GetDownloadFileImageEndpointInternal(
   return (await serveDownloadPreview(request.params.id ?? '', size)) ?? NOT_FOUND;
 }
 
-const GetDownloadFileImageEndpoint = withErrorHandling(GetDownloadFileImageEndpointInternal);
+const GetDownloadFileImageEndpoint = publicHandler(GetDownloadFileImageEndpointInternal);
 export default GetDownloadFileImageEndpoint;
 
 app.http('downloadImage', {

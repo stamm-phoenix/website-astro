@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
 import { HttpRequest } from '@azure/functions';
 import * as endpoints from '../endpoints/essensplanung';
-import { EssensplanungListeEintragEndpoint } from '../endpoints/intern-essensplanung-steuerung';
+import { EssensplanungListeEintrag } from '../endpoints/intern-essensplanung-steuerung';
 import { getDb, toVersion } from '../lib/db';
 import {
   seedPreviewEssensplanungGerichte,
@@ -381,7 +381,7 @@ dbTest('own ingredients and differences stay in their Planung', async (t) => {
     },
     params: { liste: 'zutaten', id: String(milch) },
   });
-  const steuerung = await EssensplanungListeEintragEndpoint(admin, context(t));
+  const steuerung = await EssensplanungListeEintrag(admin, context(t));
   assert.equal(steuerung.status, 400, JSON.stringify(steuerung.jsonBody));
 
   // Deleting the Planung removes dishes and ingredients of the Planung

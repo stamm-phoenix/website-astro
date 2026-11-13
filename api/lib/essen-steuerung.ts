@@ -5,9 +5,9 @@ import {
   VersionConflictError,
   getDb,
   inTransaction,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type {
   EssenAuditEntry,
@@ -261,7 +261,7 @@ export async function saveEssenEinstellungen(
         updated_by: actor,
       })
       .where('id', '=', 1)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
 

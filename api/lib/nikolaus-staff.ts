@@ -2,8 +2,10 @@ import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { NikolausSettings } from './nikolaus-config';
 import type { ClientPrincipal } from './staff-auth';
 import { isStaffError, requireStaff } from './staff-auth';
+import type { StaffGate } from './handler';
 import { getNikolausSettings } from './nikolaus-settings';
 import { readCachedNikolausSettings } from './nikolaus-settings-cache';
+import { NikolausMaintenanceError } from './nikolaus-write-gate';
 import { errorResponse } from './response-utils';
 
 /** The internal Nikolaus modules are switched off in the Steuerung. */
@@ -21,14 +23,33 @@ export function getNikolausSettingsForRead(): Promise<NikolausSettings> {
   return readCachedNikolausSettings(getNikolausSettings);
 }
 
+/**
+ * The gate of the Nikolaus edit areas (`staffHandler`): they need the internal modules switched
+ * on, and their writes stop during the maintenance mode and are never stored by a cache. The
+ * Steuerung itself goes without it, so it stays reachable.
+ */
+export const nikolausGate: StaffGate = {
+  async check(request: HttpRequest): Promise<HttpResponseInit | undefined> {
+    const write = request.method !== 'GET';
+    // Writes read fresh (maintenance mode); reads may use the short cache
+    const settings = write ? await getNikolausSettings() : await getNikolausSettingsForRead();
+    if (!settings.staffActive) return NIKOLAUS_STAFF_INACTIVE;
+    if (write && settings.maintenance) throw new NikolausMaintenanceError();
+    return undefined;
+  },
+  noStore: (request: HttpRequest) => request.method !== 'GET',
+};
+
 export interface NikolausStaffAccess {
   principal: ClientPrincipal;
   config: NikolausSettings;
 }
 
 /**
- * Like `requireStaff`, and the internal Nikolaus modules must be switched on. Every
- * `intern/nikolaus/*` endpoint except the Steuerung starts with it.
+ * Like `requireStaff`, and the internal Nikolaus modules must be switched on. The Nikolaus reads
+ * of the Leitendenbereich start with it or with `readAsNikolausStaff` instead of running in
+ * `staffHandler`, which keeps their checks unchanged during the Nikolausaktion (#636); the
+ * writes run in `staffHandler` with `nikolausGate`.
  */
 export async function requireNikolausStaff(
   request: HttpRequest

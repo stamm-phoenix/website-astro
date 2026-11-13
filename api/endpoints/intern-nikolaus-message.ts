@@ -8,16 +8,11 @@ import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { sendStaffMessageMail } from '../lib/nikolaus-mails';
 import { sanitizeRichTextWithLength } from '../lib/validation/rich-text';
 import { lenientObject, parseWith } from '../lib/validation/zod';
-import {
-  NOT_FOUND,
-  NO_CONTENT,
-  METHOD_NOT_ALLOWED,
-  pflegeHandler,
-  readJsonBody,
-} from '../lib/pflege-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { NOT_FOUND, NO_CONTENT } from '../lib/pflege-api';
+import { errorResponse, readJsonBody } from '../lib/response-utils';
+import { staffHandler } from '../lib/handler';
+import { nikolausGate } from '../lib/nikolaus-staff';
 
-const MAX_SUBJECT_LENGTH = 150;
 const MAX_MESSAGE_LENGTH = 5000;
 
 interface MessageInput {
@@ -31,8 +26,8 @@ const subjectSchema = z.preprocess(
   z
     .string()
     .min(1, { error: 'Bitte einen Betreff angeben.' })
-    .max(MAX_SUBJECT_LENGTH, {
-      error: `Der Betreff darf höchstens ${MAX_SUBJECT_LENGTH} Zeichen lang sein.`,
+    .max(150, {
+      error: `Der Betreff darf höchstens ${150} Zeichen lang sein.`,
     })
 );
 
@@ -61,10 +56,9 @@ function validateMessage(body: Record<string, unknown> | null): MessageInput {
 }
 
 /** POST: sends a message from the Nikolaus team to the family of a booking. */
-export const NikolausMessageEndpoint = pflegeHandler(
+export const NikolausMessageEndpoint = staffHandler(
   'nikolaus-nachricht',
   async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    if (request.method !== 'POST') return METHOD_NOT_ALLOWED;
     const id = request.params.id ?? '';
     if (!/^\d+$/.test(id)) return NOT_FOUND;
 
@@ -92,18 +86,18 @@ export const NikolausMessageEndpoint = pflegeHandler(
     }
 
     // Booking only: subject and message may contain family details and stay in the mailbox's
-    // sent items; the acting user is logged by pflegeHandler
+    // sent items; the acting user is logged by staffHandler
     context.log(`[nikolaus] message sent to booking ${id}`);
     return NO_CONTENT;
-  }
+  },
+  { gate: nikolausGate }
 );
 
-const defaultHandler = withErrorHandling(NikolausMessageEndpoint);
-export default defaultHandler;
+export default NikolausMessageEndpoint;
 
 app.http('internNikolausMessage', {
   methods: ['POST'],
   authLevel: 'anonymous',
   route: 'intern/nikolaus/bookings/{id}/message',
-  handler: defaultHandler,
+  handler: NikolausMessageEndpoint,
 });

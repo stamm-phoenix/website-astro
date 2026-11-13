@@ -1,7 +1,7 @@
 import { app, type HttpResponseInit } from '@azure/functions';
 import { createAltchaChallenge, isAltchaConfigured } from '../lib/altcha';
-import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
-import { errorResponse, withErrorHandling } from '../lib/response-utils';
+import { errorResponse, NO_STORE_HEADERS } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 /**
  * Returns a new ALTCHA challenge for the public forms with HTTP 200, or 503 when its secret
@@ -21,7 +21,7 @@ export async function AltchaChallengeEndpoint(): Promise<HttpResponseInit> {
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: await createAltchaChallenge() };
 }
 
-export const AltchaChallenge = withErrorHandling(AltchaChallengeEndpoint);
+export const AltchaChallenge = publicHandler(AltchaChallengeEndpoint);
 
 // Proof of work for the public forms (Kontakt, Nikolaus booking, Sammelbestellung link request)
 app.http('altchaChallenge', {

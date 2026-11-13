@@ -2,9 +2,9 @@ import type { Db } from './db';
 import {
   RecordNotFoundError,
   VersionConflictError,
-  requireVersion,
   toDateString,
   toVersion,
+  requireRowversion,
 } from './db';
 import type { Zugang } from './essen-zugang';
 import { aendere } from './essen-aendern';
@@ -254,7 +254,7 @@ export async function einplanungAendern(
       .updateTable('essen.einplanung')
       .set({ ...werte(input), mahlzeit_id: mahlzeit.id })
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     if (verschoben) {
@@ -283,7 +283,7 @@ export async function einplanungLoeschen(zugang: Zugang, id: number, etag: strin
     const result = await trx
       .deleteFrom('essen.einplanung')
       .where('id', '=', id)
-      .where('version', '=', requireVersion(etag))
+      .where('version', '=', requireRowversion(etag))
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     await sortiere(trx, einplanung.mahlzeit_id, null);

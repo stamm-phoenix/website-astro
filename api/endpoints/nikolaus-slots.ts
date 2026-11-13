@@ -1,8 +1,9 @@
 import { app, type HttpResponseInit } from '@azure/functions';
 import { getSlotAvailability } from '../lib/nikolaus-bookings';
-import { BOOKING_INACTIVE, NO_STORE_HEADERS } from '../lib/nikolaus-api';
+import { BOOKING_INACTIVE } from '../lib/nikolaus-api';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
-import { withErrorHandling } from '../lib/response-utils';
+import { NO_STORE_HEADERS } from '../lib/response-utils';
+import { publicHandler } from '../lib/handler';
 
 export async function GetNikolausSlotsEndpoint(): Promise<HttpResponseInit> {
   const config = await getNikolausSettings();
@@ -17,7 +18,7 @@ export async function GetNikolausSlotsEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-const defaultHandler = withErrorHandling(GetNikolausSlotsEndpoint);
+const defaultHandler = publicHandler(GetNikolausSlotsEndpoint);
 export default defaultHandler;
 
 app.http('nikolausSlots', {

@@ -8,9 +8,9 @@ import {
   getSqlErrorNumber,
   inTransaction,
   parseId,
-  requireVersion,
   toVersion,
   VersionConflictError,
+  requireRowversion,
 } from './db';
 import type { Db } from './db';
 import type { Database } from './db-schema';
@@ -667,7 +667,7 @@ export async function updateSammelOrder(
   etag: string
 ): Promise<void> {
   const orderId = parseId(id);
-  const version = requireVersion(etag);
+  const version = requireRowversion(etag);
   if (orderId === undefined) throw new VersionConflictError();
   await inTransaction(async (trx) => {
     const result = await trx
@@ -705,7 +705,7 @@ export async function setSammelCampaignArchived(
   etag: string
 ): Promise<void> {
   const campaignId = parseId(id);
-  const version = requireVersion(etag);
+  const version = requireRowversion(etag);
   if (campaignId === undefined) throw new VersionConflictError();
   const result = await getDb()
     .updateTable('sammel.campaign')
