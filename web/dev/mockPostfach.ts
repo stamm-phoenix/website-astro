@@ -1,4 +1,4 @@
-import type { MockRequest, MockResult } from './mockApi';
+import type { MockRequest, MockResult } from './mockCore';
 import {
   findPostfach,
   POSTFAECHER,

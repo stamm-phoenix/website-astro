@@ -1,4 +1,4 @@
-import type { MockRequest, MockResult } from './mockApi';
+import type { MockRequest, MockResult } from './mockCore';
 import type { StaffBeleg } from '../src/lib/types';
 
 /** The demo check of receipt photos and PDF pages, as `/api/intern/pflege/belege/pruefung`. */

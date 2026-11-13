@@ -1,4 +1,4 @@
-import type { MockRequest, MockResult } from './mockApi';
+import type { MockRequest, MockResult } from './mockCore';
 import { nextBlogWorkflow } from '../../api/lib/blog-workflow-policy';
 import type { BlogWorkflow } from '../../api/lib/blog-workflow-model';
 import { blogEntries, blogUploads, staffBlogList, staffBlogPost } from './mock-data/content';

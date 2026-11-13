@@ -1,4 +1,4 @@
-import type { MockRequest, MockResult } from './mockApi';
+import type { MockRequest, MockResult } from './mockCore';
 import type { KorrekturVorschlag } from '../../api/lib/protokoll-korrektur-model';
 import {
   fehlendeAngaben,

@@ -1,4 +1,4 @@
-import type { MockRequest, MockResult } from './mockApi';
+import type { MockRequest, MockResult } from './mockCore';
 import { aktionen, type MockAktion } from './mock-data/content';
 import { campflowEvents } from './mock-data/campflow';
 import { newId, newEtag } from './mock-data/util';
