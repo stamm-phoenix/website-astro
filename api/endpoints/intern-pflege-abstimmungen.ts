@@ -11,7 +11,6 @@ import {
   getAbstimmungDetail,
   getAbstimmungKopf,
   getAbstimmungLogins,
-  getAbstimmungMailStand,
   listAbstimmungen,
   queueAbstimmungEinladungen,
   queueAbstimmungErinnerungen,
@@ -20,7 +19,9 @@ import {
   updateAbstimmung,
   voteAsStaff,
 } from '../lib/abstimmungen';
-import type { AbstimmungKopf, AbstimmungMail, AbstimmungPerson } from '../lib/abstimmungen';
+import type { AbstimmungMail, AbstimmungPerson } from '../lib/abstimmungen';
+import type { AbstimmungKopf } from '../lib/abstimmung-laden';
+import { getAbstimmungMailStand } from '../lib/abstimmung-mailstand';
 import { CampflowError, campflowGetAll } from '../lib/campflow';
 import type { CampflowPerson } from '../lib/campflow';
 import { CONFIG } from '../lib/config';

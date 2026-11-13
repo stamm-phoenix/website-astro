@@ -1,6 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { campflowGetAll } from './campflow';
-import type { CampflowPerson } from './campflow';
+import { getCampflowMembers } from './campflow';
 import { createCampflowFee, CampflowFeeUncertainError } from './campflow-fees';
 import { EnvironmentVariable, getEnvironment } from './environment';
 import { CONFIG } from './config';
@@ -51,10 +50,13 @@ function actor(principal: ClientPrincipal): SammelPaymentActor {
   return { id: principal.userId, name: principal.userDetails };
 }
 
-/** Returns only current member identities and relevant contacts, never complete person records. */
+/**
+ * Returns only current member identities and relevant contacts, never complete person records.
+ * The member list comes from the one-minute CampFlow cache shared with the other modules.
+ */
 export async function sammelBillingPersons(order: OrderRow): Promise<SammelBillingPerson[]> {
   const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
-  const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
+  const persons = await getCampflowMembers();
   const candidates = new Map<string, SammelBillingPerson>();
   for (const person of persons) {
     if (!/^per_[A-Za-z0-9]{1,240}$/.test(person.id)) continue;

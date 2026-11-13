@@ -118,7 +118,7 @@ async function setup(t: TestContext, { secondOrder = false } = {}) {
   t.mock.method(globalThis, 'fetch', async () => {
     throw new Error('Unexpected outbound network request');
   });
-  t.mock.method(campflow, 'campflowGetAll', async () => structuredClone(PERSONS));
+  t.mock.method(campflow, 'getCampflowMembers', async () => structuredClone(PERSONS));
   const mapping = t.mock.method(
     playwright,
     'ensureCampflowExpenseAssignment',
@@ -287,7 +287,7 @@ dbTest(
   'null contacts and missing names are supported without choosing a first family match',
   async (t) => {
     const s = await setup(t);
-    t.mock.method(campflow, 'campflowGetAll', async () => [
+    t.mock.method(campflow, 'getCampflowMembers', async () => [
       { id: 'per_NoContact', primary_email: null, cc_emails: null },
     ]);
     const result = await SammelStaffPaymentPersons(s.request({}, 'GET'), s.context);
@@ -443,7 +443,7 @@ dbTest(
     await changeOrder({ paid: true });
     assert.equal((await s.action({ action: 'create', hash: p.hash })).status, 409);
     await changeOrder({ paid: false });
-    t.mock.method(campflow, 'campflowGetAll', async () => []);
+    t.mock.method(campflow, 'getCampflowMembers', async () => []);
     assert.equal((await s.action({ action: 'create', hash: p.hash })).status, 400);
     assert.equal(s.calls.length, 0);
   }
@@ -1049,7 +1049,7 @@ dbTest('time spent loading the members counts against the handler deadline', asy
   const p = await s.preview();
   let now = Date.now();
   t.mock.method(Date, 'now', () => now);
-  t.mock.method(campflow, 'campflowGetAll', async () => {
+  t.mock.method(campflow, 'getCampflowMembers', async () => {
     now += 16_000;
     return structuredClone(PERSONS);
   });

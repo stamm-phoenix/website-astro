@@ -14,7 +14,6 @@ import {
   sammelUrl,
   publicSammelOrder,
   updateSammelOrder,
-  InvalidSammelDataError,
 } from '../lib/sammelbestellung-list';
 import { email, text, validateSammelItems } from '../lib/sammelbestellung-validation';
 import { isSammelEtag } from '../lib/validation/sammel-input';
@@ -22,6 +21,7 @@ import { getSammelProduct, sammelProductReference } from '../lib/sammelbestellun
 import { getSammelStammProdukt } from '../lib/sammelbestellung-stamm';
 import { reserveSammelLinkRequest } from '../lib/sammelbestellung-link-quota';
 import { SammelPaymentError } from '../lib/sammelbestellung-payments';
+import { InvalidSammelDataError } from '../lib/sammelbestellung-stored';
 import { getSiteUrl } from '../lib/site-url';
 
 const INVALID_LINK = errorResponse(

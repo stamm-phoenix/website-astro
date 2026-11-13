@@ -6,6 +6,7 @@ import * as blobStorage from '../lib/blob-storage';
 import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
 import { getBelege } from '../lib/beleg-list';
+import { resetOrphanSweep } from '../lib/beleg-files';
 import { getStaffAktionen } from '../lib/aktionen-list';
 import { seedPreviewBelege, seedPreviewBelegeCampflow } from '../lib/db-preview';
 import { overrideConfig } from './fixtures/config';
@@ -781,21 +782,37 @@ dbTest('replacing the photo checks the version and removes the old files', async
   assert.deepEqual([...blobs.keys()], [`belege/7/${stored?.photo}`]);
 });
 
-dbTest('any change of a receipt removes photo files left over earlier', async (t) => {
-  const { context, blobs, times } = setup(t);
-  await store(blobs, { id: 7, photo: 'beleg-1.jpg' });
-  // Files no receipt refers to: an old one from a failed cleanup and one being saved right now
-  const old = Buffer.from(jpeg(10, 10));
-  blobs.set('belege/3/beleg-9.jpg', old);
-  times.set('belege/3/beleg-9.jpg', new Date(Date.now() - 11 * 60_000));
-  blobs.set('belege/7/beleg-2.jpg', old);
-  times.set('belege/7/beleg-2.jpg', new Date());
-  const review = { ...INPUT, status: 'Angenommen', reviewNote: '', etag: await version(7) };
+dbTest(
+  'a change removes photo files left over earlier, but sweeps only now and then',
+  async (t) => {
+    const { context, blobs, times } = setup(t);
+    resetOrphanSweep();
+    await store(blobs, { id: 7, photo: 'beleg-1.jpg' });
+    // Files no receipt refers to: an old one from a failed cleanup and one being saved right now
+    const old = Buffer.from(jpeg(10, 10));
+    blobs.set('belege/3/beleg-9.jpg', old);
+    times.set('belege/3/beleg-9.jpg', new Date(Date.now() - 11 * 60_000));
+    blobs.set('belege/7/beleg-2.jpg', old);
+    times.set('belege/7/beleg-2.jpg', new Date());
+    const review = { ...INPUT, status: 'Angenommen', reviewNote: '', etag: await version(7) };
 
-  const saved = await BelegItem(request('PATCH', review, { id: '7' }), context);
-  assert.equal(saved.status, 200);
-  assert.deepEqual([...blobs.keys()].sort(), ['belege/7/beleg-1.jpg', 'belege/7/beleg-2.jpg']);
-});
+    const saved = await BelegItem(request('PATCH', review, { id: '7' }), context);
+    assert.equal(saved.status, 200);
+    assert.deepEqual([...blobs.keys()].sort(), ['belege/7/beleg-1.jpg', 'belege/7/beleg-2.jpg']);
+
+    // The next change does not list the container again: a new leftover stays until the next sweep
+    blobs.set('belege/4/beleg-8.jpg', old);
+    times.set('belege/4/beleg-8.jpg', new Date(Date.now() - 11 * 60_000));
+    const listed = t.mock.method(blobStorage, 'listBlobs');
+    const again = await BelegItem(
+      request('PATCH', { ...review, etag: await version(7) }, { id: '7' }),
+      context
+    );
+    assert.equal(again.status, 200);
+    assert.equal(listed.mock.callCount(), 0);
+    assert.ok(blobs.has('belege/4/beleg-8.jpg'));
+  }
+);
 
 dbTest('a scan is stored together with its original, which can be downloaded', async (t) => {
   const { context, blobs } = setup(t);

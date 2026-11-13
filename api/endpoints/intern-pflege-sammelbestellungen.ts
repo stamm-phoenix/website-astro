@@ -1,4 +1,5 @@
 import { sammelInvitationStep } from '../lib/sammelbestellung-invitations';
+import { InvalidSammelDataError } from '../lib/sammelbestellung-stored';
 import { isSammelOpen } from '../lib/sammelbestellung-model';
 import { CampflowError } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
@@ -6,7 +7,6 @@ import { escapeHtml } from '../lib/mail';
 import { VersionConflictError } from '../lib/db';
 import { pflegeHandler, ok, readJsonBody, NOT_FOUND, NO_CONTENT } from '../lib/pflege-api';
 import {
-  InvalidSammelDataError,
   createSammelCampaign,
   getSammelCampaigns,
   getSammelCampaign,

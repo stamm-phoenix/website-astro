@@ -27,14 +27,15 @@ import {
   abstimmungErgebnis,
 } from './abstimmung-model';
 import { validateAntwort } from './abstimmung-schema';
+import { writeOptionen } from './abstimmung-optionen';
+import { ladeAbstimmung, loadOptionen, loadRow, loadTeilnahmen } from './abstimmung-laden';
+import type { AbstimmungKopf, Antwort, Geladen, TeilnahmeRow } from './abstimmung-laden';
 import type {
   AbstimmungAnsicht,
   AbstimmungDetail,
   AbstimmungEingabe,
   AbstimmungMailArt,
-  AbstimmungRohdaten,
   AbstimmungSichtbarkeit,
-  AbstimmungTeilnahme,
   AbstimmungUebersicht,
 } from './abstimmung-model';
 
@@ -107,161 +108,6 @@ function iso(value: Date | null): string | null {
   return value ? value.toISOString() : null;
 }
 
-/** A row of `abstimmung.abstimmung`. */
-export interface AbstimmungKopf {
-  id: number;
-  version: Buffer;
-  titel: string;
-  beschreibung: string;
-  max_auswahl: number | null;
-  vielleicht: boolean;
-  sichtbarkeit: AbstimmungSichtbarkeit;
-  link_token: string;
-  erstellt_von: string;
-  erstellt_von_name: string;
-  erstellt_am: Date;
-  geschlossen_am: Date | null;
-}
-
-async function loadRow(db: Db, id: number): Promise<AbstimmungKopf | undefined> {
-  return db.selectFrom('abstimmung.abstimmung').selectAll().where('id', '=', id).executeTakeFirst();
-}
-
-async function loadOptionen(db: Db, id: number): Promise<{ id: number; text: string }[]> {
-  return db
-    .selectFrom('abstimmung.optionen')
-    .select(['id', 'text'])
-    .where('abstimmung_id', '=', id)
-    .orderBy('position')
-    .orderBy('id')
-    .execute();
-}
-
-/** The options one person chose with „Ja“ (`gewaehlt`) and with „Vielleicht“. */
-interface Antwort {
-  gewaehlt: number[];
-  vielleicht: number[];
-}
-
-/** The votes of every person of the Abstimmung, by participation. */
-async function loadStimmen(db: Db, id: number): Promise<Map<number, Antwort>> {
-  const rows = await db
-    .selectFrom('abstimmung.stimme as s')
-    .innerJoin('abstimmung.teilnahme as t', 't.id', 's.teilnahme_id')
-    .select(['s.teilnahme_id', 's.option_id', 's.vielleicht'])
-    .where('t.abstimmung_id', '=', id)
-    .execute();
-  const result = new Map<number, Antwort>();
-  for (const row of rows) {
-    const antwort = result.get(row.teilnahme_id) ?? { gewaehlt: [], vielleicht: [] };
-    (row.vielleicht ? antwort.vielleicht : antwort.gewaehlt).push(row.option_id);
-    result.set(row.teilnahme_id, antwort);
-  }
-  return result;
-}
-
-interface TeilnahmeRow {
-  id: number;
-  token: string;
-  name: string;
-  login: string | null;
-  email: string | null;
-  geantwortet_am: Date | null;
-  mail_art: AbstimmungMailArt | null;
-  mail_status: AbstimmungTeilnahme['mailStatus'];
-  eingeladen_am: Date | null;
-  erinnert_am: Date | null;
-  familie: boolean;
-  alias_von: number | null;
-}
-
-async function loadTeilnahmen(db: Db, id: number): Promise<TeilnahmeRow[]> {
-  return db
-    .selectFrom('abstimmung.teilnahme')
-    .select([
-      'id',
-      'token',
-      'name',
-      'login',
-      'email',
-      'geantwortet_am',
-      'mail_art',
-      'mail_status',
-      'eingeladen_am',
-      'erinnert_am',
-      'familie',
-      'alias_von',
-    ])
-    .where('abstimmung_id', '=', id)
-    .orderBy('id')
-    .execute();
-}
-
-interface Geladen {
-  row: AbstimmungKopf;
-  rohdaten: AbstimmungRohdaten;
-  teilnahmen: TeilnahmeRow[];
-  stimmen: Map<number, Antwort>;
-}
-
-/** Seam for tests: runs between reading the Abstimmung and reading its answers. */
-export const abstimmungLesen = {
-  nachKopf: async (): Promise<void> => undefined,
-};
-
-/** The stricter of two Sichtbarkeiten. */
-function strenger(a: AbstimmungSichtbarkeit, b: AbstimmungSichtbarkeit): AbstimmungSichtbarkeit {
-  return ABSTIMMUNG_SICHTBARKEITEN.indexOf(a) >= ABSTIMMUNG_SICHTBARKEITEN.indexOf(b) ? a : b;
-}
-
-async function load(db: Db, id: number): Promise<Geladen | undefined> {
-  const row = await loadRow(db, id);
-  if (!row) return undefined;
-  await abstimmungLesen.nachKopf();
-  const [optionen, teilnahmen, stimmen] = await Promise.all([
-    loadOptionen(db, id),
-    loadTeilnahmen(db, id),
-    loadStimmen(db, id),
-  ]);
-  // The reads are separate: if the answers became less visible meanwhile, an answer given under
-  // the new setting may be among them, so the stricter setting counts. Answers that exist never
-  // become more visible (`updateAbstimmung`), so the later read is never too loose
-  const danach = await db
-    .selectFrom('abstimmung.abstimmung')
-    .select('sichtbarkeit')
-    .where('id', '=', id)
-    .executeTakeFirst();
-  const sichtbarkeit = strenger(row.sichtbarkeit, danach?.sichtbarkeit ?? row.sichtbarkeit);
-  const order = new Map(optionen.map((option, index) => [option.id, index]));
-  const sorted = (ids: number[] | undefined): number[] =>
-    (ids ?? []).sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
-  const rohdaten: AbstimmungRohdaten = {
-    id: row.id,
-    titel: row.titel,
-    beschreibung: row.beschreibung,
-    maxAuswahl: row.max_auswahl,
-    vielleichtErlaubt: row.vielleicht,
-    sichtbarkeit,
-    geschlossen: row.geschlossen_am !== null,
-    erstelltVonName: row.erstellt_von_name,
-    optionen,
-    // A family invitation only records that someone of the family answered; another invitation
-    // of a leader answers through the leader's participation
-    antworten: teilnahmen
-      .filter(
-        (teilnahme) =>
-          teilnahme.geantwortet_am !== null && !teilnahme.familie && teilnahme.alias_von === null
-      )
-      .map((teilnahme) => ({
-        teilnahmeId: teilnahme.id,
-        name: teilnahme.name || 'Ohne Namen',
-        gewaehlt: sorted(stimmen.get(teilnahme.id)?.gewaehlt),
-        vielleicht: sorted(stimmen.get(teilnahme.id)?.vielleicht),
-      })),
-  };
-  return { row, rohdaten, teilnahmen, stimmen };
-}
-
 function ich(geladen: Geladen, teilnahme: TeilnahmeRow | undefined): AbstimmungAnsicht['ich'] {
   if (!teilnahme) return null;
   // The link of a family: everyone enters their own name and answer
@@ -332,11 +178,14 @@ export async function listAbstimmungen(
       .execute(),
   ]);
   const antworten = new Map(gezaehlt.map((row) => [row.abstimmung_id, Number(row.anzahl)]));
+  const eigeneJeAbstimmung = new Map<number, typeof eigene>();
+  for (const teilnahme of eigene) {
+    const liste = eigeneJeAbstimmung.get(teilnahme.abstimmung_id);
+    if (liste) liste.push(teilnahme);
+    else eigeneJeAbstimmung.set(teilnahme.abstimmung_id, [teilnahme]);
+  }
   return rows.map((row) => {
-    const mine = eigeneTeilnahme(
-      eigene.filter((t) => t.abstimmung_id === row.id),
-      person
-    );
+    const mine = eigeneTeilnahme(eigeneJeAbstimmung.get(row.id) ?? [], person);
     return {
       id: row.id,
       titel: row.titel,
@@ -356,7 +205,7 @@ export async function getAbstimmungDetail(
   person: AbstimmungIdentitaet,
   siteUrl: string
 ): Promise<AbstimmungDetail | undefined> {
-  const geladen = await load(getDb(), id);
+  const geladen = await ladeAbstimmung(getDb(), id);
   if (!geladen) return undefined;
   const { row, teilnahmen } = geladen;
   const eigene = row.erstellt_von === person.login;
@@ -387,29 +236,6 @@ export async function getAbstimmungDetail(
 /** Title, organizer and state, e.g. to check rights and for the mails. */
 export async function getAbstimmungKopf(id: number): Promise<AbstimmungKopf | undefined> {
   return loadRow(getDb(), id);
-}
-
-/** Inserts the options of the form in their order; `id`s were checked by the caller. */
-async function writeOptionen(
-  trx: Transaction<Database>,
-  abstimmungId: number,
-  input: AbstimmungEingabe
-): Promise<void> {
-  for (const [position, option] of input.optionen.entries()) {
-    if (option.id) {
-      await trx
-        .updateTable('abstimmung.optionen')
-        .set({ text: option.text, position })
-        .where('id', '=', option.id)
-        .where('abstimmung_id', '=', abstimmungId)
-        .execute();
-    } else {
-      await trx
-        .insertInto('abstimmung.optionen')
-        .values({ abstimmung_id: abstimmungId, position, text: option.text })
-        .execute();
-    }
-  }
 }
 
 /** Creates an Abstimmung with its options; returns its ID. */
@@ -625,18 +451,20 @@ async function writeAntwort(
     .set({ name, geantwortet_am: new Date().toISOString() })
     .where('id', '=', teilnahmeId)
     .execute();
-  await dropErinnerung(trx, teilnahmeId);
+  await dropErinnerungen(trx, [teilnahmeId]);
 }
 
 /**
- * Takes back a queued reminder of someone who answered meanwhile, so it neither goes out nor
- * keeps the mails open. A reminder already being sent is not stopped.
+ * Takes back the queued reminders of people who answered meanwhile, so they neither go out nor
+ * keep the mails open. A reminder already being sent is not stopped. One statement for all;
+ * an Abstimmung has at most `MAX_ABSTIMMUNG_TEILNAHMEN` invitations.
  */
-async function dropErinnerung(trx: Transaction<Database>, teilnahmeId: number): Promise<void> {
+async function dropErinnerungen(trx: Transaction<Database>, teilnahmeIds: number[]): Promise<void> {
+  if (!teilnahmeIds.length) return;
   await trx
     .updateTable('abstimmung.teilnahme')
     .set({ mail_status: 'gesendet' })
-    .where('id', '=', teilnahmeId)
+    .where('id', 'in', teilnahmeIds)
     .where('mail_art', '=', 'erinnerung')
     .where('mail_status', '=', 'offen')
     .execute();
@@ -769,7 +597,7 @@ export async function voteAsStaff(
         .set({ alias_von: teilnahmeId, geantwortet_am: null })
         .where('id', 'in', weitere)
         .execute();
-      for (const weitereId of weitere) await dropErinnerung(trx, weitereId);
+      await dropErinnerungen(trx, weitere);
     }
   });
 }
@@ -811,7 +639,7 @@ export async function getAbstimmungAnsicht(link: {
   const db = getDb();
   const ziel = await findLink(db, link);
   if (!ziel) return undefined;
-  const geladen = await load(db, ziel.abstimmungId);
+  const geladen = await ladeAbstimmung(db, ziel.abstimmungId);
   if (!geladen) return undefined;
   const eigeneZeile = geladen.teilnahmen.find((t) => t.id === ziel.teilnahmeId);
   return {
@@ -885,7 +713,7 @@ export async function votePublic(
         .where('id', '=', familie)
         .where('geantwortet_am', 'is', null)
         .execute();
-      await dropErinnerung(trx, familie);
+      await dropErinnerungen(trx, [familie]);
     }
     return { token };
   });
@@ -900,29 +728,6 @@ export async function getAbstimmungLogins(id: number): Promise<string[]> {
     .where('login', 'is not', null)
     .execute();
   return rows.flatMap((row) => (row.login ? [row.login] : []));
-}
-
-/** Counts of the mails of one Abstimmung. */
-export interface AbstimmungMailStand {
-  /** Still to send. */
-  offen: number;
-  gesendet: number;
-  /** Reserved, but unclear whether the mail went out; never sent again automatically. */
-  unklar: number;
-}
-
-export async function getAbstimmungMailStand(id: number): Promise<AbstimmungMailStand> {
-  const rows = await getDb()
-    .selectFrom('abstimmung.teilnahme')
-    .select(['mail_status'])
-    .where('abstimmung_id', '=', id)
-    .where('mail_status', 'is not', null)
-    .execute();
-  return {
-    offen: rows.filter((row) => row.mail_status === 'offen').length,
-    gesendet: rows.filter((row) => row.mail_status === 'gesendet').length,
-    unklar: rows.filter((row) => row.mail_status === 'versucht').length,
-  };
 }
 
 /** An address to invite, with the name from CampFlow if known. */

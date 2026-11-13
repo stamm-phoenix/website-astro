@@ -1,6 +1,7 @@
 import { taskPeople, taskAssigneeLogin } from './aufgaben-zuordnung';
 import { createHash } from 'node:crypto';
-import { sql, type Selectable, type Transaction } from 'kysely';
+import { sql, type Insertable, type Selectable, type Transaction } from 'kysely';
+import { insertTaskRows } from './aufgaben-batch';
 import type { Database, TaskTable } from './db-schema';
 import type { Task, TaskInput, TaskProject, TaskTemplate, TemplateItem } from './aufgaben-model';
 import {
@@ -307,15 +308,13 @@ export async function applyTaskTemplate(
       title: template.title,
       items: JSON.parse(template.items) as unknown,
     });
-    for (const item of items) {
-      await trx
-        .insertInto('organisation.task')
-        .values({
-          ...columns({ ...item, projectId, dueDate: templateDate(date, item.daysBefore) }, actor),
-          state: 'offen',
-        })
-        .execute();
-    }
+    await insertTaskRows(
+      trx,
+      items.map((item) => ({
+        ...columns({ ...item, projectId, dueDate: templateDate(date, item.daysBefore) }, actor),
+        state: 'offen' as const,
+      }))
+    );
     await trx
       .insertInto('organisation.checklist')
       .values({ project_id: projectId, template_id: templateId })
@@ -373,7 +372,7 @@ export async function storeTaskSuggestions(
           .execute()
       ).map((row) => row.source_key)
     );
-    let added = 0;
+    const rows: Insertable<TaskTable>[] = [];
     for (const item of items) {
       const key = createHash('sha256')
         .update(JSON.stringify([sourceId, sourceVersion, item.title, item.quote]))
@@ -386,30 +385,27 @@ export async function storeTaskSuggestions(
               normalizedProjectTitle(project.title) === normalizedProjectTitle(item.projectTitle!)
           )
         : [];
-      await trx
-        .insertInto('organisation.task')
-        .values({
-          ...columns({ ...item, projectId: matching.length === 1 ? matching[0].id : null }, actor),
-          assignee: item.assignee,
-          assignment_resolution: item.assignmentResolution ?? 'legacy',
-          suggested_assignee_name: item.assignees?.some((person) => person.login)
-            ? item.assignee
-            : '',
-          suggested_project_title: matching.length === 1 ? '' : (item.projectTitle ?? ''),
-          state: 'vorschlag',
-          source_id: sourceId,
-          source_version: sourceVersion,
-          quote: item.quote,
-          source_key: key,
-        })
-        .execute();
-      added++;
+      rows.push({
+        ...columns({ ...item, projectId: matching.length === 1 ? matching[0].id : null }, actor),
+        assignee: item.assignee,
+        assignment_resolution: item.assignmentResolution ?? 'legacy',
+        suggested_assignee_name: item.assignees?.some((person) => person.login)
+          ? item.assignee
+          : '',
+        suggested_project_title: matching.length === 1 ? '' : (item.projectTitle ?? ''),
+        state: 'vorschlag',
+        source_id: sourceId,
+        source_version: sourceVersion,
+        quote: item.quote,
+        source_key: key,
+      });
     }
+    await insertTaskRows(trx, rows);
     await trx
       .insertInto('organisation.task_recognition')
       .values({ source_id: sourceId, source_version: sourceVersion })
       .execute();
-    return added;
+    return rows.length;
   });
 }
 /** The source is checked by the endpoint before accepting; the rowversion protects the decision. */

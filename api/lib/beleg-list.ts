@@ -2,13 +2,8 @@ import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
 import type { BelegCheck } from './beleg-check';
 import { parseStoredBelegCheck } from './beleg-check';
-import {
-  deleteBelegPhoto,
-  deleteOrphanedBelegPhotos,
-  isPdfFileName,
-  originalFileName,
-  storeBelegPhoto,
-} from './beleg-photos';
+import { deleteBelegPhoto, isPdfFileName, originalFileName, storeBelegPhoto } from './beleg-photos';
+import { removeFiles } from './beleg-files';
 import { nextContentId } from './content-ids';
 import {
   RecordNotFoundError,
@@ -183,10 +178,6 @@ export function toStaffBeleg(beleg: StoredBeleg): StaffBeleg {
 }
 
 /**
- * All receipts, newest first; with `submittedBy` only those of that login (compared without
- * regard to case, like the database collation), so nobody else's are read.
- */
-/**
  * All receipts, or only those of one person: submitted by them, or an Auslage under one of
  * their names (the database compares without case; the caller checks the names exactly).
  */
@@ -314,31 +305,6 @@ function toColumns(input: BelegInput): {
     status: input.status,
     review_note: input.reviewNote,
   };
-}
-
-/**
- * Deletes files after the rows were changed. The change is saved already, so a failure is only
- * logged; `deleteOrphanedBelegPhotos` runs after every change (also those that delete nothing)
- * and removes what was left.
- */
-async function removeFiles(work: () => Promise<unknown> = async () => undefined): Promise<void> {
-  const current = async (): Promise<void> => {
-    const rows = await getDb().selectFrom('organisation.beleg').select(['id', 'photo']).execute();
-    await deleteOrphanedBelegPhotos(new Map(rows.map((row) => [row.id, row.photo])));
-  };
-  for (const step of [work, current]) {
-    try {
-      await step();
-    } catch (error: unknown) {
-      console.warn(
-        JSON.stringify({
-          scope: 'beleg-photos',
-          warning: 'Photo files could not be deleted; the next change of a receipt removes them',
-          error: error instanceof Error ? error.message : String(error),
-        })
-      );
-    }
-  }
 }
 
 /**
