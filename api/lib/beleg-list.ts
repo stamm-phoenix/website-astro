@@ -1,10 +1,10 @@
 import type { Selectable } from 'kysely';
-import { removeFiles } from './beleg-cleanup';
 import { sql } from 'kysely';
 import type { BelegCheck } from './beleg-check';
 import { parseStoredBelegCheck } from './beleg-check';
 import {
   deleteBelegPhoto,
+  deleteOrphanedBelegPhotos,
   isPdfFileName,
   originalFileName,
   storeBelegPhoto,
@@ -258,6 +258,31 @@ function toColumns(input: BelegInput): {
 }
 
 /**
+ * Deletes files after the rows were changed. The change is saved already, so a failure is only
+ * logged; `deleteOrphanedBelegPhotos` runs after every change (also those that delete nothing)
+ * and removes what was left.
+ */
+async function removeFiles(work: () => Promise<unknown> = async () => undefined): Promise<void> {
+  const current = async (): Promise<void> => {
+    const rows = await getDb().selectFrom('organisation.beleg').select(['id', 'photo']).execute();
+    await deleteOrphanedBelegPhotos(new Map(rows.map((row) => [row.id, row.photo])));
+  };
+  for (const step of [work, current]) {
+    try {
+      await step();
+    } catch (error: unknown) {
+      console.warn(
+        JSON.stringify({
+          scope: 'beleg-photos',
+          warning: 'Photo files could not be deleted; the next change of a receipt removes them',
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
+  }
+}
+
+/**
  * Stores a new receipt with its photo. The ID is reserved first, so the photo is stored under it
  * before the row exists; without a row the files are deleted again.
  */
@@ -288,6 +313,7 @@ export async function createBeleg(
     await removeFiles(() => deleteBelegPhoto(id, photo));
     throw error;
   }
+  await removeFiles();
   return String(id);
 }
 
@@ -318,6 +344,7 @@ export async function updateBeleg(
     .output('inserted.version')
     .executeTakeFirst();
   if (!row) return notChanged(id);
+  await removeFiles();
   return toVersion(row.version);
 }
 
