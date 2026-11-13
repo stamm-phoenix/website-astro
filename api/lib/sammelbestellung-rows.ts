@@ -60,7 +60,7 @@ export async function loadOrderRows(db: Db, filter: OrderFilter): Promise<OrderR
         parts.push(await read(ids.slice(from, from + ID_CHUNK)));
       return parts.flat();
     };
-    const [items, payments, emails, events, current] = await Promise.all([
+    const [items, payments, emails, events] = await Promise.all([
       chunked((chunk) =>
         db
           .selectFrom('sammel.order_item')
@@ -91,14 +91,15 @@ export async function loadOrderRows(db: Db, filter: OrderFilter): Promise<OrderR
           .orderBy('id')
           .execute()
       ),
-      chunked((chunk) =>
-        db
-          .selectFrom('sammel.member_order')
-          .select(['id', 'version'])
-          .where('id', 'in', chunk)
-          .execute()
-      ),
     ]);
+    // Only after the child rows: a write committing during their read must change a version seen here
+    const current = await chunked((chunk) =>
+      db
+        .selectFrom('sammel.member_order')
+        .select(['id', 'version'])
+        .where('id', 'in', chunk)
+        .execute()
+    );
     const versions = new Map(current.map((row) => [row.id, toVersion(row.version)]));
     if (orders.some((row) => versions.get(row.id) !== toVersion(row.version))) {
       if (attempt >= 5) throw new VersionConflictError();
