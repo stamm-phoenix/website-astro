@@ -4,7 +4,7 @@
   import { fetchQuestionsAndAnswers, QA_STORE } from '../lib/qaStore.svelte';
   import { createQuestionIndex, suggestQuestions } from '../lib/qaSearch';
   import { withBaked } from '../lib/storeView';
-  import type { QuestionAndAnswer } from '../../../api/lib/qa-list';
+  import type { QuestionAndAnswer } from '../../../api/lib/qa-model';
 
   interface Props {
     message: string;

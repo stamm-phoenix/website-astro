@@ -12,7 +12,7 @@ import type {
 import type { KostenstellenData, CampflowBelegeData } from './types/abrechnung';
 import type { ProtokollEditorOverview } from '../../../api/lib/protokoll-editor-model';
 import type { SammelAktion } from '../../../api/lib/sammelbestellung-model';
-import type { StaffBeleg } from '../../../api/lib/beleg-list';
+import type { StaffBeleg } from '../../../api/lib/beleg-model';
 import type { StaffBlogListItem } from './blogTypes';
 import type { StaffDownload, StaffGruppenstundenData, StaffLeitendeData } from './types/staff';
 import type { StaffNikolausSteuerung } from './types/nikolaus';

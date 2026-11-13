@@ -1,6 +1,6 @@
 /** Lists of the Leitendenbereich: Gruppenstunden, Leitende, downloads and the photo library. */
 import type { GruppenstundenException } from '../../../../api/lib/gruppenstunden-exception-model';
-import type { StaffLeitende } from '../../../../api/lib/leitende-list';
+import type { StaffLeitende } from '../../../../api/lib/leitende-model';
 import type { GruppenstundeLeitende } from './oeffentlich';
 
 /** A Gruppenstunde as edited in the Leitendenbereich. */

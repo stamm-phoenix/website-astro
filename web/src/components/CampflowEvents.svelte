@@ -13,7 +13,7 @@
   import { GROUP_EMOJIS, stufeToFilterKeys } from '../lib/events';
   import { aktionenPflege } from '../lib/pflegeStore.svelte';
   import type { AktionRow as Row, AktionTarget } from '../lib/types/aktionen';
-  import type { StaffAktion } from '../../../api/lib/aktionen-list';
+  import type { StaffAktion } from '../../../api/lib/aktionen-model';
   import AktionDialog from './pflege/AktionDialog.svelte';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import InfoHint from './ui/InfoHint.svelte';

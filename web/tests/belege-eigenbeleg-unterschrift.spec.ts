@@ -1,5 +1,5 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
-import type { BelegCheck } from '../../api/lib/beleg-check';
+import type { BelegCheck } from '../../api/lib/beleg-check-model';
 
 /** What the check answers for a photo of an Eigenbeleg without signature (#460). */
 const unsignedCheck: BelegCheck = {

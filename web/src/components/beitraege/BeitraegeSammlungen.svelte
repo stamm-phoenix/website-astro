@@ -5,7 +5,7 @@
   import type { Notice } from '../../lib/status';
   import { formatEuro } from '../../lib/format';
   import { isErledigt, sammlungStand, sammlungZahlen } from '../../lib/beitraege';
-  import type { Beitrag, BeitragSammlung } from '../../../../api/lib/beitraege';
+  import type { Beitrag, BeitragSammlung } from '../../../../api/lib/beitraege-model';
 
   interface Props {
     batches: BeitragSammlung[];

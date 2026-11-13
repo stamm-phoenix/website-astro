@@ -2,8 +2,8 @@ import { fetchFile } from './api';
 import { parseEuroToCent } from './belege';
 import { todayIso, formatDateTime } from './format';
 import type { BelegArt, BelegStatus } from '../../../api/lib/validation/beleg';
-import type { BelegCampflow, StaffBeleg } from '../../../api/lib/beleg-list';
-import type { BelegCheck } from '../../../api/lib/beleg-check';
+import type { BelegCampflow, StaffBeleg } from '../../../api/lib/beleg-model';
+import type { BelegCheck } from '../../../api/lib/beleg-check-model';
 export interface BelegForm {
   id: string | null;
   etag: string;

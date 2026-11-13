@@ -6,9 +6,9 @@
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
-  import type { ProtokollTermin } from '../../../../api/lib/protokoll-termin';
+  import type { ProtokollTermin } from '../../../../api/lib/protokoll-termin-model';
   import type { ProtokollTerminRequest } from '../../lib/types/protokolle';
-  import type { StaffProtokoll } from '../../../../api/lib/protokolle';
+  import type { StaffProtokoll } from '../../../../api/lib/protokolle-model';
 
   interface Props {
     protokoll: StaffProtokoll;

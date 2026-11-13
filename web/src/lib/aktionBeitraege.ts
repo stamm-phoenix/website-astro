@@ -1,7 +1,7 @@
 import { statusLabel } from './beitraege';
 import type { PersonColumn } from './campflowFields';
 import { formatEuro } from './format';
-import type { AktionBeitrag } from '../../../api/lib/beitraege';
+import type { AktionBeitrag } from '../../../api/lib/beitraege-model';
 import type { AktionBeitraegeData } from './types/aktionen';
 import type { CampflowPerson } from '../../../api/lib/campflow';
 

@@ -5,7 +5,7 @@
   import { formatIsoDate } from '../../lib/belege';
   import { campflowBildKey, campflowStand } from '../../lib/belegEintraege';
   import { formatEuro } from '../../lib/format';
-  import type { CampflowBeleg } from '../../../../api/lib/campflow-belege';
+  import type { CampflowBeleg } from '../../../../api/lib/campflow-belege-model';
   interface Props {
     beleg: CampflowBeleg | null;
     onclose: () => void;

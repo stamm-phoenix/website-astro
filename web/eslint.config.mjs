@@ -11,19 +11,26 @@ import pluginPlaywright from 'eslint-plugin-playwright';
 /**
  * Modules of `api/lib` that the browser may import as values. They import no zod (checked by
  * `test/browser-code-without-zod.test.ts`), unlike most validators, schemas and data access.
- * Types come from any module: `import type` is erased. Check a new module before listing it.
+ * `import type` is erased at runtime, but the type checks still load the file: types the web shares
+ * with the API live in dependency-free `*-model.ts` modules (`test/api-types-without-server-deps.test.ts`
+ * fails when an import reaches a package the web job does not install). Check a new module before
+ * listing it.
  */
 const BROWSER_SAFE_API_MODULES = [
   'abrechnung-session',
   'abstimmung-model',
   'aktion-stufen',
+  'aktionen-model',
   'anwesenheit-model',
   'aufgaben-zuordnung',
+  'beitraege-model',
+  'beleg-check-model',
+  'beleg-model',
   'calendar-day',
+  'campflow-belege-model',
   'campflow-groups',
   'changelog-id',
   'download-file-name',
-  'etag-version',
   'essen-einheiten-model',
   'essen-einkaeufe-model',
   'essen-einkauf-model',
@@ -31,11 +38,15 @@ const BROWSER_SAFE_API_MODULES = [
   'essen-packliste-model',
   'essen-planung-model',
   'essen-teilnehmende-model',
+  'etag-version',
   'foto-pfade',
+  'fotos-model',
   'help-contacts',
   'inventur-model',
   'kjr-zuschuss',
   'kontakt-validation',
+  'kostenstellen-model',
+  'leitende-model',
   'nikolaus-config',
   'nikolaus-dispo',
   'nikolaus-einteilung',
@@ -47,12 +58,16 @@ const BROWSER_SAFE_API_MODULES = [
   'protokoll-editor-model',
   'protokoll-korrektur-model',
   'protokoll-markdown',
+  'protokoll-termin-model',
   'protokoll-zeitraum',
+  'protokolle-model',
+  'qa-model',
   'sammelbestellung-export',
   'sammelbestellung-model',
   'sammelbestellung-shops',
   'sammelbestellung-stamm',
   'schnupper-model',
+  'staff-principal-model',
   'staff-settings-model',
 ];
 

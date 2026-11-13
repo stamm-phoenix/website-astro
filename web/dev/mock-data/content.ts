@@ -8,7 +8,7 @@ import type {
 } from '../../src/lib/types/oeffentlich';
 import type { BlogImage, StaffBlogListItem, StaffBlogPost } from '../../src/lib/blogTypes';
 import type { StaffDownload } from '../../src/lib/types/staff';
-import type { StaffQuestionAndAnswer } from '../../../api/lib/qa-list';
+import type { StaffQuestionAndAnswer } from '../../../api/lib/qa-model';
 import { campflowEvents } from './campflow';
 import {
   MOCK_NOW,

@@ -14,7 +14,7 @@
   import { beitragBetrag } from '../lib/aktionBeitraege';
   import { statusLabel } from '../lib/beitraege';
   import { formatEuro } from '../lib/format';
-  import type { AktionBeitrag } from '../../../api/lib/beitraege';
+  import type { AktionBeitrag } from '../../../api/lib/beitraege-model';
   import type { CampflowColumn, CampflowPerson } from '../../../api/lib/campflow';
   import type { CampflowEvent } from '../lib/types/aktionen';
 

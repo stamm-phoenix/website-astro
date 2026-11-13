@@ -1,5 +1,5 @@
 import { parseHtml } from './html';
-import type { QuestionAndAnswer } from '../../../api/lib/qa-list';
+import type { QuestionAndAnswer } from '../../../api/lib/qa-model';
 
 export interface QuestionSearchEntry {
   item: QuestionAndAnswer;

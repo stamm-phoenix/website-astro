@@ -4,7 +4,7 @@
   import { untrack } from 'svelte';
   import { sanitizeDescription } from '../lib/api';
   import { fetchQuestionsAndAnswers, QA_STORE } from '../lib/qaStore.svelte';
-  import type { QuestionAndAnswer } from '../../../api/lib/qa-list';
+  import type { QuestionAndAnswer } from '../../../api/lib/qa-model';
   import { withBaked } from '../lib/storeView';
   import { createQuestionIndex, searchQuestions } from '../lib/qaSearch';
 

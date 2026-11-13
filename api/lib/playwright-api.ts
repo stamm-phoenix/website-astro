@@ -10,6 +10,8 @@ import {
 } from './playwright-api-schema';
 import type { CampflowSphere, KostenstelleWithCategories } from './playwright-api-schema';
 import { errorResponse } from './response-utils';
+import type { Kostenstelle } from './kostenstellen-model';
+export type { Kostenstelle } from './kostenstellen-model';
 
 export type { CampflowSphere } from './playwright-api-schema';
 
@@ -31,14 +33,6 @@ export interface Einzelnachweis {
   amountEur: number;
   unassignedAmount: number;
   unassignedAmountEur: number;
-}
-
-export interface Kostenstelle {
-  id: string;
-  name: string;
-  archived: boolean;
-  /** The Kategorien of the Kostenstelle, to book a receipt on one of them. */
-  categories: { id: string; name: string }[];
 }
 
 export interface EinzelnachweiseResponse {

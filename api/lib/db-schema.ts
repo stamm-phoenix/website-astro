@@ -1,4 +1,5 @@
 import type { BlogPostTable, BlogImageTable } from './db-schema-blog';
+import type { BelegCampflowState } from './beleg-model';
 import type { ContentReviewTable } from './db-schema-content-review';
 import type { ColumnType, Generated } from 'kysely';
 import type { StaffUsageTable } from './db-schema-staff-usage';
@@ -413,7 +414,7 @@ export interface BelegTable {
 
 export type BelegArt = 'Ausgabe' | 'Einnahme';
 
-export type BelegCampflowState = 'Gestartet' | 'Fehlgeschlagen' | 'Hochgeladen';
+export type { BelegCampflowState };
 
 /** Transfer of a receipt to CampFlow; outlives the receipt, so it has no foreign key. */
 export interface BelegCampflowTable {

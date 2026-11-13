@@ -1,7 +1,7 @@
 /** CampFlow events, Aktionen of the Leitendenbereich and Beiträge. */
 import type { CampflowColumn, CampflowPerson } from '../../../../api/lib/campflow';
-import type { StaffAktion } from '../../../../api/lib/aktionen-list';
-import type { AktionBeitrag, Beitrag, BeitragSammlung } from '../../../../api/lib/beitraege';
+import type { StaffAktion } from '../../../../api/lib/aktionen-model';
+import type { AktionBeitrag, Beitrag, BeitragSammlung } from '../../../../api/lib/beitraege-model';
 
 /** A CampFlow event (Aktion) as seen in the Leitendenbereich. */
 export interface CampflowEvent {

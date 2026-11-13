@@ -1,6 +1,6 @@
 /** Types of the public site: Leitende, Gruppenstunden, Aktionen, downloads, blog, Instagram and Q&A. */
 import type { GruppenstundenException } from '../../../../api/lib/gruppenstunden-exception-model';
-import type { QuestionAndAnswer, StaffQuestionAndAnswer } from '../../../../api/lib/qa-list';
+import type { QuestionAndAnswer, StaffQuestionAndAnswer } from '../../../../api/lib/qa-model';
 
 export interface Leitende {
   id: string;

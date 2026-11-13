@@ -1,6 +1,6 @@
 /** The receipts of the module „Belege“ and the demo CampFlow page „Belege“ in the mock API. */
-import type { CampflowBeleg } from '../../../api/lib/campflow-belege';
-import type { StaffBeleg } from '../../../api/lib/beleg-list';
+import type { CampflowBeleg } from '../../../api/lib/campflow-belege-model';
+import type { StaffBeleg } from '../../../api/lib/beleg-model';
 import { MOCK_NOW, dayFromToday, isoFromNow, newEtag } from './util';
 
 /** What the mocked image model answers for every photo. */

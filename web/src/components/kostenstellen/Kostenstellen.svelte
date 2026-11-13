@@ -25,7 +25,7 @@
     type KostenstellenAnsicht,
     type KostenstellenSortierung,
   } from '../../lib/kostenstellen';
-  import type { KostenstelleStatistik } from '../../../../api/lib/kostenstellen';
+  import type { KostenstelleStatistik } from '../../../../api/lib/kostenstellen-model';
   import type { KostenstellenData } from '../../lib/types/abrechnung';
 
   const CAMPFLOW_URL = 'https://my.campflow.de/dpsg-stamm-phoenix-5629/finance/reports/expenses';

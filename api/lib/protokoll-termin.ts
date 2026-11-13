@@ -20,47 +20,19 @@ import {
 import { ValidationError } from './validation/errors';
 import { isValidDate } from './calendar-date';
 import { parseWith } from './validation/zod';
+import type { ConfirmedTermin, ProtokollTermin, TerminSuggestion } from './protokoll-termin-model';
+export type {
+  ConfirmedTermin,
+  ProtokollTermin,
+  TerminDecision,
+  TerminExtraction,
+  TerminSuggestion,
+} from './protokoll-termin-model';
 
 export { MAX_PLACE_LENGTH, TERMIN_DECISIONS, TERMIN_EXTRACTIONS };
 
-export type TerminExtraction = (typeof TERMIN_EXTRACTIONS)[number];
-
-export type TerminDecision = (typeof TERMIN_DECISIONS)[number];
-
 export const TERMIN_ACTIONS = ['erkennen', 'bestaetigen', 'ablehnen'] as const;
 export type TerminAction = (typeof TERMIN_ACTIONS)[number];
-
-export interface TerminSuggestion {
-  /** `YYYY-MM-DD` */
-  date: string | null;
-  /** `HH:MM` */
-  time: string | null;
-  place: string | null;
-  /** The passage of the minutes the suggestion comes from, verbatim. */
-  quote: string | null;
-}
-
-export interface ConfirmedTermin {
-  /** `YYYY-MM-DD` */
-  date: string;
-  /** `HH:MM` */
-  time: string | null;
-  place: string | null;
-}
-
-/** Suggestion and decision as stored in the column `Termin` and sent to the browser. */
-export interface ProtokollTermin {
-  /** cTag of the file version the suggestion was read from. */
-  sourceVersion: string;
-  extraction: TerminExtraction;
-  suggestion: TerminSuggestion;
-  decision: TerminDecision;
-  /** The date a leader confirmed; only with `bestaetigt`. */
-  confirmed: ConfirmedTermin | null;
-  decidedBy: string;
-  decidedAt: string;
-  extractedAt: string;
-}
 
 /** Characters of the minutes sent to the model, about 3,500 tokens. */
 export const MAX_TERMIN_TEXT_CHARS = 12_000;

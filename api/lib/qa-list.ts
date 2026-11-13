@@ -10,22 +10,8 @@ import {
   requireRowversion,
 } from './db';
 import type { QuestionAndAnswerInput } from './validation/content';
-
-/**
- * Questions and answers in Azure SQL (`content.faq`, migration `0003_blog_faq.sql`).
- */
-export interface QuestionAndAnswer {
-  id: string;
-  question: string;
-  answer: string;
-  category: string;
-}
-
-/** An entry as the Leitendenbereich edits it, drafts included. */
-export interface StaffQuestionAndAnswer extends QuestionAndAnswerInput {
-  id: string;
-  etag: string;
-}
+import type { QuestionAndAnswer, StaffQuestionAndAnswer } from './qa-model';
+export type { QuestionAndAnswer, StaffQuestionAndAnswer } from './qa-model';
 
 function toStaffItem(row: Selectable<FaqTable>): StaffQuestionAndAnswer {
   return {

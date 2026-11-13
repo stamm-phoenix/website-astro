@@ -1,17 +1,11 @@
 /** Validation of the receipts (Belege) of the Leitendenbereich. */
 import { z } from 'zod';
 import { choice, isRecord, labeledText, parseWith } from './zod';
+import type { BelegArt, BelegStatus } from '../beleg-model';
+import { BELEG_ARTEN, BELEG_STATUSES } from '../beleg-model';
 
-/**
- * Review states of a receipt. The real bookkeeping happens in CampFlow; here the Kasse only
- * accepts a receipt (then transfers it to CampFlow) or rejects it with a reason.
- */
-export const BELEG_STATUSES = ['Eingereicht', 'Angenommen', 'Abgelehnt'] as const;
-export type BelegStatus = (typeof BELEG_STATUSES)[number];
-
-/** An expense, or income such as a donation or a fee paid in cash; income has no Auslage. */
-export const BELEG_ARTEN = ['Ausgabe', 'Einnahme'] as const;
-export type BelegArt = (typeof BELEG_ARTEN)[number];
+export { BELEG_ARTEN, BELEG_STATUSES };
+export type { BelegArt, BelegStatus };
 
 /** Photos are scaled down in the browser; this only guards against oversized requests. */
 export const MAX_BELEG_PHOTO_BYTES = 4 * 1024 * 1024;

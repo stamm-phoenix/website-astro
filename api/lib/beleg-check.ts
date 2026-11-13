@@ -4,6 +4,8 @@ import { CONFIG } from './config';
 import type { AzureOpenAiDeployment } from './azure-openai';
 import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
 import { lenientObject } from './validation/zod';
+import type { BelegCheck } from './beleg-check-model';
+export type { BelegCheck } from './beleg-check-model';
 
 /**
  * Preliminary check of receipt photos with an image model on Azure OpenAI: is it a receipt,
@@ -30,32 +32,6 @@ export const UNSIGNED_EIGENBELEG_ISSUE =
   'Der Eigenbeleg ist nicht unterschrieben. Bitte unterschreiben und neu fotografieren.';
 const MAX_RESTRICTED_ITEMS = 20;
 const MAX_ITEM_LENGTH = 100;
-
-/** Result of the check as stored with the receipt and sent to the browser. */
-export interface BelegCheck {
-  /** Receipt, complete, readable and, for an Eigenbeleg, signed: fit for the archive. */
-  ok: boolean;
-  isReceipt: boolean;
-  complete: boolean;
-  readable: boolean;
-  /**
-   * An Eigenbeleg (written by the person who paid) without that person's signature; the Kasse
-   * rejects it (discussion #460).
-   */
-  unsignedEigenbeleg: boolean;
-  /** Concrete problems in German, e.g. „Der Gesamtbetrag ist abgeschnitten.“ */
-  issues: string[];
-  /**
-   * Positions that are not suitable for youth work (alcohol, tobacco, other adult-only items),
-   * as printed on the receipt. A hint for the Kasse; it does not affect `ok`.
-   */
-  restrictedItems: string[];
-  shop: string | null;
-  /** `YYYY-MM-DD` */
-  date: string | null;
-  amountCent: number | null;
-  checkedAt: string;
-}
 
 /** Degrees clockwise a photo must be turned for its text to read upright. */
 export type BelegRotation = 0 | 90 | 180 | 270;

@@ -1,5 +1,5 @@
 /** Protokolle and their Termin. */
-import type { StaffProtokoll } from '../../../../api/lib/protokolle';
+import type { StaffProtokoll } from '../../../../api/lib/protokolle-model';
 
 /** Result of reading the next meeting from the minutes. */
 export type ProtokollTerminExtraction =

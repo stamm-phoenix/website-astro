@@ -10,7 +10,7 @@
   import { sendApi } from '../../lib/api';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { leitendePflege } from '../../lib/pflegeStore.svelte';
-  import type { StaffLeitende } from '../../../../api/lib/leitende-list';
+  import type { StaffLeitende } from '../../../../api/lib/leitende-model';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';

@@ -14,7 +14,7 @@ import type {
   InstagramPost,
   Vorstand,
 } from '../types/oeffentlich';
-import type { QuestionAndAnswer } from '../../../../api/lib/qa-list';
+import type { QuestionAndAnswer } from '../../../../api/lib/qa-model';
 import type { NikolausConfig } from '../nikolausConfig';
 import { fetchFromSource, getContentSource, isStrict } from './source';
 import { stageImage, stageSource } from './staging';

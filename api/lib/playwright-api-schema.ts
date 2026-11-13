@@ -1,10 +1,11 @@
 /** Schemas of the answers of the Playwright API that the readers in `playwright-api.ts` check. */
 import { z } from 'zod';
+import type { KostenstellenSphaere } from './kostenstellen-model';
+import { CAMPFLOW_SPHERES } from './kostenstellen-model';
 
-/** Gemeinnützige Sphäre of a Kategorie, as CampFlow names them. */
-export const CAMPFLOW_SPHERES = ['ideal', 'purpose', 'assets', 'business'] as const;
+export { CAMPFLOW_SPHERES };
 
-export type CampflowSphere = (typeof CAMPFLOW_SPHERES)[number];
+export type CampflowSphere = KostenstellenSphaere;
 
 /**
  * A Kostenstelle with its Kategorien, validated before a financial write relies on it. Only the

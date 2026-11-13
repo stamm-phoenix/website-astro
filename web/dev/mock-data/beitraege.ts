@@ -1,5 +1,5 @@
 /** Beiträge of the mock API (Leitendenbereich → Beiträge); all names are invented. */
-import type { Beitrag, BeitragSammlung, BeitragStatus } from '../../../api/lib/beitraege';
+import type { Beitrag, BeitragSammlung, BeitragStatus } from '../../../api/lib/beitraege-model';
 import type { BeitraegeData, OffeneBeitraegeData } from '../../src/lib/types/aktionen';
 
 const NAMEN = [

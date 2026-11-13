@@ -2,7 +2,7 @@ import { belegEintraege, type BelegEintrag } from './belegEintraege';
 import { todayIso } from './format';
 import type { StatusTone } from './status';
 import type { CampflowBelegeData } from './types/abrechnung';
-import type { StaffBeleg } from '../../../api/lib/beleg-list';
+import type { StaffBeleg } from '../../../api/lib/beleg-model';
 
 /** How many days a paid-back receipt stays in „Meine Belege“ on the start page. */
 export const MEINE_BELEGE_ERSTATTET_TAGE = 30;

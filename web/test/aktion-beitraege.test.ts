@@ -7,7 +7,7 @@ import {
   beitraegeOf,
   kenntAlle,
 } from '../src/lib/aktionBeitraege';
-import type { AktionBeitrag } from '../../api/lib/beitraege';
+import type { AktionBeitrag } from '../../api/lib/beitraege-model';
 import type { AktionBeitraegeData } from '../src/lib/types/aktionen';
 import type { CampflowPerson } from '../../api/lib/campflow';
 

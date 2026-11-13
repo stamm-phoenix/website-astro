@@ -2,7 +2,7 @@
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
   import { errorMessage, sendApi } from '../../lib/api';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
-  import type { StaffProtokoll } from '../../../../api/lib/protokolle';
+  import type { StaffProtokoll } from '../../../../api/lib/protokolle-model';
   interface Props {
     deleting: StaffProtokoll | null;
     notify: (text: string) => void;

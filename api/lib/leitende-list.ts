@@ -21,6 +21,8 @@ import {
   photoContentType,
   toStoredPhoto,
 } from './leitende-photos';
+import type { StaffLeitende } from './leitende-model';
+export type { StaffLeitende } from './leitende-model';
 
 /**
  * The Leitende in Azure SQL (`content.leitende` with their teams in `content.leitende_team`,
@@ -36,18 +38,6 @@ export interface Leitende {
   street?: string | undefined;
   city?: string | undefined;
   imageFileName?: string | undefined;
-  hasImage: boolean;
-}
-
-export interface StaffLeitende {
-  id: string;
-  etag: string;
-  name: string;
-  teams: string[];
-  phone: string;
-  street: string;
-  postalCode: string;
-  city: string;
   hasImage: boolean;
 }
 

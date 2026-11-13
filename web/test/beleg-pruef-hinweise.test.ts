@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { pruefHinweise } from '../src/lib/belegPruefHinweise';
-import type { BelegCheck } from '../../api/lib/beleg-check';
+import type { BelegCheck } from '../../api/lib/beleg-check-model';
 
 const ok: BelegCheck = {
   ok: true,
