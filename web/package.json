@@ -80,10 +80,12 @@
     "prettier-plugin-astro": "1.1.2",
     "prettier-plugin-svelte": "4.1.1",
     "serve": "14.2.7",
+    "sharp": "0.35.4",
     "svelte-check": "4.7.8",
     "svgo": "4.1.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
     "zod": "4.6.7"
   },
   "trustedDependencies": [
