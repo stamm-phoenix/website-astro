@@ -1,6 +1,6 @@
 /**
  * Shapes of the Protokoll-Editor (#277, `docs/protokoll-editor.md`). Shared with the frontend
- * (`web/src/lib/types.ts`), so keep this module free of imports and Node/browser-specific APIs.
+ * (`web/src/lib/types/`), so keep this module free of imports and Node/browser-specific APIs.
  */
 
 /** entwurf: being written; the others follow with review and mailing. */

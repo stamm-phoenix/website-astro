@@ -111,7 +111,7 @@ const { title, description } = Astro.props;
 - Use `interface` for object shapes (not `type`)
 - Explicit return types for exported functions
 - No `any` - use `unknown` with type guards
-- Define shared types in `web/src/lib/types.ts`
+- Types of the API come from the module that owns them (`import type` from `api/lib`); only types of the frontend itself go to `web/src/lib/types/<domain>.ts`. Never copy an API type by hand. Values from `api/lib` are imported only from the modules listed in `BROWSER_SAFE_API_MODULES` (`web/eslint.config.mjs`), which import no zod
 - Custom errors extend `Error` class (see `ApiError` in api.ts)
 
 ### File size
