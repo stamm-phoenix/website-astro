@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { aufgabenStore } from '../lib/aufgabenStore.svelte';
-  import { pendingTask } from '../lib/aufgabenView';
+  import { aufgabenStore } from '../../lib/aufgabenStore.svelte';
+  import { pendingTask } from '../../lib/aufgabenView';
   let { area = 'aufgaben' }: { area?: string } = $props();
   const items = $derived([
     {

@@ -1,16 +1,16 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { sendApi } from '../lib/api';
-  import { aufgabenStore, TASK_ENDPOINT } from '../lib/aufgabenStore.svelte';
-  import { createTaskForm } from '../lib/aufgabenForm.svelte';
-  import EditDialog from './pflege/EditDialog.svelte';
-  import FormField from './pflege/FormField.svelte';
-  import type { TaskTemplate, TemplateItem } from '../../../api/lib/aufgaben-model';
-  import { taskPeople } from '../../../api/lib/aufgaben-zuordnung';
-  import TaskAssigneeField from './TaskAssigneeField.svelte';
-  import ActionButton from './ui/ActionButton.svelte';
-  import StatusNotice from './pflege/StatusNotice.svelte';
-  import { rescuePeople, rescueRowCount } from '../lib/taskRescue';
+  import { sendApi } from '../../lib/api';
+  import { aufgabenStore, TASK_ENDPOINT } from '../../lib/aufgabenStore.svelte';
+  import { createTaskForm } from '../../lib/aufgabenForm.svelte';
+  import EditDialog from '../pflege/EditDialog.svelte';
+  import FormField from '../pflege/FormField.svelte';
+  import type { TaskTemplate, TemplateItem } from '../../../../api/lib/aufgaben-model';
+  import { taskPeople } from '../../../../api/lib/aufgaben-zuordnung';
+  import TaskAssigneeField from '../TaskAssigneeField.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
+  import StatusNotice from '../pflege/StatusNotice.svelte';
+  import { rescuePeople, rescueRowCount } from '../../lib/taskRescue';
   let {
     target: initialTarget = null,
     onclose,

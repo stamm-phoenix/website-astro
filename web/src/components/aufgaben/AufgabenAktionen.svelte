@@ -1,11 +1,11 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import type { Task } from '../../../api/lib/aufgaben-model';
-  import type { TaskActions } from '../lib/aufgabenActions.svelte';
-  import ActionSheet from './ui/ActionSheet.svelte';
-  import ConfirmDialog from './ui/ConfirmDialog.svelte';
-  import ActionButton from './ui/ActionButton.svelte';
-  import Toast from './ui/Toast.svelte';
+  import type { Task } from '../../../../api/lib/aufgaben-model';
+  import type { TaskActions } from '../../lib/aufgabenActions.svelte';
+  import ActionSheet from '../ui/ActionSheet.svelte';
+  import ConfirmDialog from '../ui/ConfirmDialog.svelte';
+  import ActionButton from '../ui/ActionButton.svelte';
+  import Toast from '../ui/Toast.svelte';
   let {
     actions,
     menuTarget = $bindable(null),

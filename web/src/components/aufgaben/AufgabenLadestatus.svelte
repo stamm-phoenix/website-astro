@@ -1,7 +1,7 @@
 <script lang="ts">
-  import ReloadAction from './ui/ReloadAction.svelte';
-  import MessageText from './ui/MessageText.svelte';
-  import { aufgabenStore, loadTasks } from '../lib/aufgabenStore.svelte';
+  import ReloadAction from '../ui/ReloadAction.svelte';
+  import MessageText from '../ui/MessageText.svelte';
+  import { aufgabenStore, loadTasks } from '../../lib/aufgabenStore.svelte';
 </script>
 
 {#if aufgabenStore.loading}<div role="status" class="my-4 min-h-[60dvh]">

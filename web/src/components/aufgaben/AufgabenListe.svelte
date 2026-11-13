@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { Task } from '../../../api/lib/aufgaben-model';
-  import { aufgabenStore } from '../lib/aufgabenStore.svelte';
-  import { dueLabel, dueSoon } from '../lib/aufgabenView';
-  import { taskAssigneeNames } from '../../../api/lib/aufgaben-zuordnung';
+  import type { Task } from '../../../../api/lib/aufgaben-model';
+  import { aufgabenStore } from '../../lib/aufgabenStore.svelte';
+  import { dueLabel, dueSoon } from '../../lib/aufgabenView';
+  import { taskAssigneeNames } from '../../../../api/lib/aufgaben-zuordnung';
   import AufgabenKarte from './AufgabenKarte.svelte';
   let {
     visible,
