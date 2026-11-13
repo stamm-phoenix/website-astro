@@ -75,8 +75,9 @@ export function zeitraumText(zeitraum: ProtokollZeitraum): string {
     : start;
 }
 
+/** `\` and `;` get a backslash, so a field never ends early or runs into the next one. */
 function escapeFeld(value: string): string {
-  return value.replace(/;/g, '\\;');
+  return value.replace(/[\\;]/g, '\\$&');
 }
 
 function namen(personen: ProtokollPerson[]): string {
@@ -122,9 +123,27 @@ export function personFinder(personen: Iterable<ProtokollPerson>): PersonFinder 
   return (name) => byName.get(nameKey(name)) ?? { login: '', name: name.trim() };
 }
 
-/** Splits at `;` that is not escaped and removes the escapes. */
+/**
+ * Splits at `;` that is not escaped and removes the escapes `\;` and `\\`; any other backslash
+ * stays as typed.
+ */
 function felder(rest: string): string[] {
-  return rest.split(/(?<!\\);/).map((teil) => teil.replace(/\\;/g, ';').trim());
+  const teile: string[] = [];
+  let teil = '';
+  for (let i = 0; i < rest.length; i++) {
+    const zeichen = rest[i];
+    if (zeichen === '\\' && (rest[i + 1] === '\\' || rest[i + 1] === ';')) {
+      i++;
+      teil += rest[i];
+    } else if (zeichen === ';') {
+      teile.push(teil.trim());
+      teil = '';
+    } else {
+      teil += zeichen;
+    }
+  }
+  teile.push(teil.trim());
+  return teile;
 }
 
 const FELD = /^([\p{L}]+)[ \t]*:[ \t]*(.*)$/u;
