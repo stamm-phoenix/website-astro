@@ -20,7 +20,7 @@ import {
 } from '../lib/abstimmung-schema';
 import type { AbstimmungAnsicht, AbstimmungDetail } from '../lib/abstimmung-model';
 import { abstimmungMail, abstimmungMailContent } from '../lib/abstimmung-mails';
-import { abstimmungLesen as lesen } from '../lib/abstimmungen';
+import { abstimmungLesen as lesen } from '../lib/abstimmungen-lesen';
 import type { AbstimmungMailDaten } from '../lib/abstimmung-mails';
 import { getDb } from '../lib/db';
 import { ValidationError } from '../lib/validation/errors';

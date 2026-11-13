@@ -5,22 +5,30 @@ import {
   AbstimmungClosedError,
   AbstimmungForbiddenError,
   abstimmungPersonalLink,
+} from '../lib/abstimmungen-basis';
+import {
   countAbstimmungErinnerungen,
-  createAbstimmung,
-  deleteAbstimmung,
-  getAbstimmungDetail,
-  getAbstimmungKopf,
   getAbstimmungLogins,
   getAbstimmungMailStand,
-  listAbstimmungen,
   queueAbstimmungEinladungen,
   queueAbstimmungErinnerungen,
   sendNextAbstimmungMail,
+} from '../lib/abstimmungen-mails';
+import {
+  createAbstimmung,
+  deleteAbstimmung,
   setAbstimmungGeschlossen,
   updateAbstimmung,
-  voteAsStaff,
 } from '../lib/abstimmungen';
-import type { AbstimmungKopf, AbstimmungMail, AbstimmungPerson } from '../lib/abstimmungen';
+import {
+  getAbstimmungDetail,
+  getAbstimmungKopf,
+  listAbstimmungen,
+} from '../lib/abstimmungen-lesen';
+import { voteAsStaff } from '../lib/abstimmungen-stimmen';
+import type { AbstimmungKopf } from '../lib/abstimmungen-lesen';
+import type { AbstimmungMail } from '../lib/abstimmungen-mails';
+import type { AbstimmungPerson } from '../lib/abstimmungen-basis';
 import { CampflowError, campflowGetAll } from '../lib/campflow';
 import type { CampflowPerson } from '../lib/campflow';
 import { CONFIG } from '../lib/config';
