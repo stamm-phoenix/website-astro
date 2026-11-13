@@ -5,8 +5,7 @@
   import { isIch } from '../../lib/ichStore.svelte';
   import { fetchCampflowBelegBild } from '../../lib/campflowBelegBild';
   import CampflowBelegBild from '../CampflowBelegBild.svelte';
-  import { downloadNachweisePdf } from '../../lib/abrechnungPdf';
-  import type { PdfBeleg } from '../../lib/abrechnungPdf';
+  import type { PdfBeleg } from '../../lib/abrechnungNachweisePdf';
   import { pdfFileName } from '../../lib/pdfBasis';
   import type { PdfTable } from '../../lib/pdfTabelle';
   import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
@@ -165,6 +164,7 @@
             .map((n) => ({ receiptNumber: n.receiptNumber ?? '', details: belegDetails(n) }))
         : [];
       const withLeihgebuehren = withReceipts && visible.some((n) => n.virtual);
+      const { downloadNachweisePdf } = await import('../../lib/abrechnungNachweisePdf');
       const { failed } = await downloadNachweisePdf(table(withReceipts), {
         belege,
         fetchImage: fetchCampflowBelegBild,

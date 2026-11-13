@@ -9,6 +9,8 @@ import {
   unseenEntries,
 } from '../src/lib/changelog';
 import type { ChangelogEntry } from '../src/lib/changelog';
+import changelogIds from '../integrations/changelogIds';
+import { CHANGELOG_IDS } from '../src/lib/changelogIds';
 import { loadChangelog, loadChangelogFiles } from './changelogFiles';
 
 const CHANGELOG = await loadChangelog();
@@ -35,6 +37,22 @@ test('every entry file is named after the ID of its entry', async () => {
     files.filter(({ file, entry }) => file !== `${entry.id}.ts`).map(({ file }) => file),
     []
   );
+});
+
+test('the light list of IDs for the menu has the IDs of all entries, newest first', () => {
+  assert.deepEqual(
+    CHANGELOG_IDS,
+    CHANGELOG.map(({ id }) => id)
+  );
+});
+
+test('the build reads the ID of an entry from its file name without loading the entry', () => {
+  const plugin = changelogIds();
+  const load = plugin.load as (this: unknown, id: string) => unknown;
+  const file = '/work/web/src/lib/changelog/entries/2026-10-20-01-neuigkeiten.ts';
+  assert.equal(load.call(null, `${file}?id`), 'export default "2026-10-20-01-neuigkeiten";');
+  assert.equal(load.call(null, file), null);
+  assert.equal(load.call(null, '/work/web/src/lib/staffModules.ts?id'), null);
 });
 
 test('a day number is used by one entry only', () => {

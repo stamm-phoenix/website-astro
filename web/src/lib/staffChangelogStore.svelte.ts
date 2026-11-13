@@ -1,4 +1,4 @@
-import { CHANGELOG } from './changelogEntries';
+import { CHANGELOG_IDS } from './changelogIds';
 import { newestEntryId, recentUnseenEntries, unseenEntries } from './changelog';
 import { errorMessage, fetchApi, sendApi } from './api';
 
@@ -8,6 +8,8 @@ import { errorMessage, fetchApi, sendApi } from './api';
  * convenience: a failed load shows no bubble. The page „Neuigkeiten“ reports failures itself.
  */
 
+/** Only the IDs: the texts of the entries are loaded by the page „Neuigkeiten“ alone. */
+const ENTRIES = CHANGELOG_IDS.map((id) => ({ id }));
 const ENDPOINT = '/intern/neuigkeiten';
 const LOAD_FAILED =
   'Dein Lesestand konnte nicht geladen werden. Prüfe deine Internetverbindung und versuche es noch einmal.';
@@ -90,14 +92,14 @@ export function loadChangelogSeen({ maxAge }: { maxAge?: number } = {}): Promise
 export function unseenCount(): number {
   return changelogStore.loaded
     ? changelogStore.lastSeenId === null
-      ? recentUnseenEntries(CHANGELOG, null, INITIAL_UNREAD_LIMIT).length
-      : unseenEntries(CHANGELOG, changelogStore.lastSeenId).length
+      ? recentUnseenEntries(ENTRIES, null, INITIAL_UNREAD_LIMIT).length
+      : unseenEntries(ENTRIES, changelogStore.lastSeenId).length
     : 0;
 }
 
 /** Marks every entry as seen. Resolves to whether the server saved it. */
 export async function markChangelogSeen(): Promise<boolean> {
-  const newest = newestEntryId(CHANGELOG);
+  const newest = newestEntryId(ENTRIES);
   if (newest === null) return true;
   saving++;
   writes++;

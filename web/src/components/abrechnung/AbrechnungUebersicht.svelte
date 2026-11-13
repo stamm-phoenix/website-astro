@@ -21,7 +21,6 @@
     BilanzZeile,
     NachweisZeile,
   } from '../../lib/abrechnungRechnung';
-  import { downloadDeckblattPdf } from '../../lib/abrechnungPdf';
   import { pdfFileName } from '../../lib/pdfBasis';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import StatusNotice from '../pflege/StatusNotice.svelte';
@@ -85,6 +84,7 @@
     deckblattBusy = true;
     deckblattError = null;
     try {
+      const { downloadDeckblattPdf } = await import('../../lib/abrechnungDeckblattPdf');
       await downloadDeckblattPdf(
         {
           title: abrechnung.event.title,

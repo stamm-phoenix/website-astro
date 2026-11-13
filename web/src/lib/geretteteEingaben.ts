@@ -4,9 +4,9 @@
  * fields in this tab and fills them in again when the same dialog opens on the same page.
  */
 import { getContext, setContext } from 'svelte';
+import { RESCUE_KEY } from './staffStorageKeys';
 import type { TextEditorFormat } from './textEditor';
 
-export const RESCUE_KEY = 'phoenix:gerettete-eingaben:v1';
 /** Fired on `window` when the kept input was taken or deleted. */
 export const RESCUE_EVENT = 'phoenix:gerettete-eingaben';
 const MAX_AGE_MS = 60 * 60 * 1000;

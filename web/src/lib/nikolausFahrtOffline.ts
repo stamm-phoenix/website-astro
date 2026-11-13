@@ -1,7 +1,6 @@
+import { FAHRT_STORAGE_KEY } from './staffStorageKeys';
 import type { StaffNikolausFahrtData } from './types';
 
-export const FAHRT_STORAGE_KEY = 'nikolaus-fahrt-offline-v1';
-export const FAHRT_OWNER_KEY = 'nikolaus-fahrt-owner';
 export const FAHRT_TTL_MS = 12 * 60 * 60 * 1000;
 
 export interface FahrtMutation {

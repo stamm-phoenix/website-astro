@@ -15,7 +15,6 @@ import {
 } from './fixtures/rettungDom.ts';
 import {
   RESCUE_EVENT,
-  RESCUE_KEY,
   fillDialog,
   findRescue,
   forgetRescue,
@@ -28,6 +27,7 @@ import {
   type GeretteterWert,
   type RescueEditor,
 } from '../src/lib/geretteteEingaben.ts';
+import { RESCUE_KEY } from '../src/lib/staffStorageKeys.ts';
 
 // What the iPhone app keeps of a dialog across the new login, which reloads the page in the
 // same tab (staff-app.spec.ts keeps one browser walk-through per kind of dialog)

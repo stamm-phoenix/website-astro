@@ -1,4 +1,4 @@
-// Basics of the PDFs made in the browser (`pdfTabelle.ts`, `abrechnungPdf.ts`, `essensplanungPdf.ts`
+// Basics of the PDFs made in the browser (`pdfTabelle.ts`, `abrechnungNachweisePdf.ts`, `essensplanungPdf.ts`
 // and the exports of the modules): the colours, the DIN A4 page, the title, the footer and
 // the file name.
 // jsPDF is loaded only when a PDF is created, so it does not weigh on the page itself.

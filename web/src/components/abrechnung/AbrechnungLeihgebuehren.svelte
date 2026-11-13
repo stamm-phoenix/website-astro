@@ -2,7 +2,6 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
-  import { downloadLeihgebuehrenPdf } from '../../lib/abrechnungPdf';
   import { pdfFileName } from '../../lib/pdfBasis';
   import { leihgebuehrenPdfData } from '../../lib/abrechnungExport';
   import {
@@ -88,6 +87,7 @@
     pdfBusy = true;
     pdfError = null;
     try {
+      const { downloadLeihgebuehrenPdf } = await import('../../lib/abrechnungLeihgebuehrenPdf');
       await downloadLeihgebuehrenPdf(
         await leihgebuehrenPdfData(abrechnung, result),
         pdfFileName('Materialleihgebühren', abrechnung.event.title)
