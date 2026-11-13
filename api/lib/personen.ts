@@ -10,7 +10,7 @@ import {
   toVersion,
   requireRowversion,
 } from './db';
-import type { PersonTable } from './db-schema';
+import type { PersonTable } from './db-schema-staff';
 import type {
   CampflowMitglied,
   Ich,

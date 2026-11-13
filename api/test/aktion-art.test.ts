@@ -6,7 +6,7 @@ import { getAktionArt, getKeineAktionen, setKeineAktion, withAktionArt } from '.
 import { setZuschussfaehig } from '../lib/aktion-zuschuss';
 import { getAktionen, resetCampflowEventCache } from '../lib/aktionen-list';
 import { getDb } from '../lib/db';
-import { seedPreviewKeineAktionen } from '../lib/db-preview';
+import { seedPreviewKeineAktionen } from '../lib/db-preview-aktion-art';
 import { GetInternAktionenEndpoint } from '../endpoints/intern-aktionen';
 import { AktionArtEndpoint } from '../endpoints/intern-pflege-aktion-art';
 import { dbTest } from './fixtures/database';

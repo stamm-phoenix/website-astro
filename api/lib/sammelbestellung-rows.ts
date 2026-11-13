@@ -6,7 +6,7 @@ import type {
   SammelOrderTable,
   SammelPaymentEventTable,
   SammelPaymentTable,
-} from './db-schema';
+} from './db-schema-sammel';
 
 export type OrderFilter = { id: number } | { campaignId: number; email?: string };
 

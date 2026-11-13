@@ -10,7 +10,7 @@ import {
   toBelegCampflow,
 } from './beleg-list';
 import { readBelegPhoto } from './beleg-photos';
-import type { BelegCampflowTable } from './db-schema';
+import type { BelegCampflowTable } from './db-schema-beleg';
 import {
   RecordNotFoundError,
   VersionConflictError,

@@ -7,7 +7,7 @@ import { getDb, toVersion } from '../lib/db';
 import {
   seedPreviewEssensplanungGerichte,
   seedPreviewEssensplanungPlanung,
-} from '../lib/db-preview';
+} from '../lib/db-preview-essen-planung';
 import { updateZutat } from '../lib/essen-katalog-pflege';
 import { loadEssenSteuerung } from '../lib/essen-steuerung';
 import type { ZutatInput } from '../lib/essen-validation';

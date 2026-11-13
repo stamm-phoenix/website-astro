@@ -11,7 +11,7 @@ import {
   toVersion,
   requireRowversion,
 } from './db';
-import type { GruppenstundeTable } from './db-schema';
+import type { GruppenstundeTable } from './db-schema-content';
 import type { GruppenstundeInput } from './validation/content';
 
 /**

@@ -6,7 +6,7 @@ import {
   seedPreviewEssensplanungEinplanung,
   seedPreviewEssensplanungGerichte,
   seedPreviewEssensplanungPlanung,
-} from '../lib/db-preview';
+} from '../lib/db-preview-essen-planung';
 import { gerichtStand } from '../lib/essen-gerichte-model';
 import { planungLoeschen } from '../lib/essen-planung';
 import { ladeZugang } from '../lib/essen-zugang';

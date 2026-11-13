@@ -14,7 +14,7 @@ import {
   retentionStart,
 } from '../lib/anwesenheit';
 import { getDb } from '../lib/db';
-import { seedPreviewAttendance } from '../lib/db-preview';
+import { seedPreviewAttendance } from '../lib/db-preview-anwesenheit';
 import { dateToLocalParts } from '../lib/nikolaus-config';
 import {
   AnwesenheitCancelled,

@@ -6,7 +6,8 @@ import { sql } from 'kysely';
 import sharp from 'sharp';
 import * as blobStorage from '../lib/blob-storage';
 import { createDatabase, getDb, inTransaction, useDatabase } from '../lib/db';
-import { seedPreviewGruppenstunden, seedPreviewLeitende } from '../lib/db-preview';
+import { seedPreviewGruppenstunden } from '../lib/db-preview-gruppenstunden';
+import { seedPreviewLeitende } from '../lib/db-preview-leitende';
 import { getGruppenstunden, getStaffGruppenstunden } from '../lib/gruppenstunden-list';
 import {
   ORPHAN_MIN_AGE_MS,

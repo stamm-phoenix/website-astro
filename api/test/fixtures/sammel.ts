@@ -1,7 +1,8 @@
 import { CompiledQuery } from 'kysely';
 import type { Compilable, Transaction, Updateable } from 'kysely';
 import { getDb, inTransaction } from '../../lib/db';
-import type { Database, SammelCampaignTable, SammelOrderTable } from '../../lib/db-schema';
+import type { Database } from '../../lib/db-schema';
+import type { SammelCampaignTable, SammelOrderTable } from '../../lib/db-schema-sammel';
 import {
   getSammelOrder,
   insertSammelCatalog,

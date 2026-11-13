@@ -16,7 +16,8 @@ import {
   toVersion,
   requireRowversion,
 } from './db';
-import type { AktionTable, Database } from './db-schema';
+import type { AktionTable } from './db-schema-content';
+import type { Database } from './db-schema';
 import type { AktionInput } from './validation/aktion';
 import { LEITENDE_STUFE, STUFEN } from './validation/constants';
 import type { StaffAktion } from './aktionen-model';

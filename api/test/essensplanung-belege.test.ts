@@ -8,7 +8,10 @@ import * as blobStorage from '../lib/blob-storage';
 import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
 import { seedPreviewEssensplanungBelege } from '../lib/db-preview-essen-belege';
-import { seedPreviewEssensplanung, seedPreviewEssensplanungPlanung } from '../lib/db-preview';
+import {
+  seedPreviewEssensplanung,
+  seedPreviewEssensplanungPlanung,
+} from '../lib/db-preview-essen-planung';
 import { raeumeAuf } from '../lib/essen-aufbewahrung';
 import { ladeZugang } from '../lib/essen-zugang';
 import { planungLoeschen } from '../lib/essen-planung';

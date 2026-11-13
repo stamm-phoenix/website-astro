@@ -10,7 +10,7 @@ import {
 import * as store from '../lib/protokoll-content-version-store';
 import { sql } from 'kysely';
 import { getDb } from '../lib/db';
-import { seedPreviewProtokolle } from '../lib/db-preview';
+import { seedPreviewProtokolle } from '../lib/db-preview-protokolle';
 import { writeZip } from '../lib/zip';
 import { docx, paragraph } from './fixtures/docx';
 import { dbTest } from './fixtures/database';

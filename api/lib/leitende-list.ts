@@ -12,7 +12,8 @@ import {
   toVersion,
   requireRowversion,
 } from './db';
-import type { Database, LeitendeTable } from './db-schema';
+import type { Database } from './db-schema';
+import type { LeitendeTable } from './db-schema-content';
 import type { LeitendeInput } from './validation/content';
 import { sortTeams } from './validation/constants';
 import {

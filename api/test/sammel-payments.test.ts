@@ -33,7 +33,7 @@ import { SammelStaffOrder, SammelStaffItem } from '../endpoints/intern-pflege-sa
 import { SammelOrderLookup, SammelOrderSave } from '../endpoints/sammelbestellungen';
 import { getSammelCampaign, getSammelOrder, sammelToken } from '../lib/sammelbestellung-list';
 import type { SammelOrderChanges } from '../lib/sammelbestellung-list';
-import type { SammelPaymentTable } from '../lib/db-schema';
+import type { SammelPaymentTable } from '../lib/db-schema-sammel';
 import {
   createSammelContribution,
   sammelBillingPreview,

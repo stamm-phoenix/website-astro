@@ -13,7 +13,7 @@ import {
   seedPreviewEssensplanung,
   seedPreviewEssensplanungGerichte,
   seedPreviewEssensplanungPlanung,
-} from '../lib/db-preview';
+} from '../lib/db-preview-essen-planung';
 import { einkaufStand } from '../lib/essen-einkaeufe-model';
 import { ladeZugang } from '../lib/essen-zugang';
 import { planungLoeschen } from '../lib/essen-planung';
