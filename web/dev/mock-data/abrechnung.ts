@@ -5,7 +5,7 @@ import { kjrPersons, summarizeEntries, toNachweise } from '../../../api/lib/abre
 import type { NachweisInput } from '../../../api/lib/abrechnung';
 import type { Abrechnung } from '../../src/lib/types/abrechnung';
 import type { CampflowPerson } from '../../../api/lib/campflow';
-import type { Kostenstelle } from '../../../api/lib/playwright-api';
+import type { Kostenstelle } from '../../../api/lib/kostenstellen-model';
 import { CONFIG } from '../../../api/lib/config';
 import {
   buildKjrTeilnahmeliste,

@@ -1,4 +1,4 @@
-import type { ClientPrincipal } from '../../../api/lib/staff-auth';
+import type { ClientPrincipal } from '../../../api/lib/staff-principal-model';
 
 interface AuthStoreState {
   principal: ClientPrincipal | null;

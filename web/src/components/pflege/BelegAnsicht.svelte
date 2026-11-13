@@ -4,7 +4,7 @@
   import { belegDetails } from '../../lib/belegDetails';
   import BelegPdfSeiten from './BelegPdfSeiten.svelte';
   import { ladePdf, photoUrl } from '../../lib/belegForm';
-  import type { StaffBeleg } from '../../../../api/lib/beleg-list';
+  import type { StaffBeleg } from '../../../../api/lib/beleg-model';
   interface Props {
     /** A receipt someone else submitted for the user's Auslage: to look at, not to change. */
     beleg: StaffBeleg | null;

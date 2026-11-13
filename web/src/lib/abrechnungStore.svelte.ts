@@ -25,7 +25,7 @@ import { isKjrBetreuer, kjrHerkunft } from './kjrZuschuss';
 import { ortFuerPlz } from './plzOrte.svelte';
 import type { Abrechnung } from './types/abrechnung';
 import type { AbrechnungPerson } from '../../../api/lib/abrechnung';
-import type { Kostenstelle } from '../../../api/lib/playwright-api';
+import type { Kostenstelle } from '../../../api/lib/kostenstellen-model';
 
 const LOAD_ERROR =
   'Die Daten konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.';

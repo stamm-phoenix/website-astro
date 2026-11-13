@@ -5,19 +5,11 @@
  */
 import { z } from 'zod';
 import { isValidDate } from './calendar-date';
-import type { ConfirmedTermin, ProtokollTermin } from './protokoll-termin';
+import type { ConfirmedTermin, ProtokollTermin } from './protokoll-termin-model';
+import { TERMIN_DECISIONS, TERMIN_EXTRACTIONS } from './protokoll-termin-model';
 import { lenientObject } from './validation/zod';
 
-export const TERMIN_EXTRACTIONS = [
-  'gefunden',
-  'unklar',
-  'nicht gefunden',
-  'fehler',
-  'nicht eingerichtet',
-  'nicht ausgefuehrt',
-] as const;
-
-export const TERMIN_DECISIONS = ['offen', 'bestaetigt', 'abgelehnt'] as const;
+export { TERMIN_DECISIONS, TERMIN_EXTRACTIONS };
 
 export const MAX_PLACE_LENGTH = 120;
 export const MAX_QUOTE_LENGTH = 300;

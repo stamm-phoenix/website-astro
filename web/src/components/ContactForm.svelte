@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import ContactSuggestions from './ContactSuggestions.svelte';
-  import type { QuestionAndAnswer } from '../../../api/lib/qa-list';
+  import type { QuestionAndAnswer } from '../../../api/lib/qa-model';
   import AltchaWidget from './AltchaWidget.svelte';
   import FormField from './pflege/FormField.svelte';
   import ActionButton from './ui/ActionButton.svelte';

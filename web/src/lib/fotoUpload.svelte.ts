@@ -7,7 +7,7 @@ export { selectFotoFiles, type FotoSelection } from './fotoAuswahl';
 import { uploadName } from './fotoAuswahl';
 import { fotoNameCandidates, numberedName } from './fotoPfade';
 import type { FotoTarget } from './types/staff';
-import type { FotoUploadSession } from '../../../api/lib/fotos';
+import type { FotoUploadSession } from '../../../api/lib/fotos-model';
 
 /**
  * Upload of many photos and videos into the photo library. The API creates the folder and an

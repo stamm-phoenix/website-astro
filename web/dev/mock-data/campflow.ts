@@ -1,5 +1,5 @@
 /** CampFlow events and participants of the mock API (Leitendenbereich → Aktionen). */
-import type { AktionBeitrag, BeitragStatus } from '../../../api/lib/beitraege';
+import type { AktionBeitrag, BeitragStatus } from '../../../api/lib/beitraege-model';
 import type {
   AktionBeitraegeData,
   CampflowEvent,

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { BelegCheck } from '../../../../api/lib/beleg-check';
+  import type { BelegCheck } from '../../../../api/lib/beleg-check-model';
   interface Props {
     check: BelegCheck | null;
     warnings?: string[];

@@ -1,7 +1,7 @@
 import { nurAktionen } from './aktionArt';
 import { berlinDay } from './format';
 import type { CampflowEvent } from './types/aktionen';
-import type { StaffAktion } from '../../../api/lib/aktionen-list';
+import type { StaffAktion } from '../../../api/lib/aktionen-model';
 
 /** An Aktion photos can be uploaded for: from CampFlow or a calendar entry without CampFlow. */
 export interface FotoAktion {

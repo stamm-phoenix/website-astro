@@ -3,20 +3,8 @@ import type { HttpRequest, HttpResponseInit } from '@azure/functions';
 import type { StaffTeam } from './config';
 import { CONFIG } from './config';
 import { errorResponse } from './response-utils';
-
-export interface ClientPrincipalClaim {
-  typ: string;
-  val: string;
-}
-
-/** User information that Static Web Apps passes to the API after a login. */
-export interface ClientPrincipal {
-  identityProvider: string;
-  userId: string;
-  userDetails: string;
-  userRoles: string[];
-  claims?: ClientPrincipalClaim[];
-}
+import type { ClientPrincipal } from './staff-principal-model';
+export type { ClientPrincipal, ClientPrincipalClaim } from './staff-principal-model';
 
 const TENANT_CLAIM_TYPES = ['tid', 'http://schemas.microsoft.com/identity/claims/tenantid'];
 

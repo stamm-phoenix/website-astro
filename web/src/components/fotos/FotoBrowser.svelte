@@ -15,7 +15,7 @@
   } from '../../lib/fotoDownload.svelte';
   import { folderEntry, isFresh, loadFotoFolder } from '../../lib/fotoOrdnerStore.svelte';
   import { fotoOrdnerLink } from '../../lib/fotoPfade';
-  import type { FotoFile } from '../../../../api/lib/fotos';
+  import type { FotoFile } from '../../../../api/lib/fotos-model';
 
   interface Props {
     path: string;

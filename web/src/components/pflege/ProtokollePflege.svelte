@@ -20,7 +20,7 @@
   import { todayIso, formatDay, formatDateTime } from '../../lib/format';
   import { HELP_CONTACTS } from '../../lib/helpContacts';
   import { protokollePflege } from '../../lib/pflegeStore.svelte';
-  import type { ProtokollStatus, StaffProtokoll } from '../../../../api/lib/protokolle';
+  import type { ProtokollStatus, StaffProtokoll } from '../../../../api/lib/protokolle-model';
 
   type Filter = 'offen' | 'erledigt' | 'alle';
   type Action = 'review' | 'approve' | 'reject' | 'reopen';

@@ -124,7 +124,7 @@ function routeLiterals(file: string): { exact: string[]; prefixes: string[] } {
   for (const match of source.matchAll(/(['"`])(\/[A-Za-z0-9_\-./]*)([?#][^'"`$]*)?\1/g)) {
     exact.add(match[2].replace(/\/$/, '') || '/');
   }
-  for (const match of source.matchAll(/`(\/[A-Za-z0-9_\-./]*)\$\{/g)) {
+  for (const match of source.matchAll(/`(\/[A-Za-z0-9_\-./]*)(?:[?#][^`$]*)?\$\{/g)) {
     prefixes.add(match[1]);
   }
   return { exact: [...exact], prefixes: [...prefixes] };

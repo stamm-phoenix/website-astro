@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 import type { BelegStatus } from '../../api/lib/validation/beleg';
-import type { StaffBeleg } from '../../api/lib/beleg-list';
+import type { StaffBeleg } from '../../api/lib/beleg-model';
 
 // A receipt opens to look at; a decision on stored details that do not pass opens the field to
 // correct, or, once accepted, says what is missing

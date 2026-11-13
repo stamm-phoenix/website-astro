@@ -1,5 +1,5 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
-import type { StaffBeleg } from '../../api/lib/beleg-list';
+import type { StaffBeleg } from '../../api/lib/beleg-model';
 
 for (const operation of ['PUT', 'DELETE'] as const) {
   test(`photo ${operation} keeps its own write version for the unsaved person draft @dark`, async ({

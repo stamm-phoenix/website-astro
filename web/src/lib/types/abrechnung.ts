@@ -1,7 +1,7 @@
 /** Abrechnung of an Aktion, the sums of the Kostenstellen and the Belege. */
 import type { AbrechnungPerson, KategorieSumme, Nachweis } from '../../../../api/lib/abrechnung';
-import type { CampflowBeleg } from '../../../../api/lib/campflow-belege';
-import type { KostenstelleStatistik } from '../../../../api/lib/kostenstellen';
+import type { CampflowBeleg } from '../../../../api/lib/campflow-belege-model';
+import type { KostenstelleStatistik } from '../../../../api/lib/kostenstellen-model';
 import type { CampflowEvent } from './aktionen';
 
 /** Financial overview of an Aktion (Leitendenbereich → Abrechnung). */

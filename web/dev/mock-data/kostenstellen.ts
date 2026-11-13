@@ -5,7 +5,7 @@ import type {
   KostenstelleStatistik,
   KostenstellenSphaere,
   KostenstellenSummen,
-} from '../../../api/lib/kostenstellen';
+} from '../../../api/lib/kostenstellen-model';
 import type { KostenstellenData } from '../../src/lib/types/abrechnung';
 
 type KategorieOhneJahre = Omit<KategorieStatistik, 'yearTotals'>;

@@ -9,7 +9,7 @@
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
   import { aktionenPflege } from '../../lib/pflegeStore.svelte';
   import type { AktionTarget, CampflowEvent } from '../../lib/types/aktionen';
-  import type { StaffAktion } from '../../../../api/lib/aktionen-list';
+  import type { StaffAktion } from '../../../../api/lib/aktionen-model';
   import AktionUnterlagenFields from './AktionUnterlagenFields.svelte';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';

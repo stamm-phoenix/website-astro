@@ -1,7 +1,7 @@
 import { emptyState } from './resource.svelte';
 import type { ResourceState } from './resource.svelte';
 import { createResourceMap } from './resourceMap.svelte';
-import type { FotoFolderContent } from '../../../api/lib/fotos';
+import type { FotoFolderContent } from '../../../api/lib/fotos-model';
 
 /** Links and previews of SharePoint expire after about an hour; reload well before. */
 const MAX_AGE_MS = 30 * 60_000;

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import type { StaffProtokoll } from '../../api/lib/protokolle';
+import type { StaffProtokoll } from '../../api/lib/protokolle-model';
 import type { StaffProtokolleData } from '../src/lib/types/protokolle';
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 

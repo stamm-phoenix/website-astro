@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { fotoKind, numberedName } from '../../../api/lib/foto-pfade';
-import type { FotoFile, FotoFolder, FotoFolderContent } from '../../../api/lib/fotos';
+import type { FotoFile, FotoFolder, FotoFolderContent } from '../../../api/lib/fotos-model';
 
 /**
  * The photo library of the mock API: folders and files in memory. Previews are SVGs in the

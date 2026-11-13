@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import type { Page } from '@playwright/test';
-import type { StaffBeleg } from '../../api/lib/beleg-list';
+import type { StaffBeleg } from '../../api/lib/beleg-model';
 import { test, expect } from './fixtures';
 
 /** Opens the folded filters of the Belege, closed on a phone. */

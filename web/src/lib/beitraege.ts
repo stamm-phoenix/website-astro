@@ -1,5 +1,5 @@
 import type { StatusTone } from './status';
-import type { AktionBeitrag, Beitrag, BeitragSammlung } from '../../../api/lib/beitraege';
+import type { AktionBeitrag, Beitrag, BeitragSammlung } from '../../../api/lib/beitraege-model';
 import type { OffeneBeitraegeData } from './types/aktionen';
 import { formatEuro } from './format';
 

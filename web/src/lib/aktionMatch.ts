@@ -1,5 +1,5 @@
 import type { CampflowEvent } from './types/aktionen';
-import type { StaffAktion } from '../../../api/lib/aktionen-list';
+import type { StaffAktion } from '../../../api/lib/aktionen-model';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /**

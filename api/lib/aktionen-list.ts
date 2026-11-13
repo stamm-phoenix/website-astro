@@ -19,6 +19,8 @@ import {
 import type { AktionTable, Database } from './db-schema';
 import type { AktionInput } from './validation/aktion';
 import { LEITENDE_STUFE, STUFEN } from './validation/constants';
+import type { StaffAktion } from './aktionen-model';
+export type { StaffAktion } from './aktionen-model';
 
 /**
  * The calendar entries in Azure SQL (`content.aktion` with their Stufen in
@@ -126,22 +128,6 @@ function cachedCampflowEvents(): Promise<Map<string, CampflowEvent> | null> {
       pendingEvents = undefined;
     });
   return pendingEvents;
-}
-
-/** A calendar entry as the edit module loads it. */
-export interface StaffAktion {
-  id: string;
-  etag: string;
-  campflowId: string | null;
-  title: string;
-  stufen: string[];
-  start: string;
-  end: string;
-  link: string;
-  description: string;
-  meetingPoint?: string;
-  packingList?: string[];
-  downloadIds?: string[];
 }
 
 /** Order of the Stufen: the four Stufen, Leitende, then the others by name. */

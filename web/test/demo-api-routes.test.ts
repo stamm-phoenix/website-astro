@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ROUTES } from '../../api/test/fixtures/routes';
-import { mockRouteTable } from '../dev/mockApi';
+import { demoRoutesFromSource } from './fixtures/mockRoutesFromSource';
 import { CONTENT_REVIEW_ROUTES } from '../dev/mockContentReview';
 
 /**
  * The browser tests run against the demo API (`web/dev/mockApi.ts`), not against the real one.
  * This test compares both route tables, so the demo API cannot silently lose or invent an
  * endpoint. The real routes come from the snapshot that `api/test/routes.test.ts` keeps equal to
- * the `app.http` registrations of `api/endpoints`.
+ * the `app.http` registrations of `api/endpoints`. The demo routes are read from the source of
+ * `web/dev` (`fixtures/mockRoutesFromSource.ts`), because the mock modules import API validators
+ * that the web job does not install.
  */
 
 /** Real routes the demo API deliberately does not serve. Each entry needs a reason. */
@@ -87,7 +89,9 @@ const real = keys(
   ROUTES.map((route) => ({ methods: route.methods, path: route.route ?? route.name })),
   realPaths
 );
-const demo = keys([...mockRouteTable(), ...CONTENT_REVIEW_ROUTES], (path) => [demoPath(path)]);
+const demo = keys([...demoRoutesFromSource(), ...CONTENT_REVIEW_ROUTES], (path) => [
+  demoPath(path),
+]);
 
 test('every real route is served by the demo API or listed with a reason', () => {
   const missing = [...real].filter((key) => !demo.has(key) && !(key in NOT_IN_DEMO_API));
