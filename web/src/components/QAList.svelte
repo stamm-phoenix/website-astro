@@ -5,6 +5,7 @@
   import { sanitizeDescription } from '../lib/api';
   import { fetchQuestionsAndAnswers, QA_STORE } from '../lib/qaStore.svelte';
   import type { QuestionAndAnswer } from '../../../api/lib/qa-model';
+  import { sameContent } from '../lib/sameContent';
   import { withBaked } from '../lib/storeView';
   import { createQuestionIndex, searchQuestions } from '../lib/qaSearch';
 
@@ -16,9 +17,7 @@
 
   let refreshed = $state(false);
   const updates = $derived(
-    QA_STORE.data !== null &&
-      initial !== null &&
-      JSON.stringify(QA_STORE.data) !== JSON.stringify(initial)
+    QA_STORE.data !== null && initial !== null && !sameContent(QA_STORE.data, initial)
   );
   const view = $derived(
     !refreshed && initial?.length
