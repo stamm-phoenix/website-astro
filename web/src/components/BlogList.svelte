@@ -7,6 +7,7 @@
   import NewsGrid from './NewsGrid.svelte';
   import StaffLink from './StaffLink.svelte';
   import { bakedUrl, registerBakedImages, type BakedImages } from '../lib/bakedImages';
+  import { sameContent } from '../lib/sameContent';
   import { withBaked } from '../lib/storeView';
   import type { BlogPostSummary, InstagramPost } from '../lib/types/oeffentlich';
   import ProblemMeldenLink from './ui/ProblemMeldenLink.svelte';
@@ -22,9 +23,7 @@
   untrack(() => registerBakedImages(images));
   let refreshed = $state(false);
   const updates = $derived(
-    blogStore.data !== null &&
-      initialBlog !== null &&
-      JSON.stringify(blogStore.data) !== JSON.stringify(initialBlog)
+    blogStore.data !== null && initialBlog !== null && !sameContent(blogStore.data, initialBlog)
   );
   const blog = $derived(
     !refreshed && initialBlog?.length
