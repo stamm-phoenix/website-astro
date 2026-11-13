@@ -30,6 +30,7 @@ import * as db from '../lib/db';
 import * as geocoding from '../lib/geocoding';
 import * as graphMail from '../lib/mail';
 import * as bookings from '../lib/nikolaus-bookings';
+import { hashToken } from '../lib/nikolaus-token';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import GetInternNikolausBookingsEndpoint from '../endpoints/intern-nikolaus-bookings';
 import { setupSharedState } from './fixtures/shared-state';
@@ -229,7 +230,7 @@ test('read-only management and staff GET operations work while writes are stoppe
     geo: { Breitengrad: '', Laengengrad: '', GeoGenauigkeit: '' },
     internalTags: [],
     rejectedStufen: [],
-    tokenHash: bookings.hashToken(token),
+    tokenHash: hashToken(token),
     reservedUntil: undefined,
     confirmedAt: new Date('2026-10-01T12:00:00Z'),
     changedAt: undefined,

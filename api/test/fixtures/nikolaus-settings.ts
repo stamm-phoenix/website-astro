@@ -2,6 +2,7 @@ import type { TestContext } from 'node:test';
 import { getDb } from '../../lib/db';
 import type { NikolausSettings } from '../../lib/nikolaus-config';
 import * as settingsModule from '../../lib/nikolaus-settings';
+import { invalidateNikolausSettingsCache } from '../../lib/nikolaus-settings-cache';
 
 /** The settings as seeded by `migrations/0002_nikolaus_settings.sql`. */
 export const TEST_SETTINGS: NikolausSettings = {
@@ -54,4 +55,5 @@ export async function updateNikolausSettings(patch: Switches): Promise<void> {
     })
     .where('id', '=', 1)
     .execute();
+  invalidateNikolausSettingsCache();
 }

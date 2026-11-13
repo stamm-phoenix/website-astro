@@ -3,6 +3,7 @@ import type { NikolausSettings } from './nikolaus-config';
 import type { ClientPrincipal } from './staff-auth';
 import { isStaffError, requireStaff } from './staff-auth';
 import { getNikolausSettings } from './nikolaus-settings';
+import { readCachedNikolausSettings } from './nikolaus-settings-cache';
 import { errorResponse } from './response-utils';
 
 /** The internal Nikolaus modules are switched off in the Steuerung. */
@@ -11,6 +12,14 @@ export const NIKOLAUS_STAFF_INACTIVE = errorResponse(
   'NIKOLAUS_INACTIVE',
   'Die Nikolausverwaltung ist ausgeschaltet. Sie lässt sich im Modul „Steuerung“ wieder einschalten.'
 );
+
+/**
+ * The settings for the gate of a read request, reused for a few seconds
+ * (`nikolaus-settings-cache.ts`). Writes use `getNikolausSettings`, which is always fresh.
+ */
+export function getNikolausSettingsForRead(): Promise<NikolausSettings> {
+  return readCachedNikolausSettings(getNikolausSettings);
+}
 
 export interface NikolausStaffAccess {
   principal: ClientPrincipal;
@@ -47,7 +56,7 @@ export async function readAsNikolausStaff<T>(
 ): Promise<NikolausStaffData<T> | HttpResponseInit> {
   const principal = requireStaff(request);
   if (isStaffError(principal)) return principal;
-  const settings = getNikolausSettings();
+  const settings = getNikolausSettingsForRead();
   const active = settings.then((config) => {
     if (!config.staffActive) throw new Error('The Nikolaus staff modules are switched off');
     return config;

@@ -10,7 +10,7 @@ import { ValidationError } from './validation/errors';
 import { NikolausStateConflictError } from './nikolaus-state';
 import { NikolausMaintenanceError } from './nikolaus-write-gate';
 import { getNikolausSettings } from './nikolaus-settings';
-import { NIKOLAUS_STAFF_INACTIVE } from './nikolaus-staff';
+import { NIKOLAUS_STAFF_INACTIVE, getNikolausSettingsForRead } from './nikolaus-staff';
 import { RecordNotFoundError, VersionConflictError } from './db';
 import { requestSiteRebuild } from './site-rebuild';
 
@@ -93,7 +93,10 @@ export function pflegeHandler(area: string, handler: PflegeHandler, options: Pfl
       const invoke = async (): Promise<HttpResponseInit> => {
         try {
           if (nikolaus) {
-            const settings = await getNikolausSettings();
+            // Writes read fresh (maintenance mode); reads may use the short cache
+            const settings = gated
+              ? await getNikolausSettings()
+              : await getNikolausSettingsForRead();
             if (!settings.staffActive) return NIKOLAUS_STAFF_INACTIVE;
             if (gated && settings.maintenance) throw new NikolausMaintenanceError();
           }
