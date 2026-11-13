@@ -14,7 +14,7 @@ export async function editorBereit(page: Page): Promise<void> {
   // These tests type Markdown into the plain fields; the formatting editor has its own tests
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
+    .getByRole('button', { name: 'Markdown je Punkt' })
     .click();
   await expect(page.getByLabel('Text zu Punkt 1.')).toHaveAttribute('rows', '2');
 }

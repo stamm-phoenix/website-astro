@@ -24,7 +24,7 @@ test('the formatting editor is the default and the choice of Markdown is kept on
   await expect(region.locator('textarea')).toHaveCount(0);
 
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
-  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
+  await modus.getByRole('button', { name: 'Markdown je Punkt' }).click();
   await expect(region.locator('textarea')).toHaveCount(1);
   await expect(page.getByRole('toolbar', { name: 'Formatierung' })).toHaveCount(0);
   // Saved on the server: another load, as on another device, starts with Markdown
@@ -33,10 +33,23 @@ test('the formatting editor is the default and the choice of Markdown is kept on
     .toEqual({ settings: { protokollText: 'markdown' } });
   await page.reload();
   await expect(region.locator('textarea')).toHaveCount(1);
-  await expect(modus.getByRole('button', { name: 'Einfacher Text (Markdown)' })).toHaveAttribute(
+  await expect(modus.getByRole('button', { name: 'Markdown je Punkt' })).toHaveAttribute(
     'aria-pressed',
     'true'
   );
+
+  // The whole agenda as one Markdown text (#613): a task line becomes a task of its item
+  await modus.getByRole('button', { name: 'Ein Markdown-Text' }).click();
+  const dokument = page.getByLabel('Tagesordnung als Markdown');
+  const text = await dokument.inputValue();
+  await dokument.fill(
+    text.replace(
+      '# Aktionsrückblick\n',
+      '# Aktionsrückblick\n\nAufgabe: Zelte prüfen; bis: 20.11.2026\n'
+    )
+  );
+  await modus.getByRole('button', { name: 'Markdown je Punkt' }).click();
+  await expect(region.getByLabel('Aufgabe', { exact: true })).toHaveValue('Zelte prüfen');
 });
 
 test('a choice that cannot be saved still applies to the open page and says so', async ({
@@ -54,7 +67,7 @@ test('a choice that cannot be saved still applies to the open page and says so',
   );
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
+    .getByRole('button', { name: 'Markdown je Punkt' })
     .click();
   await expect(region.locator('textarea')).toHaveCount(1);
   await expect(page.getByRole('status').filter({ hasText: 'nicht gespeichert' })).toBeVisible();
@@ -147,7 +160,7 @@ test('a choice made on another device applies when the editor opens again over i
   await expect(
     page
       .getByRole('group', { name: 'Texte schreiben als' })
-      .getByRole('button', { name: 'Einfacher Text (Markdown)' })
+      .getByRole('button', { name: 'Markdown je Punkt' })
   ).toHaveAttribute('aria-pressed', 'true');
   // The late answers of the first editor, still with the old choice, do not take the new one back
   expect(heldRequests.length).toBeGreaterThan(0);
@@ -183,7 +196,7 @@ test('a failed first switch leaves no hint once the next switch is saved', async
     await route.fallback();
   });
   const modus = page.getByRole('group', { name: 'Texte schreiben als' });
-  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
+  await modus.getByRole('button', { name: 'Markdown je Punkt' }).click();
   await modus.getByRole('button', { name: 'Formatiert' }).click();
   await expect
     .poll(async () => await (await page.request.get('/api/intern/einstellungen')).json(), {
@@ -209,7 +222,7 @@ test('after an expired login the hint offers to log in again and the choice stay
   );
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
+    .getByRole('button', { name: 'Markdown je Punkt' })
     .click();
   await expect(region.locator('textarea')).toHaveCount(1);
   const hint = page.getByRole('status').filter({ hasText: 'Anmeldung ist abgelaufen' });

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import ProtokollMarkdownDokument from './ProtokollMarkdownDokument.svelte';
   import ProtokollPunktEditor from './ProtokollPunktEditor.svelte';
   import {
     alsHauptpunkt,
@@ -20,7 +21,7 @@
     personen: PersonOption[];
     /** Asks before an item with content goes; calls `remove` once confirmed. */
     confirmRemove: (punkt: ProtokollPunkt, nummer: string, remove: () => void) => void;
-    /** Markdown fields per item (`ProtokollPunktEditor`) or the agenda as one document. */
+    /** Markdown fields per item (`ProtokollPunktEditor`), the formatted document or one Markdown text. */
     textModus?: TextModus;
     /** The item written at the cursor of the document, for readers following along. */
     onactive?: (id: string | null) => void;
@@ -424,6 +425,8 @@
       </p>
       {@render markdownListe()}
     {/await}
+  {:else if textModus === 'markdown-dokument'}
+    <ProtokollMarkdownDokument bind:punkte {personen} {onactive} />
   {:else}
     {@render markdownListe()}
   {/if}

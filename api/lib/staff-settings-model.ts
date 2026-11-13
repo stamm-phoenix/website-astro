@@ -3,8 +3,11 @@
  * by the API and the frontend (`web/src/lib/staffSettingsStore.svelte.ts`). Free of imports.
  */
 
-/** How the texts of the minutes are written: the formatting editor or the Markdown field (#320). */
-export const TEXT_MODI = ['formatiert', 'markdown'] as const;
+/**
+ * How the agenda of the minutes is written: the formatting editor, a Markdown field per item
+ * (#320), or the whole agenda as one Markdown text (#613).
+ */
+export const TEXT_MODI = ['formatiert', 'markdown', 'markdown-dokument'] as const;
 export type TextModus = (typeof TEXT_MODI)[number];
 
 /** Every key is optional; a missing key means the default applies. */

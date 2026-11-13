@@ -11,12 +11,12 @@
   import ProtokollFreigabeDialog from './ProtokollFreigabeDialog.svelte';
   import ProtokollReview from './ProtokollReview.svelte';
   import ProtokollTagesordnung from './ProtokollTagesordnung.svelte';
+  import ProtokollTextModusWahl from './ProtokollTextModusWahl.svelte';
   import ProtokollVersionen from './ProtokollVersionen.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import ConfirmDialog from '../ui/ConfirmDialog.svelte';
-  import FilterTabs from '../ui/FilterTabs.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
@@ -1140,35 +1140,10 @@
                 </p>
               </InfoHint>
             </div>
-            <!-- Not in the sticky bar: on phones every row there hides content -->
-            <div class="flex items-center gap-1">
-              <FilterTabs
-                variant="segmented"
-                label="Texte schreiben als"
-                showLabel
-                options={[
-                  { value: 'formatiert', label: 'Formatiert' },
-                  { value: 'markdown', label: 'Einfacher Text (Markdown)' },
-                ]}
-                value={textModus}
-                onselect={(value) => void chooseTextModus(value)}
-              />
-              <InfoHint label="Markdown" class="markdown-hilfe">
-                <p>
-                  <code>**fett**</code>, <code>*kursiv*</code>, <code>~~durchgestrichen~~</code>
-                </p>
-                <p>
-                  <code>- Punkt</code> oder <code>1. Punkt</code>, eingerückt verschachtelt;
-                  <code>- [ ] offen</code>, <code>- [x] erledigt</code>
-                </p>
-                <p><code>[Text](https://…)</code>, Adressen werden von selbst zu Links</p>
-                <p>
-                  <code>## Zwischenüberschrift</code>, <code>&gt; Zitat</code>, <code>---</code> Linie
-                </p>
-                <p><code>| A | B |</code> mit <code>|---|---|</code> darunter für Tabellen</p>
-                <p><code>`Code`</code>, drei <code>```</code> für einen Codeblock</p>
-              </InfoHint>
-            </div>
+            <ProtokollTextModusWahl
+              value={textModus}
+              onselect={(value) => void chooseTextModus(value)}
+            />
           </div>
           {#if textModusHinweis}
             <p class="text-sm text-warning" role="status" aria-live="polite">
@@ -1443,12 +1418,6 @@
     z-index: 20;
     background: var(--color-neutral-50);
     border-bottom: 1px solid var(--color-neutral-200);
-  }
-  :global(.markdown-hilfe code) {
-    font-size: 0.8125rem;
-    background: var(--color-neutral-100);
-    padding: 0 0.2rem;
-    border-radius: var(--radius-sm);
   }
   @media (min-width: 48rem) {
     .leiste {
