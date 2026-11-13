@@ -11,7 +11,8 @@ import { seedPreviewEssensplanungPlanung } from '../lib/db-preview-essen-planung
 import { raeumeAuf } from '../lib/essen-aufbewahrung';
 import { essenMail } from '../lib/essen-mails';
 import { PlanungError, ladeZugang } from '../lib/essen-zugang';
-import { einladen, planungLoeschen } from '../lib/essen-planung';
+import { einladen } from '../lib/essen-planung-mitglieder';
+import { planungLoeschen } from '../lib/essen-planung';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import {
   loeschDatum,
