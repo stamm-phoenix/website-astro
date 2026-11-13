@@ -28,6 +28,9 @@ test('settings keep only known keys with valid values, and nothing else may be s
   assert.deepEqual(validateStaffSettings({ settings: { protokollText: 'formatiert' } }), {
     protokollText: 'formatiert',
   });
+  assert.deepEqual(validateStaffSettings({ settings: { protokollText: 'markdown-dokument' } }), {
+    protokollText: 'markdown-dokument',
+  });
   for (const body of [
     null,
     [],

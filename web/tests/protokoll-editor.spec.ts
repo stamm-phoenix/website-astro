@@ -410,7 +410,7 @@ test('the formatting editor writes Markdown that the minutes render the same', a
 
   // The Markdown field shows what is stored, and the editor reads it back; HTML typed as
   // text stays text, as the minutes show it
-  await modus.getByRole('button', { name: 'Einfacher Text (Markdown)' }).click();
+  await modus.getByRole('button', { name: 'Markdown je Punkt' }).click();
   await expect(page.getByLabel('Text zu Punkt 2.')).toHaveValue(
     'Stammestag war **super** und <3, Tag <b>x</b>\n\n- [ ] Fotos sortieren'
   );

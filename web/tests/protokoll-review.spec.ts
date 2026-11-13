@@ -11,7 +11,7 @@ test('the writer gives minutes to the review; saving stops and the PDF is a draf
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
+    .getByRole('button', { name: 'Markdown je Punkt' })
     .click();
 
   // Typed right before: saved first, then given to the review
@@ -44,7 +44,7 @@ test('the author approves their own draft directly after confirming it', async (
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
+    .getByRole('button', { name: 'Markdown je Punkt' })
     .click();
 
   await page.getByLabel('Text zu Punkt 2.').fill('Ohne Review fertig.');
@@ -158,7 +158,7 @@ test('a newer version after a conflict needs the own approval confirmed again', 
   await expect(page.getByRole('heading', { name: 'Kopfdaten' })).toBeVisible();
   await page
     .getByRole('group', { name: 'Texte schreiben als' })
-    .getByRole('button', { name: 'Einfacher Text (Markdown)' })
+    .getByRole('button', { name: 'Markdown je Punkt' })
     .click();
   await page.getByRole('button', { name: 'Zur Prüfung geben' }).click();
   const confirm = page.getByRole('dialog', { name: 'Zur Prüfung geben?' });
