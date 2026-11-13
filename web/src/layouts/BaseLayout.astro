@@ -194,6 +194,14 @@ const websiteLd = {
   // Local data of the Leitendenbereich expires on every site visit, even outside its pages. The
   // check for the entries is cheap; the code that decides what has expired is loaded only when
   // an entry exists, so visitors of the public site do not download it.
+  // Offline (e.g. the saved Nikolaus route) the module may not be loadable. Nothing is lost: an
+  // expired route is refused when it is read, and the next visit with a connection deletes it.
+  function runExpiry(name: 'expireStoredRoute' | 'expireStoredAbrechnungen'): void {
+    void import('../lib/staffStorageExpiry').then(
+      (expiry) => expiry[name](),
+      () => undefined
+    );
+  }
   function hasStoredAbrechnung(): boolean {
     for (let index = 0; index < localStorage.length; index++) {
       if (localStorage.key(index)?.startsWith(ABRECHNUNG_STORAGE_PREFIX)) return true;
@@ -206,7 +214,7 @@ const websiteLd = {
     } catch {
       return; // Storage unavailable: nothing is kept that could expire
     }
-    void import('../lib/staffStorageExpiry').then((expiry) => expiry.expireStoredRoute());
+    runExpiry('expireStoredRoute');
   }
   function expireStoredAbrechnungen(): void {
     try {
@@ -214,7 +222,7 @@ const websiteLd = {
     } catch {
       return; // Storage unavailable: nothing is kept that could expire
     }
-    void import('../lib/staffStorageExpiry').then((expiry) => expiry.expireStoredAbrechnungen());
+    runExpiry('expireStoredAbrechnungen');
   }
   expireStoredRoute();
   document.addEventListener('astro:page-load', expireStoredRoute);
