@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { commonTaskModules } from '../src/lib/staffCommonTasks';
-import { STAFF_MODULES } from '../src/lib/staffModules';
+import { STAFF_MODULES } from '../src/lib/staffModuleList';
 
 const paths = (counts: Record<string, number>) =>
   commonTaskModules(STAFF_MODULES, counts).map((m) => m.href);

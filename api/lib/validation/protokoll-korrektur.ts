@@ -4,7 +4,7 @@
  * are looked up verbatim in the text.
  */
 import { z } from 'zod';
-import { ELEMENT_ID } from '../protokoll-editor-model';
+import { ELEMENT_ID } from '../protokoll-editor-inhalt';
 import type { KorrekturUebernahme, KorrekturVorschlag } from '../protokoll-korrektur-model';
 import {
   KORREKTUR_ARTEN,

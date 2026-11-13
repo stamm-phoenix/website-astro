@@ -9,7 +9,9 @@ import type { Editor, NodeViewRenderer } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import type { ViewMutationRecord } from '@tiptap/pm/view';
 import ProtokollPunktExtras from '../components/protokolle/ProtokollPunktExtras.svelte';
-import { PUNKTE_META, punktNummern, setAktion } from './protokollDokument';
+import { setAktion } from './protokollDokumentBefehle';
+import { punktNummern } from './protokollDokumentPositionen';
+import { PUNKTE_META } from './protokollDokumentNodes';
 import { MAX_TEXT, aktionZeitraum } from './protokollEditor';
 import type { Griff } from './protokollReihenfolge';
 import type {

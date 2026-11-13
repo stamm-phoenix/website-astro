@@ -5,7 +5,7 @@
  */
 import { z } from 'zod';
 import { isValidDate } from '../calendar-date';
-import { berlinDay } from '../calendar-day';
+import { berlinDay } from '../dates';
 import { SCHNUPPER_MAX_LENGTH, isSchnupperStufe } from '../schnupper-model';
 import type { SchnupperAbsage, SchnupperBestaetigung, SchnupperStufe } from '../schnupper-model';
 import { labeledText, lenientObject, parseWith } from './zod';

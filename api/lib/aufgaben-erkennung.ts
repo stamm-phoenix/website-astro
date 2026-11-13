@@ -1,6 +1,6 @@
 import { assertProtokollSize } from './protokoll-text';
 import type { HttpResponseInit } from '@azure/functions';
-import { berlinDay } from './calendar-day';
+import { berlinDay } from './dates';
 import { ValidationError } from './validation/errors';
 import { CONFLICT, ok } from './pflege-api';
 import { errorResponse } from './response-utils';

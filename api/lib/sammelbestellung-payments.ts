@@ -1,3 +1,4 @@
+import { berlinDay } from './dates';
 import { createHash, randomUUID } from 'node:crypto';
 import { getCampflowMembers } from './campflow';
 import { createCampflowFee, CampflowFeeUncertainError } from './campflow-fees';
@@ -48,7 +49,7 @@ function actor(principal: ClientPrincipal): SammelPaymentActor {
 
 /** Returns only current member identities and relevant contacts, never complete person records. */
 export async function sammelBillingPersons(order: OrderRow): Promise<SammelBillingPerson[]> {
-  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+  const today = berlinDay();
   const persons = await getCampflowMembers();
   const candidates = new Map<string, SammelBillingPerson>();
   for (const person of persons) {

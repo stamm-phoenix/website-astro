@@ -8,14 +8,9 @@ import StaffIntro from '../components/StaffIntro.svelte';
 import StaffFooter from '../components/StaffFooter.astro';
 import GeretteteEingaben from '../components/GeretteteEingaben.svelte';
 import PageHeader from '../components/PageHeader.astro';
-import {
-  NIKOLAUS_CONTROL_MODULE,
-  NIKOLAUS_MODULES,
-  STAFF_MODULE_SECTIONS,
-  staffBreadcrumbs,
-  staffModuleOf,
-  staffPage,
-} from '../lib/staffModules';
+import { staffBreadcrumbs, staffModuleOf, staffPage } from '../lib/staffModules';
+import { STAFF_MODULE_SECTIONS } from '../lib/staffSections';
+import { NIKOLAUS_CONTROL_MODULE, NIKOLAUS_MODULES } from '../lib/staffModulesNikolaus';
 
 interface Props {
   /**

@@ -11,15 +11,14 @@
   import MessageText from '../ui/MessageText.svelte';
   import { formatFileSize } from '../../lib/downloadsStore.svelte';
   import { MEDIA_ACCEPT, aktionFotoPath, cleanName, fotoKind } from '../../lib/fotoPfade';
+  import { selectFotoFiles, startFotoUpload } from '../../lib/fotoUpload.svelte';
   import {
     fotoPerson,
     fotoUpload,
     fotoUploadDraft as draft,
     loadFotoPerson,
-    selectFotoFiles,
-    startFotoUpload,
     type FotoTargetRequest,
-  } from '../../lib/fotoUpload.svelte';
+  } from '../../lib/fotoUploadState.svelte';
   import { onMount } from 'svelte';
 
   type Mode = 'aktion' | 'ordner';

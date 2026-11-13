@@ -1,7 +1,7 @@
 import { app } from '@azure/functions';
 import { ok } from '../lib/pflege-api';
 import { getCampflowEvents } from '../lib/campflow';
-import { berlinDay } from '../lib/calendar-day';
+import { berlinDay } from '../lib/dates';
 import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { readQuelle } from '../lib/validation/zeitplan-quelle';
 import {

@@ -16,7 +16,7 @@ import * as leitendeList from '../lib/leitende-list';
 import * as mail from '../lib/mail';
 import { editorAblageItemIds } from '../lib/protokoll-editor';
 import type { ProtokollEditorDetail } from '../lib/protokoll-editor-model';
-import { neuerInhalt } from '../lib/protokoll-editor-model';
+import { neuerInhalt } from '../lib/protokoll-editor-inhalt';
 import {
   createProtokollPdf,
   protokollPdfDefinition,

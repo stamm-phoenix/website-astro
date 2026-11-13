@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import StaffModuleSection from './StaffModuleSection.svelte';
-  import type { StaffModule } from '../lib/staffModules';
+  import type { StaffModule } from '../lib/staffModuleTypes';
   import { fetchApi } from '../lib/api';
   import { commonTaskModules } from '../lib/staffCommonTasks';
   interface Props {

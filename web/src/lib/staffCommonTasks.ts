@@ -1,4 +1,4 @@
-import type { StaffModule } from './staffModules';
+import type { StaffModule } from './staffModuleTypes';
 const FALLBACK = ['aufgaben', 'aktionen', 'belege', 'anwesenheit', 'mitglieder', 'protokolle'];
 /**
  * Input modules have already been filtered by permissions and seasonal availability.

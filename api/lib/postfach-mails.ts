@@ -1,3 +1,4 @@
+import { formatDateTimeLong } from './dates';
 import { sendLeitendenMail } from './leitenden-mail';
 import { escapeHtml } from './mail';
 import { mailButton, mailLayout } from './mail-template';
@@ -25,14 +26,7 @@ export function konversationLink(siteUrl: string, postfach: string, konversation
 }
 
 function datum(iso: string): string {
-  return new Intl.DateTimeFormat('de-DE', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Europe/Berlin',
-  }).format(new Date(iso));
+  return formatDateTimeLong(new Date(iso));
 }
 
 function row(label: string, value: string): string {

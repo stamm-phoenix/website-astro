@@ -7,16 +7,14 @@
   import FotoZipStatus from './FotoZipStatus.svelte';
   import { clearFotoDownloadResult } from '../../lib/fotoDownload.svelte';
   import { fotoAnsichtHash, readFotoAnsicht, type FotoAnsicht } from '../../lib/fotoAnsicht';
+  import { cancelFotoUpload, fotoUploadActive, resetFotoUpload } from '../../lib/fotoUpload.svelte';
   import {
-    cancelFotoUpload,
     fotoUpload,
-    fotoUploadActive,
     fotoUploadDraft,
     hasFotoDraft,
     presetFotoFolder,
-    resetFotoUpload,
     uploadTotals,
-  } from '../../lib/fotoUpload.svelte';
+  } from '../../lib/fotoUploadState.svelte';
   import { fetchCampflowEvents } from '../../lib/campflowStore.svelte';
   import { loadFotoFolder } from '../../lib/fotoOrdnerStore.svelte';
   import { aktionenPflege } from '../../lib/pflegeStore.svelte';

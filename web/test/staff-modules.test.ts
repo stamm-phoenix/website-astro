@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { STAFF_MODULE_SECTIONS, STAFF_MODULES } from '../src/lib/staffModules';
+import { STAFF_MODULE_SECTIONS } from '../src/lib/staffSections';
+import { STAFF_MODULES } from '../src/lib/staffModuleList';
 
 test('every module is listed in a section of the menu and the start page', () => {
   const listed = new Set(

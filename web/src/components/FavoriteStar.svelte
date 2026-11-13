@@ -1,7 +1,7 @@
 <script lang="ts">
   import { favoritesStore, favoriteToggle } from '../lib/staffFavoritesStore.svelte';
   import { FAVORITE_STAR_PATH as STAR } from '../lib/favoriteStar';
-  import type { StaffModule } from '../lib/staffModules';
+  import type { StaffModule } from '../lib/staffModuleTypes';
 
   interface Props {
     module: StaffModule;

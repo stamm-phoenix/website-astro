@@ -4,6 +4,7 @@
 // jsPDF is loaded only when a PDF is created, so it does not weigh on the page itself.
 import type { jsPDF as JsPdf } from 'jspdf';
 import type { autoTable as AutoTableFn } from 'jspdf-autotable';
+import { formatDateMedium, formatDateTimeMedium } from '../../../api/lib/dates';
 import { pdfText } from './pdfText';
 
 export const BRAND: [number, number, number] = [0, 48, 86]; // DPSG blue #003056
@@ -63,11 +64,7 @@ export function drawTitle(doc: JsPdf, title: string, lines: string[]): number {
 
 /** Page numbers and the creation date on every page. */
 export function drawPageFooters(doc: JsPdf): void {
-  const created = new Intl.DateTimeFormat('de-DE', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'Europe/Berlin',
-  }).format(new Date());
+  const created = formatDateTimeMedium(new Date());
   const pages = doc.getNumberOfPages();
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
@@ -90,10 +87,7 @@ export function hexToRgb(hex: string): [number, number, number] {
   return [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16)];
 }
 
-export const today = (): string =>
-  new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeZone: 'Europe/Berlin' }).format(
-    new Date()
-  );
+export const today = (): string => formatDateMedium(new Date());
 
 /** A file name of the parts, without characters Windows does not allow; `fallback` when empty. */
 export function dateiName(fallback: string, ...parts: string[]): string {

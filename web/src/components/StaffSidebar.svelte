@@ -3,7 +3,8 @@
   import type { TransitionBeforeSwapEvent } from 'astro:transitions/client';
   import StaffModuleSearch from './StaffModuleSearch.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
-  import { STAFF_HOME, type StaffModule } from '../lib/staffModules';
+  import { STAFF_HOME } from '../lib/staffSubpages';
+  import { type StaffModule } from '../lib/staffModuleTypes';
   import type { StaffModuleGroup } from '../lib/staffSearch';
   import { HELP_CONTACTS } from '../lib/helpContacts';
   import { storeSidebarChoice, type SidebarFlyout } from '../lib/staffSidebar';

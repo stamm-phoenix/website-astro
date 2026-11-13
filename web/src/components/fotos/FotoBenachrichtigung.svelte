@@ -5,7 +5,8 @@
   import ProtokollEmpfaenger from '../protokolle/ProtokollEmpfaenger.svelte';
   import { sendApi } from '../../lib/api';
   import { fotoAnzahlText } from '../../lib/fotoPfade';
-  import { fotoUpload, unnotifiedFotoNames } from '../../lib/fotoUpload.svelte';
+  import { unnotifiedFotoNames } from '../../lib/fotoUpload.svelte';
+  import { fotoUpload } from '../../lib/fotoUploadState.svelte';
   import { PERSON_GRUPPE_LABELS } from '../../lib/protokollEditor';
   import type { ProtokollVersandAuswahl, ProtokollVersandPreview } from '../../lib/protokolleView';
   import {

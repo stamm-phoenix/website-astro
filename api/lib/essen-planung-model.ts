@@ -7,7 +7,7 @@ import type { PlanungBeleg } from './essen-belege-model';
 import type { EinplanungStatus, Verbrauch } from './essen-kochen-model';
 import type { PlanungGruppe, Teilnehmende } from './essen-teilnehmende-model';
 import { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor } from './essen-planung-faktor';
-import { MAX_TAGE, addDays, daysBetween, loeschDatum, readDatum } from './essen-planung-datum';
+import { MAX_TAGE, daysBetween, loeschDatum, readDatum } from './essen-planung-datum';
 import type {
   anlegenSchema,
   leitungAnlegenSchema,
@@ -17,7 +17,7 @@ import type {
   planungEinstellungenSchema,
 } from './essen-planung-schema';
 
-export { MAX_TAGE, addDays, daysBetween, loeschDatum, readDatum };
+export { MAX_TAGE, daysBetween, loeschDatum, readDatum };
 export { FAKTOR_FEHLER, MAX_FAKTOR, faktorGueltig, leseFaktor };
 
 /**

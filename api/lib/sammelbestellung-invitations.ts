@@ -1,3 +1,4 @@
+import { berlinDay } from './dates';
 import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
 import { getCampflowMembers } from './campflow';
@@ -124,9 +125,7 @@ export async function sammelInvitationStep(
   const current = await loadJob(campaignId);
   if (action === 'preview' && current) return { ...summary(current), started: true };
   if (!current) {
-    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(
-      new Date()
-    );
+    const today = berlinDay();
     const addresses = sammelInvitationRecipients(await getCampflowMembers(), today);
     const audienceVersion = sammelAudienceVersion(addresses);
     if (action === 'preview')

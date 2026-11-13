@@ -14,12 +14,9 @@ import {
   saveEditorProtokoll,
   takeSperre,
 } from '../lib/protokoll-editor';
-import type {
-  OffeneAufgabeQuelle,
-  ProtokollPerson,
-  Vorbelegung,
-} from '../lib/protokoll-editor-model';
-import { MAX_SITZUNGSLEITUNG } from '../lib/protokoll-editor-model';
+import type { OffeneAufgabeQuelle, ProtokollPerson } from '../lib/protokoll-editor-model';
+import type { Vorbelegung } from '../lib/protokoll-editor-inhalt';
+import { MAX_SITZUNGSLEITUNG } from '../lib/protokoll-editor-inhalt';
 import { vorbelegungFuer } from '../lib/protokoll-vorbelegung';
 import { readJsonBody } from '../lib/response-utils';
 import { getTaskDirectoryUsers } from '../lib/task-directory';

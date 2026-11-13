@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Aktion } from '../lib/aktionen-list';
-import { neuerInhalt } from '../lib/protokoll-editor-model';
+import { neuerInhalt } from '../lib/protokoll-editor-inhalt';
 import {
   aktionenTexte,
   naechsteSitzungAus,

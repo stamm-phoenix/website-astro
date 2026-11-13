@@ -5,7 +5,7 @@ import type {
   OffeneAufgabeQuelle,
   ProtokollEditorAufgaben,
 } from '../../api/lib/protokoll-editor-model';
-import { einzeilig } from '../../api/lib/protokoll-editor-model';
+import { einzeilig } from '../../api/lib/protokoll-editor-inhalt';
 import { MOCK_LEITENDE, mockPersonen } from './mock-data/personen';
 import { minimalPdf } from './mock-data/content';
 import {

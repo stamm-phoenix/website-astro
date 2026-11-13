@@ -10,15 +10,7 @@ import {
   zeitraumText,
 } from './protokollMarkdownZeilen';
 import type { PersonFinder } from './protokollMarkdownZeilen';
-import {
-  MAX_AUFGABEN,
-  MAX_PUNKTE,
-  MAX_TERMINE,
-  MAX_TEXT,
-  MAX_TITEL,
-  MAX_UNTERPUNKTE,
-  MAX_ZUSTAENDIG,
-} from '../../../api/lib/protokoll-editor-model';
+import { MAX_AUFGABEN, MAX_PUNKTE, MAX_TERMINE, MAX_TEXT, MAX_TITEL, MAX_UNTERPUNKTE, MAX_ZUSTAENDIG } from '../../../api/lib/protokoll-editor-inhalt';
 import type {
   ProtokollAufgabe,
   ProtokollPunkt,

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { euro, type BelegStatistik } from '../../lib/essensplanungBelege';
+  import type { BelegStatistik } from '../../lib/essensplanungBelege';
+  import { formatEuro } from '../../../../api/lib/money';
 
   /** Who paid how much, and what each still gets back; receipts paid back count in the totals. */
 
@@ -28,12 +29,12 @@
           >
           <td class="px-1.5 py-1 text-right tabular-nums">{person.anzahl}</td>
           <td class="px-1.5 py-1 text-right whitespace-nowrap tabular-nums"
-            >{euro(person.gesamtCent)}</td
+            >{formatEuro(person.gesamtCent)}</td
           >
           <td
             class="px-1.5 py-1 text-right whitespace-nowrap tabular-nums {person.offenCent
               ? 'font-semibold text-brand-900'
-              : 'text-neutral-700'}">{euro(person.offenCent)}</td
+              : 'text-neutral-700'}">{formatEuro(person.offenCent)}</td
           >
         </tr>
       {/each}
@@ -43,13 +44,13 @@
         <th scope="row" class="px-1.5 py-1 text-left">Summe</th>
         <td class="px-1.5 py-1 text-right tabular-nums">{statistik.anzahl}</td>
         <td class="px-1.5 py-1 text-right whitespace-nowrap tabular-nums"
-          >{euro(statistik.gesamtCent)}</td
+          >{formatEuro(statistik.gesamtCent)}</td
         >
         <td class="px-1.5 py-1 text-right whitespace-nowrap tabular-nums"
-          >{euro(statistik.offenCent)}</td
+          >{formatEuro(statistik.offenCent)}</td
         >
       </tr>
     </tfoot>
   </table>
-  <p class="text-xs text-neutral-700">Davon erstattet: {euro(statistik.erstattetCent)}</p>
+  <p class="text-xs text-neutral-700">Davon erstattet: {formatEuro(statistik.erstattetCent)}</p>
 </section>

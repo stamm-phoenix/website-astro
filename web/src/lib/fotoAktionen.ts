@@ -1,3 +1,4 @@
+import { addDays } from '../../../api/lib/dates';
 import { nurAktionen } from './aktionArt';
 import { berlinDay } from './format';
 import type { CampflowEvent } from './types/aktionen';
@@ -18,12 +19,6 @@ export interface FotoAktion {
 const RECENT_DAYS = 120;
 /** Aktionen starting within this many days also count as recent (photos of the first day). */
 const SOON_DAYS = 3;
-
-function addDays(day: string, days: number): string {
-  const date = new Date(`${day}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
 
 /**
  * CampFlow events and calendar entries without CampFlow event as one list. Past and running

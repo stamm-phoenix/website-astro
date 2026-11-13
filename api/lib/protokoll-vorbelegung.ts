@@ -9,10 +9,11 @@
 import { getMeetingSummaries } from './anwesenheit';
 import { getAktionen, isLeitendeOnly } from './aktionen-list';
 import type { Aktion } from './aktionen-list';
+import { addDays } from './dates';
 import { getDb, toDateString } from './db';
-import { einzeilig, MAX_TEXT } from './protokoll-editor-model';
+import { einzeilig, MAX_TEXT } from './protokoll-editor-inhalt';
 import { aktionZeitraum } from './protokoll-zeitraum';
-import type { Vorbelegung } from './protokoll-editor-model';
+import type { Vorbelegung } from './protokoll-editor-inhalt';
 
 /** Longest period an entry reaches back or ahead when there are no earlier minutes. */
 export const VORBELEGUNG_RUECK_TAGE = 60;
@@ -135,12 +136,6 @@ export function naechsteSitzungAus(content: string): Vorbelegung['naechsteSitzun
   } catch {
     return { uhrzeit: '', ort: '' };
   }
-}
-
-function addDays(date: string, days: number): string {
-  const result = new Date(`${date}T00:00:00Z`);
-  result.setUTCDate(result.getUTCDate() + days);
-  return result.toISOString().slice(0, 10);
 }
 
 /**

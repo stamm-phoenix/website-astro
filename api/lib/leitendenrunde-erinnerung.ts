@@ -6,7 +6,7 @@
  * parallel runs and retries never mail twice and an unclear result is never repeated blindly.
  */
 import { createHash } from 'node:crypto';
-import { berlinDay } from './calendar-day';
+import { berlinDay } from './dates';
 import { campflowGetAll } from './campflow';
 import type { CampflowPerson } from './campflow';
 import { CONFIG } from './config';

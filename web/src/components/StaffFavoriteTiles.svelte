@@ -6,7 +6,7 @@
   } from '../lib/staffFavoritesStore.svelte';
   import { FAVORITE_STAR_PATH } from '../lib/favoriteStar';
   import { recentStore } from '../lib/staffRecentStore.svelte';
-  import { CHANGELOG_PATH, type StaffModule } from '../lib/staffModules';
+  import { CHANGELOG_PATH, type StaffModule } from '../lib/staffModuleTypes';
   import ChangelogBadge from './changelog/ChangelogBadge.svelte';
   import ActionButton from './ui/ActionButton.svelte';
   import InfoHint from './ui/InfoHint.svelte';

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { checkedTaskAssignee, taskCandidates } from './task-directory-matching';
 import type { TaskDirectoryUser } from './task-directory-types';
-import { berlinDay } from './calendar-day';
+import { berlinDay } from './dates';
 import { CONFIG } from './config';
 import { dailyLimit, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
 import { protokollToText } from './protokoll-text';

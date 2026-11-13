@@ -3,14 +3,11 @@ import test from 'node:test';
 import { DOMParser, parseHTML } from 'linkedom';
 import { DOMParser as PMDOMParser, DOMSerializer } from '@tiptap/pm/model';
 import { setServerHtmlParser } from '../src/lib/html.ts';
-import {
-  DokumentUmwandlung,
-  dokumentSchema,
-  punktNummern,
-  punktLeer,
-  rebuildDoc,
-} from '../src/lib/protokollDokument.ts';
-import { neuerInhalt } from '../../api/lib/protokoll-editor-model.ts';
+import { dokumentSchema } from '../src/lib/protokollDokument.ts';
+import { punktLeer } from '../src/lib/protokollDokumentGuard.ts';
+import { DokumentUmwandlung, rebuildDoc } from '../src/lib/protokollDokumentUmwandlung.ts';
+import { punktNummern } from '../src/lib/protokollDokumentPositionen.ts';
+import { neuerInhalt } from '../../api/lib/protokoll-editor-inhalt.ts';
 import { parseProtokollMarkdown } from '../src/lib/protokollMarkdown.ts';
 import type { ProtokollPunkt } from '../../api/lib/protokoll-editor-model.ts';
 

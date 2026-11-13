@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { berlinDay } from '../../../api/lib/dates';
   import { onMount, untrack } from 'svelte';
   import { gruppenstundenStore, fetchGruppenstunden } from '../lib/gruppenstundenStore.svelte';
   import { sanitizeDescription } from '../lib/api';
@@ -22,14 +23,14 @@
   const view = $derived(withBaked(gruppenstundenStore, initial));
 
   let expandedGruppe = $state<string | null>(null);
-  let today = $state(berlinDate());
+  let today = $state(berlinDay());
 
   onMount(() => {
     fetchGruppenstunden();
   });
 
   $effect(() => {
-    const timer = setInterval(() => (today = berlinDate()), 60_000);
+    const timer = setInterval(() => (today = berlinDay()), 60_000);
     return () => clearInterval(timer);
   });
 
@@ -48,10 +49,6 @@
 
   function hasExpandableContent(gruppe: Gruppenstunde): boolean {
     return gruppe.leitende?.length > 0 || !!gruppe.description;
-  }
-
-  function berlinDate(): string {
-    return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
   }
 
   function currentException(gruppe: Gruppenstunde): GruppenstundenException | null {

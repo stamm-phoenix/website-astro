@@ -1,10 +1,5 @@
-import {
-  SPERRE_SECONDS,
-  neuerInhalt,
-  offeneAufgabenPunkt,
-  protokollEintraege,
-} from '../../../api/lib/protokoll-editor-model';
-import type { ProtokollEintrag } from '../../../api/lib/protokoll-editor-model';
+import { SPERRE_SECONDS, neuerInhalt, offeneAufgabenPunkt, protokollEintraege } from '../../../api/lib/protokoll-editor-inhalt';
+import type { ProtokollEintrag } from '../../../api/lib/protokoll-editor-inhalt';
 import type {
   OffeneAufgabeQuelle,
   ProtokollEditorAblage,

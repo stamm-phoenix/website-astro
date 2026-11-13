@@ -2,7 +2,7 @@
  * What the Protokoll editor keeps on this device: the token of the tab for the lock, whether the
  * tab writes, and the copies of unsaved changes until the server confirms them.
  */
-import { upgradeInhalt } from '../../../api/lib/protokoll-editor-model';
+import { upgradeInhalt } from '../../../api/lib/protokoll-editor-inhalt';
 import type { ProtokollStand } from './protokollEditor';
 
 const TOKEN_KEY = 'phoenix:protokoll-tab:v1:';

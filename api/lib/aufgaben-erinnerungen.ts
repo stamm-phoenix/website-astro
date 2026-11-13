@@ -1,4 +1,4 @@
-import { berlinDay } from './calendar-day';
+import { berlinDay } from './dates';
 import { createHash } from 'node:crypto';
 import { CONFIG } from './config';
 import { getTasks, getTaskProjects } from './aufgaben';

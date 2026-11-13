@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CHANGELOG_PATH, type StaffModule } from '../lib/staffModules';
+  import { CHANGELOG_PATH, type StaffModule } from '../lib/staffModuleTypes';
   import ChangelogBadge from './changelog/ChangelogBadge.svelte';
   import { favoriteToggle } from '../lib/staffFavoritesStore.svelte';
   import { longPress } from '../lib/longPress';

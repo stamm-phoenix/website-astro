@@ -11,6 +11,10 @@ import { loginUrl, reloginOnlyHere } from './api';
 export { formatDateTime } from './format';
 
 export {
+  PERSON_GRUPPE_LABELS,
+  REVISION_REASON_LABELS,
+} from '../../../api/lib/protokoll-editor-model';
+export {
   MAX_AUFGABEN,
   MAX_PROTOKOLLANT,
   MAX_PUNKTE,
@@ -19,9 +23,7 @@ export {
   MAX_TEXT,
   MAX_UNTERPUNKTE,
   MAX_ZUSTAENDIG,
-  PERSON_GRUPPE_LABELS,
   OFFENE_AUFGABEN_TITEL,
-  REVISION_REASON_LABELS,
   SPERRE_RENEW_SECONDS,
   aufgabenAnzahl,
   freigabeAufgaben,
@@ -32,7 +34,7 @@ export {
   personNames,
   punktNummer,
   upgradeInhalt,
-} from '../../../api/lib/protokoll-editor-model';
+} from '../../../api/lib/protokoll-editor-inhalt';
 export { aktionZeitraum } from '../../../api/lib/protokoll-zeitraum';
 
 /** Identity of a person in the minutes: the login, or the name of someone typed by hand. */

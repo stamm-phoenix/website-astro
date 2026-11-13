@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { berlinDate, currentSchulferien, requireCurrentSchulferien } from '../src/lib/schulferien';
+import { berlinDay } from '../../api/lib/dates';
+import { currentSchulferien, requireCurrentSchulferien } from '../src/lib/schulferien';
 
 describe('Bayerische Schulferien', () => {
   const cases: [string, string | null][] = [
@@ -33,9 +34,9 @@ describe('Bayerische Schulferien', () => {
   });
 
   test('Berlin day changes at midnight, independent of device timezone and DST', () => {
-    assert.equal(berlinDate(new Date('2026-11-01T22:59:59Z')), '2026-11-01');
-    assert.equal(berlinDate(new Date('2026-11-01T23:00:00Z')), '2026-11-02');
-    assert.equal(berlinDate(new Date('2027-08-01T22:00:00Z')), '2027-08-02');
+    assert.equal(berlinDay(new Date('2026-11-01T22:59:59Z')), '2026-11-01');
+    assert.equal(berlinDay(new Date('2026-11-01T23:00:00Z')), '2026-11-02');
+    assert.equal(berlinDay(new Date('2027-08-01T22:00:00Z')), '2027-08-02');
   });
 
   test('build requires renewed data three months before coverage expires', () => {

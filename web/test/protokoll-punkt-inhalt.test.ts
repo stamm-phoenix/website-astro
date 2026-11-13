@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { neuerPunkt } from '../../api/lib/protokoll-editor-model.ts';
+import { neuerPunkt } from '../../api/lib/protokoll-editor-inhalt.ts';
 import { punktHatInhalt } from '../src/lib/protokollPunktInhalt.ts';
 
 test('an item with only a title has no content, so it goes without asking', () => {

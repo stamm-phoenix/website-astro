@@ -7,11 +7,8 @@ import ChangelogNotice from '../../components/changelog/ChangelogNotice.svelte';
 import NikolausStaffNotice from '../../components/NikolausStaffNotice.svelte';
 import StaffModuleSection from '../../components/StaffModuleSection.svelte';
 import NikolausStaffSection from '../../components/NikolausStaffSection.svelte';
-import {
-  NIKOLAUS_CONTROL_MODULE,
-  NIKOLAUS_MODULES,
-  STAFF_MODULE_SECTIONS,
-} from '../../lib/staffModules';
+import { STAFF_MODULE_SECTIONS } from '../../lib/staffSections';
+import { NIKOLAUS_CONTROL_MODULE, NIKOLAUS_MODULES } from '../../lib/staffModulesNikolaus';
 
 const sections = STAFF_MODULE_SECTIONS.filter((section) => section.modules.length > 0);
 const searchGroups = [

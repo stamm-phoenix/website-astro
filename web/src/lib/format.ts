@@ -1,11 +1,8 @@
 /** Formatting of money, dates and times, shared across the site. */
+import { berlinDay as berlinToday } from '../../../api/lib/dates';
+import { formatEuro } from '../../../api/lib/money';
 
-const EURO = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
-
-/** A cent amount as euros, e.g. `12,50 €`. */
-export function formatEuro(cent: number): string {
-  return EURO.format(cent / 100);
-}
+export { formatEuro };
 
 /** A missing amount stays visibly unset; each flow can name what remains open. */
 export function formatOptionalEuro(cent: number | null, pending = 'Noch offen'): string {
@@ -24,19 +21,14 @@ export function formatDateTime(value: string | Date): string {
   return Number.isNaN(date.getTime()) ? '' : DATE_TIME.format(date);
 }
 
-const ISO_DAY = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' });
-
 /** Whether the point in time falls on today's date in Berlin. */
 export function isToday(value: string | Date | number): boolean {
-  return (
-    ISO_DAY.format(typeof value === 'string' ? new Date(value) : value) ===
-    ISO_DAY.format(new Date())
-  );
+  return berlinToday(new Date(value)) === berlinToday();
 }
 
 /** Today in Berlin as `YYYY-MM-DD`, the format of date inputs. */
 export function todayIso(): string {
-  return ISO_DAY.format(new Date());
+  return berlinToday();
 }
 
 /**
@@ -47,7 +39,7 @@ export function berlinDay(value: string | null | undefined): string | null {
   if (!value) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : ISO_DAY.format(date);
+  return Number.isNaN(date.getTime()) ? null : berlinToday(date);
 }
 
 const CLOCK = new Intl.DateTimeFormat('de-DE', {

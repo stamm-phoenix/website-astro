@@ -1,6 +1,6 @@
 import { addTiming } from './server-timing';
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
-import type { StaffTeam } from './config';
+import type { StaffTeam } from './config-types';
 import { CONFIG } from './config';
 import { errorResponse } from './response-utils';
 import type { ClientPrincipal } from './staff-principal-model';

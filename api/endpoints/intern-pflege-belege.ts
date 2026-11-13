@@ -1,6 +1,5 @@
 import { app, type HttpRequest, type InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
-import { isPreviewDeployment } from '../lib/staff-auth';
 import {
   changesDetails,
   isBelegReviewer,
@@ -10,150 +9,33 @@ import {
   seesAllBelege,
 } from '../lib/beleg-rechte';
 import { parseId } from '../lib/db';
-import type { BelegInput } from '../lib/validation/beleg';
 import { validateBeleg } from '../lib/validation/beleg';
 import { isPhotos, readPhotos } from '../lib/validation/beleg-upload';
 import { NO_CONTENT, NOT_FOUND, ok, readEtag, readIfMatch, requireEtag } from '../lib/pflege-api';
-import {
-  belegMailSender,
-  belegReviewerAddresses,
-  sendBelegRejectedMail,
-  sendBelegSubmittedMail,
-} from '../lib/beleg-mails';
-import { getSiteUrl } from '../lib/site-url';
-import {
-  encodeContentDisposition,
-  errorResponse,
-  NO_STORE_HEADERS,
-  readJsonBody,
-} from '../lib/response-utils';
-import type { BelegCheck } from '../lib/beleg-check';
-import { checkBelegPhoto, isBelegCheckConfigured } from '../lib/beleg-check';
-import type { BelegPhotos, StaffBeleg } from '../lib/beleg-list';
+import { readJsonBody } from '../lib/response-utils';
+import type { StaffBeleg } from '../lib/beleg-list';
 import {
   createBeleg,
   deleteBeleg,
-  downloadFileName,
   getBeleg,
   getBelege,
-  setBelegPhoto,
   toStaffBeleg,
   updateBeleg,
 } from '../lib/beleg-list';
-import { readBelegPhoto } from '../lib/beleg-photos';
-import { BelegCampflowError, transferBelegToCampflow } from '../lib/beleg-campflow';
-import { readCampflowBelege } from '../lib/campflow-belege';
-import { getCampflowBelege, PlaywrightApiError } from '../lib/playwright-api';
-import { getIch } from '../lib/personen';
-import { sameName } from '../lib/personen-model';
-import * as taskDirectory from '../lib/task-directory';
-import type { TaskDirectoryUser } from '../lib/task-directory-types';
 import { staffHandler } from '../lib/handler';
-
-export type { StaffBeleg } from '../lib/beleg-list';
-export { downloadFileName } from '../lib/beleg-list';
-export { originalFileName } from '../lib/beleg-photos';
-
-/** The time of a request from its start; Static Web Apps cuts it off after 45 seconds. */
-/** The mail to the Kasse is left out when less than this is left of the request's time. */
-
-/** Resolves with `fallback` once `deadline` has passed, so a slow lookup never holds the answer. */
-export function beforeDeadline<T>(promise: Promise<T>, deadline: number, fallback: T): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const late = new Promise<T>((resolve) => {
-    timer = setTimeout(() => resolve(fallback), Math.max(0, deadline - Date.now()));
-  });
-  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
-}
-
-/** Previews are requested with the receipt's etag in the URL, so a short private cache is safe. */
-const PRIVATE_CACHE_HEADERS = { 'Cache-Control': 'private, max-age=300' };
-
-export { isBelegReviewer } from '../lib/beleg-rechte';
-
-const FORBIDDEN = errorResponse(
-  403,
-  'FORBIDDEN',
-  'Das darf nur die Kasse, der Vorstand oder die Person, die den Beleg eingereicht hat.'
-);
-
-const ACCEPTED = errorResponse(
-  403,
-  'FORBIDDEN',
-  'Ein angenommener Beleg lässt sich nicht mehr ändern. Die Kasse kann die Annahme zurücknehmen.'
-);
-
-/** The people of the Entra directory; none when it cannot be read. */
-async function directoryUsers(): Promise<TaskDirectoryUser[]> {
-  try {
-    return await taskDirectory.getTaskDirectoryUsers();
-  } catch {
-    return [];
-  }
-}
-
-/** Written like saved receipts: trimmed, single spaces. */
-function cleanName(name: string): string {
-  return name.trim().replace(/\s+/g, ' ');
-}
-
-/**
- * The names the user goes by: in the Entra directory and as the linked CampFlow person. Static
- * Web Apps does not pass the name claim on, so these are what an Auslage names.
- */
-async function ownNames(
-  principal: ClientPrincipal,
-  users?: TaskDirectoryUser[]
-): Promise<string[]> {
-  const login = principal.userDetails.toLowerCase();
-  const [directory, ich] = await Promise.allSettled([users ?? directoryUsers(), getIch(login)]);
-  const names: string[] = [];
-  if (directory.status === 'fulfilled') {
-    const me = directory.value.find((user) => user.login.toLowerCase() === login);
-    if (me?.name) names.push(cleanName(me.name));
-  }
-  const linked = ich.status === 'fulfilled' ? ich.value.campflow : null;
-  if (linked?.firstName || linked?.lastName) {
-    names.push(`${linked.firstName} ${linked.lastName}`.trim().replace(/\s+/g, ' '));
-  }
-  return names;
-}
-
-/** An Auslage of the user: they may see the receipt, whoever submitted it. */
-function isAuslageOf(beleg: { payout: boolean; paidBy: string }, names: string[]): boolean {
-  return beleg.payout && names.some((name) => sameName(name, beleg.paidBy));
-}
-
-/** Today in Germany as `YYYY-MM-DD`; receipts are dated in local time. */
-export function todayInBerlin(now = new Date()): string {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(now);
-}
-
-/** Runs the preliminary check; a failing check never blocks storing the receipt. */
-async function runCheck(
-  pages: Uint8Array[],
-  context: InvocationContext
-): Promise<BelegCheck | undefined> {
-  try {
-    return await checkBelegPhoto(pages);
-  } catch (error: unknown) {
-    context.warn('[belege] KI-Prüfung fehlgeschlagen', error);
-    return undefined;
-  }
-}
-
-/**
- * The check of a new photo, or of the pages of a PDF, if a model is configured; never blocks
- * storing the receipt.
- */
-function startCheck(
-  photos: BelegPhotos,
-  context: InvocationContext
-): Promise<BelegCheck | undefined> | undefined {
-  return isBelegCheckConfigured()
-    ? runCheck([photos.photo, ...(photos.pages ?? [])], context)
-    : undefined;
-}
+import {
+  ACCEPTED,
+  FORBIDDEN,
+  beforeDeadline,
+  cleanName,
+  directoryUsers,
+  isAuslageOf,
+  mailRejection,
+  notifyKasse,
+  ownNames,
+  startCheck,
+  todayInBerlin,
+} from '../lib/belege-http';
 
 /**
  * GET: all receipts, newest first; POST: submit a receipt with its photo and tell the Kasse
@@ -276,236 +158,6 @@ export const BelegItem = staffHandler(
   }
 );
 
-/**
- * Tells the members of the team „Kasse“ that a receipt waits for their check, within what is
- * left of the request's time (`deadline`): the receipt is already saved, so the answer must not
- * run into the time limit and make the uploader submit it twice. A failure never undoes the
- * saved receipt; PR previews hold made-up receipts and send nothing.
- */
-async function notifyKasse(
-  input: BelegInput,
-  resubmitted: boolean,
-  principal: ClientPrincipal,
-  request: HttpRequest,
-  context: InvocationContext,
-  deadline: number
-): Promise<void> {
-  const sender = belegMailSender();
-  if (!sender || isPreviewDeployment()) return;
-  // Leave the mail out rather than risk the answer
-  const left = (): number => deadline - Date.now() - 2_000;
-  try {
-    if (left() <= 0) throw new Error('Keine Zeit mehr für die Mail');
-    const [recipients, names] = await Promise.all([
-      belegReviewerAddresses(
-        principal.userDetails,
-        AbortSignal.timeout(Math.min(5_000, Math.max(1, left())))
-      ),
-      beforeDeadline(ownNames(principal), deadline - 2_000, []),
-    ]);
-    if (recipients.length === 0) return;
-    if (left() <= 0) throw new Error('Keine Zeit mehr für die Mail');
-    const failed = await sendBelegSubmittedMail(
-      {
-        art: input.art,
-        shop: input.shop,
-        date: input.date,
-        amountCent: input.amountCent,
-        paidBy: input.paidBy,
-        payout: input.payout,
-        aktion: input.aktion,
-        kostenstelle: input.kostenstelle,
-        kategorie: input.kategorie,
-        note: input.note,
-        submitter: names[0] ?? principal.userDetails,
-        resubmitted,
-        url: `${getSiteUrl(request)}/leitendenbereich/belege`,
-      },
-      recipients,
-      sender,
-      left()
-    );
-    if (failed.length > 0) {
-      context.warn(`[belege] Mail an die Kasse an ${failed.length} Person(en) fehlgeschlagen`);
-    }
-  } catch (error: unknown) {
-    context.warn('[belege] Kasse konnte nicht benachrichtigt werden', error);
-  }
-}
-
-/**
- * Sends the rejection mail; a failure never undoes the saved decision. PR previews hold
- * made-up receipts and send nothing.
- */
-async function mailRejection(
-  beleg: StaffBeleg,
-  input: BelegInput,
-  principal: ClientPrincipal,
-  request: HttpRequest,
-  context: InvocationContext,
-  deadline: number
-): Promise<boolean> {
-  const sender = belegMailSender();
-  if (!sender || isPreviewDeployment() || !beleg.submittedBy.includes('@')) return false;
-  const left = deadline - Date.now() - 2_000;
-  if (left <= 0) return false;
-  try {
-    await sendBelegRejectedMail(
-      {
-        to: beleg.submittedBy,
-        shop: input.shop,
-        date: input.date,
-        amountCent: input.amountCent,
-        reason: input.reviewNote,
-        reviewer: principal.userDetails,
-        url: `${getSiteUrl(request)}/leitendenbereich/belege`,
-      },
-      sender,
-      left
-    );
-    return true;
-  } catch (error: unknown) {
-    context.warn('[belege] Ablehnungs-Mail konnte nicht gesendet werden', error);
-    return false;
-  }
-}
-
-/**
- * GET: the photo (`?thumb=1` as preview, `?original=1` for the unedited photo, `?download=1`
- * as file); PUT: replace it with `photo` and the optional `original` of the JSON body.
- */
-export const BelegPhoto = staffHandler(
-  'belege-foto',
-  async (request: HttpRequest, context: InvocationContext, principal: ClientPrincipal) => {
-    const id = parseId(request.params.id ?? '');
-    if (id === undefined) return NOT_FOUND;
-
-    const beleg = await getBeleg(id);
-    if (!beleg) return NOT_FOUND;
-    if (!seesAllBelege(principal) && !isOwner(beleg, principal)) {
-      // Who laid out the money may look at the photo, not change it
-      if (request.method !== 'GET' || !isAuslageOf(beleg, await ownNames(principal))) {
-        return NOT_FOUND;
-      }
-    }
-
-    if (request.method === 'GET') {
-      if (!beleg.photo) return NOT_FOUND;
-      if (request.query.get('thumb')) {
-        const thumbnail = await readBelegPhoto(id, beleg.photo, 'thumb');
-        if (!thumbnail) return NOT_FOUND;
-        return {
-          status: 200,
-          headers: {
-            'Content-Type': 'image/jpeg',
-            'X-Content-Type-Options': 'nosniff',
-            ...PRIVATE_CACHE_HEADERS,
-          },
-          body: new Uint8Array(thumbnail),
-        };
-      }
-      const original = request.query.get('original');
-      const download = request.query.get('download');
-      // A PDF is downloaded as such; shown, it is the picture of its first page
-      const pdf = beleg.isPdf && !original && download;
-      const bytes = await readBelegPhoto(
-        id,
-        beleg.photo,
-        original ? 'original' : pdf ? 'file' : 'photo'
-      );
-      if (!bytes) return NOT_FOUND;
-      const headers: Record<string, string> = {
-        ...NO_STORE_HEADERS,
-        'Content-Type': pdf ? 'application/pdf' : 'image/jpeg',
-        'X-Content-Type-Options': 'nosniff',
-      };
-      if (download) {
-        headers['Content-Disposition'] = encodeContentDisposition(
-          downloadFileName(beleg, Boolean(original))
-        );
-      }
-      return { status: 200, headers, body: new Uint8Array(bytes) };
-    }
-    if (!mayEditBeleg(beleg, principal)) {
-      return beleg.status === 'Angenommen' ? ACCEPTED : FORBIDDEN;
-    }
-
-    // Reject photo changes based on an outdated version of the receipt
-    const etag = requireEtag(readIfMatch(request));
-    const photos = readPhotos(await readJsonBody(request));
-    if (!isPhotos(photos)) return photos;
-
-    const check = startCheck(photos, context);
-    return ok(await setBelegPhoto(id, photos, etag, check, principal.userDetails));
-  }
-);
-
-/**
- * POST: transfers an accepted receipt to CampFlow (the `etag` of the receipt in the body), booked
- * on its Kostenstelle and Kategorie, and deletes it afterwards; see `beleg-campflow.ts`. Kasse
- * only.
- */
-export const BelegCampflow = staffHandler(
-  'belege-campflow',
-  async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
-    const id = parseId(request.params.id ?? '');
-    if (id === undefined) return NOT_FOUND;
-    if (!isBelegReviewer(principal)) return FORBIDDEN;
-
-    const body = await readJsonBody(request);
-    const etag = requireEtag(readEtag(body));
-    try {
-      return ok(
-        await transferBelegToCampflow(id, etag, principal.userDetails, Date.now() + 40_000)
-      );
-    } catch (error: unknown) {
-      if (error instanceof BelegCampflowError) return error.toResponse();
-      throw error;
-    }
-  }
-);
-
-/**
- * GET: every receipt in CampFlow with its booking and payment state, read-only and for every
- * leader, like the Beiträge. The Playwright API serves its last read; `?refresh=true` reads
- * CampFlow again. Receipts transferred from here carry who submitted them, as a flag for the user.
- */
-export const BelegeCampflow = staffHandler(
-  'belege-campflow-liste',
-  async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
-    try {
-      const belege = await readCampflowBelege(
-        await getCampflowBelege({ refresh: request.query.get('refresh') === 'true' }),
-        principal.userDetails,
-        await ownNames(principal)
-      );
-      return { status: 200, headers: NO_STORE_HEADERS, jsonBody: belege };
-    } catch (error: unknown) {
-      if (!(error instanceof PlaywrightApiError)) throw error;
-      if (error.status === 503) {
-        return errorResponse(
-          502,
-          'CAMPFLOW_BELEGE_UNAVAILABLE',
-          'Für die Belege aus CampFlow ist kein CampFlow-Zugang eingerichtet. Bitte melde dich bei admin@stamm-phoenix.de.'
-        );
-      }
-      return errorResponse(
-        502,
-        'CAMPFLOW_BELEGE_UNAVAILABLE',
-        'Die Belege konnten nicht aus CampFlow geladen werden. Versuche es in ein paar Minuten noch einmal; klappt es dann nicht, melde dich bei admin@stamm-phoenix.de.'
-      );
-    }
-  }
-);
-
-/** GET: whether the user belongs to the Kasse, so the page can show the review controls. */
-export const BelegRolle = staffHandler(
-  'belege-rolle',
-  async (request: HttpRequest, _context: InvocationContext, principal: ClientPrincipal) => {
-    return ok({ reviewer: isBelegReviewer(principal) });
-  }
-);
-
 app.http('internPflegeBelege', {
   methods: ['GET', 'POST'],
   authLevel: 'anonymous',
@@ -513,38 +165,9 @@ app.http('internPflegeBelege', {
   handler: BelegeCollection,
 });
 
-// Registered before `belege/{id}` as well
-app.http('internPflegeBelegeCampflow', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'intern/pflege/belege/campflow',
-  handler: BelegeCampflow,
-});
-
-app.http('internPflegeBelegRolle', {
-  methods: ['GET'],
-  authLevel: 'anonymous',
-  route: 'intern/pflege/belege/rolle',
-  handler: BelegRolle,
-});
-
 app.http('internPflegeBelegItem', {
   methods: ['PATCH', 'DELETE'],
   authLevel: 'anonymous',
   route: 'intern/pflege/belege/{id}',
   handler: BelegItem,
-});
-
-app.http('internPflegeBelegFoto', {
-  methods: ['GET', 'PUT'],
-  authLevel: 'anonymous',
-  route: 'intern/pflege/belege/{id}/foto',
-  handler: BelegPhoto,
-});
-
-app.http('internPflegeBelegCampflow', {
-  methods: ['POST'],
-  authLevel: 'anonymous',
-  route: 'intern/pflege/belege/{id}/campflow',
-  handler: BelegCampflow,
 });

@@ -5,7 +5,7 @@
  * Node/browser-specific APIs.
  */
 import type { ProtokollInhalt, ProtokollPunkt } from './protokoll-editor-model';
-import { punktNummer } from './protokoll-editor-model';
+import { punktNummer } from './protokoll-editor-inhalt';
 
 /**
  * rechtschreibung: spelling, grammar, punctuation; stil: unclear, doubled or too long sentences;

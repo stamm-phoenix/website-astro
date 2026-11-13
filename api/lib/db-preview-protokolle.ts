@@ -1,4 +1,4 @@
-import { neuerInhalt } from './protokoll-editor-model';
+import { neuerInhalt } from './protokoll-editor-inhalt';
 import { inTransaction } from './db';
 import { dateToLocalParts } from './nikolaus-config';
 const PREVIEW_ACTOR = 'preview';

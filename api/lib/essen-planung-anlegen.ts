@@ -1,6 +1,7 @@
 import type { Transaction } from 'kysely';
 import type { Database } from './db-schema';
-import { MAX_TAGE, addDays, daysBetween } from './essen-planung-model';
+import { addDays } from './dates';
+import { MAX_TAGE, daysBetween } from './essen-planung-model';
 import type { EssenEinstellungen } from './essen-validation';
 
 /**
