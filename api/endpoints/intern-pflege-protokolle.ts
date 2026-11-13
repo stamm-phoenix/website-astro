@@ -10,7 +10,12 @@ import {
 } from '../lib/protokoll-metadata';
 import { findDrive, loadProtokoll } from '../lib/protokoll-source';
 import { editorAblageItemIds } from '../lib/protokoll-editor';
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { CONFIG } from '../lib/config';
 import { CampflowError } from '../lib/campflow';
@@ -612,3 +617,45 @@ export const ProtokollPdf = withErrorHandling(ProtokollPdfEndpoint);
 export const ProtokollTermin = withErrorHandling(ProtokollTerminEndpoint);
 export const ProtokollVersand = withErrorHandling(ProtokollVersandEndpoint);
 export const ProtokollVorschau = withErrorHandling(ProtokollVorschauEndpoint);
+
+app.http('internPflegeProtokolle', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle',
+  handler: ProtokolleCollection,
+});
+
+app.http('internPflegeProtokollItem', {
+  methods: ['POST', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle/{id}',
+  handler: ProtokollItem,
+});
+
+app.http('internPflegeProtokollPdf', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle/{id}/pdf',
+  handler: ProtokollPdf,
+});
+
+app.http('internPflegeProtokollVorschau', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle/{id}/vorschau',
+  handler: ProtokollVorschau,
+});
+
+app.http('internPflegeProtokollTermin', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle/{id}/termin',
+  handler: ProtokollTermin,
+});
+
+app.http('internPflegeProtokollVersand', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokolle/{id}/versand',
+  handler: ProtokollVersand,
+});

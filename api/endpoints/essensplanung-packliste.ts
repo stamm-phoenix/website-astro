@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import {
   packEintragAendern,
   packEintragAnlegen,
@@ -78,4 +79,32 @@ export const EssensplanungPackWerkzeug = planungHandler(async (request) => {
   const etag = body?.etag === null || body?.etag === undefined ? null : readEtag(body, request);
   await werkzeugSetzen(zugang, aenderung, etag);
   return ok(await ladeAnsicht(zugang));
+});
+
+app.http('essensplanungPackliste', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/packliste',
+  handler: EssensplanungPackliste,
+});
+
+app.http('essensplanungPackWerkzeug', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/packliste/werkzeug',
+  handler: EssensplanungPackWerkzeug,
+});
+
+app.http('essensplanungPackZuteilung', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/packliste/zuteilung/{id}',
+  handler: EssensplanungPackZuteilung,
+});
+
+app.http('essensplanungPackEintrag', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/packliste/{id}',
+  handler: EssensplanungPackEintrag,
 });

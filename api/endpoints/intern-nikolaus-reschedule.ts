@@ -1,4 +1,4 @@
-import type { HttpRequest, InvocationContext } from '@azure/functions';
+import { app, type HttpRequest, type InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { getBooking, isSlotInPast, rescheduleBooking } from '../lib/nikolaus-bookings';
@@ -105,4 +105,12 @@ export const NikolausRescheduleEndpoint = pflegeHandler(
   }
 );
 
-export default withErrorHandling(NikolausRescheduleEndpoint);
+const defaultHandler = withErrorHandling(NikolausRescheduleEndpoint);
+export default defaultHandler;
+
+app.http('internNikolausReschedule', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/bookings/{id}/reschedule',
+  handler: defaultHandler,
+});

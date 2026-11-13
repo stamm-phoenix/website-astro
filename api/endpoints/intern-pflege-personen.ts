@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import { parseId } from '../lib/db';
 import {
   METHOD_NOT_ALLOWED,
@@ -50,3 +50,17 @@ export const PersonItemEndpoint = pflegeHandler(
 
 export const PersonenCollection = withErrorHandling(PersonenCollectionEndpoint);
 export const PersonItem = withErrorHandling(PersonItemEndpoint);
+
+app.http('internPflegePersonen', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/personen',
+  handler: PersonenCollection,
+});
+
+app.http('internPflegePerson', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/personen/{id}',
+  handler: PersonItem,
+});

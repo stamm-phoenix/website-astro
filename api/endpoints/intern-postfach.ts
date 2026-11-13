@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import {
   METHOD_NOT_ALLOWED,
   NO_STORE_HEADERS,
@@ -267,4 +272,47 @@ export const PostfachAnhangRoute = postfachRoute(async (request, postfach) => {
     },
     body: datei.content,
   };
+});
+
+// Module „E-Mail“: shared mailboxes (docs/postfaecher.md)
+app.http('internPostfachStart', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach',
+  handler: PostfachStartRoute,
+});
+
+app.http('internPostfachListe', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}',
+  handler: PostfachListeRoute,
+});
+
+app.http('internPostfachKonversation', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/konversation',
+  handler: PostfachKonversationRoute,
+});
+
+app.http('internPostfachPersonen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/personen',
+  handler: PostfachPersonenRoute,
+});
+
+app.http('internPostfachZustaendig', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/zustaendig',
+  handler: PostfachZustaendigRoute,
+});
+
+app.http('internPostfachAnhang', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/anhang',
+  handler: PostfachAnhangRoute,
 });

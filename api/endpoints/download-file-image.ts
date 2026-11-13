@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { PreviewSize } from '../lib/downloads';
 import { serveDownloadPreview } from '../lib/downloads';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
@@ -22,4 +22,12 @@ export async function GetDownloadFileImageEndpointInternal(
   return (await serveDownloadPreview(request.params.id ?? '', size)) ?? NOT_FOUND;
 }
 
-export default withErrorHandling(GetDownloadFileImageEndpointInternal);
+const GetDownloadFileImageEndpoint = withErrorHandling(GetDownloadFileImageEndpointInternal);
+export default GetDownloadFileImageEndpoint;
+
+app.http('downloadImage', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'downloads/{id}/image/{size}',
+  handler: GetDownloadFileImageEndpoint,
+});

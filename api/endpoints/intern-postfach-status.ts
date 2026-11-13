@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import { METHOD_NOT_ALLOWED, NO_STORE_HEADERS, ok, readJsonBody } from '../lib/pflege-api';
 import { errorResponse } from '../lib/response-utils';
 import { eigenerLogin } from '../lib/postfach';
@@ -77,3 +78,10 @@ export const PostfachStatusRoute = postfachAenderung(
     }
   }
 );
+
+app.http('internPostfachStatus', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/status',
+  handler: PostfachStatusRoute,
+});

@@ -1,4 +1,4 @@
-import type { HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import {
   belegAendern,
   belegAnlegen,
@@ -148,4 +148,32 @@ export const EssensplanungBelegPruefung = planungHandler(async (request) => {
       },
     };
   }
+});
+
+app.http('essensplanungBelege', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege',
+  handler: EssensplanungBelege,
+});
+
+app.http('essensplanungBelegPruefung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege/pruefung',
+  handler: EssensplanungBelegPruefung,
+});
+
+app.http('essensplanungBeleg', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege/{id}',
+  handler: EssensplanungBeleg,
+});
+
+app.http('essensplanungBelegFoto', {
+  methods: ['GET', 'PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/belege/{id}/foto',
+  handler: EssensplanungBelegFoto,
 });

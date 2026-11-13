@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { parseId } from '../lib/db';
 import {
   METHOD_NOT_ALLOWED,
@@ -94,3 +94,17 @@ export const KorrekturUebernehmenEndpoint = pflegeHandler(
 
 export const KorrekturPruefen = withErrorHandling(KorrekturPruefenEndpoint);
 export const KorrekturUebernehmen = withErrorHandling(KorrekturUebernehmenEndpoint);
+
+app.http('internProtokollEditorKorrekturPruefen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}/ki/korrekturen',
+  handler: KorrekturPruefen,
+});
+
+app.http('internPflegeProtokollEditorKorrekturen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor/{id}/korrekturen',
+  handler: KorrekturUebernehmen,
+});

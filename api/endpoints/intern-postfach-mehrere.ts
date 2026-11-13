@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import { METHOD_NOT_ALLOWED, ok, readJsonBody } from '../lib/pflege-api';
 import { errorResponse } from '../lib/response-utils';
 import { eigenerLogin, ladePersonen } from '../lib/postfach';
@@ -133,3 +134,10 @@ export const PostfachZustaendigMehrereRoute = postfachAenderung(
     return ok({ ergebnisse, benachrichtigt });
   }
 );
+
+app.http('internPostfachZustaendigMehrere', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/postfach/{postfach}/zustaendig-mehrere',
+  handler: PostfachZustaendigMehrereRoute,
+});

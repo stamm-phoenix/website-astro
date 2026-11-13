@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import { einheitenUebernehmen } from '../lib/essen-einheiten';
 import { validateEinheiten } from '../lib/essen-einheiten-schema';
 import { ladeAnsicht } from '../lib/essen-ansicht';
@@ -21,4 +22,11 @@ export const EssensplanungZutatEinheiten = planungHandler(async (request) => {
   const zeilen = validateEinheiten(await readJsonBody(request));
   await einheitenUebernehmen(zugang, id, zeilen);
   return ok(await ladeAnsicht(zugang));
+});
+
+app.http('essensplanungZutatEinheiten', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zutaten/{id}/einheiten',
+  handler: EssensplanungZutatEinheiten,
 });

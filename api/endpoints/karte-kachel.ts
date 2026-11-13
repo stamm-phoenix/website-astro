@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { getMapAttribution, getMapTile, isTileStyle, parseTileAddress } from '../lib/map-tiles';
 import { withErrorHandling } from '../lib/response-utils';
 
@@ -58,3 +58,19 @@ export async function GetKarteQuelleEndpoint(request: HttpRequest): Promise<Http
 
 export const KarteKachel = withErrorHandling(GetKarteKachelEndpoint);
 export const KarteQuelle = withErrorHandling(GetKarteQuelleEndpoint);
+
+// Map tiles of the Nikolaus maps and their copyright notices from Azure Maps, so browsers load
+// them from our own origin
+app.http('karteKachel', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'karte/{style}/{z}/{x}/{y}',
+  handler: KarteKachel,
+});
+
+app.http('karteQuelle', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'karte-quelle/{style}/{z}',
+  handler: KarteQuelle,
+});

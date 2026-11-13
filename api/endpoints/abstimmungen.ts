@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { validateAbstimmungName } from '../lib/abstimmung-schema';
 import {
   AbstimmungClosedError,
@@ -85,4 +90,19 @@ export const AbstimmungAbstimmen = publicHandler(async (request) => {
     versuch
   );
   return result ? { status: 200, jsonBody: result } : INVALID_LINK;
+});
+
+// Abstimmungen: links with a token work without login; staff routes require Entra ID.
+app.http('abstimmungAnsehen', {
+  route: 'abstimmungen/ansehen',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: AbstimmungAnsehen,
+});
+
+app.http('abstimmungAbstimmen', {
+  route: 'abstimmungen/stimme',
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  handler: AbstimmungAbstimmen,
 });

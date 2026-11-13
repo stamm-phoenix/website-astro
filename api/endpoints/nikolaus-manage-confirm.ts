@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { confirmBooking, setBookingStatus } from '../lib/nikolaus-bookings';
 import { sendBookingConfirmedMail } from '../lib/nikolaus-mails';
 import {
@@ -73,3 +78,10 @@ export const ConfirmNikolausBookingEndpoint = withBookingConflictHandling(
 );
 
 export default ConfirmNikolausBookingEndpoint;
+
+app.http('nikolausManageConfirm', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/confirm',
+  handler: ConfirmNikolausBookingEndpoint,
+});

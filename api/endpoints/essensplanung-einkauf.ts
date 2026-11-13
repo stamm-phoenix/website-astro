@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import type { PostenArt } from '../lib/essen-einkauf-model';
 import {
   geschaeftAendern,
@@ -95,3 +95,52 @@ export const EssensplanungBestandListe = postenListe('bestand');
 export const EssensplanungBestand = posten('bestand');
 export const EssensplanungZusatzbedarfListe = postenListe('zusatzbedarf');
 export const EssensplanungZusatzbedarf = posten('zusatzbedarf');
+
+app.http('essensplanungGeschaefte', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/geschaefte',
+  handler: EssensplanungGeschaefte,
+});
+
+app.http('essensplanungGeschaeft', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/geschaefte/{id}',
+  handler: EssensplanungGeschaeft,
+});
+
+app.http('essensplanungZutatGeschaeft', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zutaten/{id}/geschaeft',
+  handler: EssensplanungZutatGeschaeft,
+});
+
+app.http('essensplanungBestandListe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/bestand',
+  handler: EssensplanungBestandListe,
+});
+
+app.http('essensplanungBestand', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/bestand/{id}',
+  handler: EssensplanungBestand,
+});
+
+app.http('essensplanungZusatzbedarfListe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zusatzbedarf',
+  handler: EssensplanungZusatzbedarfListe,
+});
+
+app.http('essensplanungZusatzbedarf', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zusatzbedarf/{id}',
+  handler: EssensplanungZusatzbedarf,
+});

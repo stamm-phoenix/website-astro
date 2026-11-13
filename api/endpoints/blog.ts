@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { BlogEntry } from '../lib/blog-list';
 import {
   BLOG_IMAGE_WIDTHS,
@@ -110,3 +110,23 @@ export async function GetBlogImageEndpoint(request: HttpRequest): Promise<HttpRe
 export const GetBlog = withErrorHandling(GetBlogEndpoint);
 export const GetBlogPost = withErrorHandling(GetBlogPostEndpoint);
 export const GetBlogImage = withErrorHandling(GetBlogImageEndpoint);
+
+app.http('blog', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: GetBlog,
+});
+
+app.http('blogPost', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'blog/{id}',
+  handler: GetBlogPost,
+});
+
+app.http('blogImage', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'blog/{id}/bilder/{file}',
+  handler: GetBlogImage,
+});

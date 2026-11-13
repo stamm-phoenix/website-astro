@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import { METHOD_NOT_ALLOWED, ok, pflegeHandler } from '../lib/pflege-api';
 import { getIch } from '../lib/personen';
 import { withErrorHandling } from '../lib/response-utils';
@@ -16,3 +16,10 @@ export const IchEndpoint = pflegeHandler(
 );
 
 export const Ich = withErrorHandling(IchEndpoint);
+
+app.http('internIch', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/ich',
+  handler: Ich,
+});

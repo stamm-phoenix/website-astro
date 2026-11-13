@@ -1,4 +1,4 @@
-import type { HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 
 /** Public deployment capability only; exposes no data, identity or database state. */
 export async function ProtokollCutoverStatus(): Promise<HttpResponseInit> {
@@ -8,3 +8,10 @@ export async function ProtokollCutoverStatus(): Promise<HttpResponseInit> {
     jsonBody: { protocolBackend: 'sql-gated-v1' },
   };
 }
+
+app.http('protokollCutoverStatus', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'protokoll-cutover-status',
+  handler: ProtokollCutoverStatus,
+});

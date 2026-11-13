@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { z } from 'zod';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { hasTeam } from '../lib/staff-auth';
@@ -133,3 +138,32 @@ export const EssensplanungSteuerungEndpoint = withErrorHandling(EssensplanungSte
 export const EssensplanungEinstellungenEndpoint = withErrorHandling(EssensplanungEinstellungen);
 export const EssensplanungListeEndpoint = withErrorHandling(EssensplanungListe);
 export const EssensplanungListeEintragEndpoint = withErrorHandling(EssensplanungListeEintrag);
+
+// Essensplanung: the Steuerung for the teams Admin and Vorstand (docs/essensplanung.md).
+app.http('internEssensplanungSteuerung', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/essensplanung/steuerung',
+  handler: EssensplanungSteuerungEndpoint,
+});
+
+app.http('internPflegeEssensplanungEinstellungen', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/essensplanung/einstellungen',
+  handler: EssensplanungEinstellungenEndpoint,
+});
+
+app.http('internPflegeEssensplanungListe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/essensplanung/{liste}',
+  handler: EssensplanungListeEndpoint,
+});
+
+app.http('internPflegeEssensplanungListeEintrag', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/essensplanung/{liste}/{id}',
+  handler: EssensplanungListeEintragEndpoint,
+});

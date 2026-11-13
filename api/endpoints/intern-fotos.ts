@@ -1,5 +1,5 @@
 import { HELP_CONTACTS } from '../lib/help-contacts';
-import type { HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import { CampflowError } from '../lib/campflow';
 import { fotoMail, fotoRecipients } from '../lib/foto-benachrichtigung';
 import {
@@ -310,3 +310,38 @@ export const FotosNote = withErrorHandling(FotosNoteEndpoint);
 export const FotosFile = withErrorHandling(FotosFileEndpoint);
 export const FotosTarget = withErrorHandling(FotosTargetEndpoint);
 export const FotosUpload = withErrorHandling(FotosUploadEndpoint);
+
+app.http('internFotosOrdner', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/fotos/ordner',
+  handler: FotosFolder,
+});
+
+app.http('internFotosDatei', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/fotos/dateien/{id}',
+  handler: FotosFile,
+});
+
+app.http('internFotosZiel', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/fotos/ziel',
+  handler: FotosTarget,
+});
+
+app.http('internFotosUpload', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/fotos/upload',
+  handler: FotosUpload,
+});
+
+app.http('internFotosBenachrichtigung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/fotos/benachrichtigung',
+  handler: FotosNote,
+});

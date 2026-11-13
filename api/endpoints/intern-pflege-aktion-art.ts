@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import { getAktionArt, setKeineAktion } from '../lib/aktion-art';
 import { CAMPFLOW_EVENT_ID_PATTERN, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
@@ -34,4 +34,12 @@ export const AktionArtEndpoint = pflegeHandler(
   }
 );
 
-export default withErrorHandling(AktionArtEndpoint);
+const AktionArt = withErrorHandling(AktionArtEndpoint);
+export default AktionArt;
+
+app.http('internPflegeAktionArt', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aktionen-art/{id}',
+  handler: AktionArt,
+});

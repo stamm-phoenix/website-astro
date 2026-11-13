@@ -1,4 +1,4 @@
-import type { HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import { getQuestionsAndAnswers } from '../lib/qa-list';
 import { withErrorHandling } from '../lib/response-utils';
 
@@ -10,4 +10,13 @@ export async function GetQuestionsAndAnswersEndpoint(): Promise<HttpResponseInit
   };
 }
 
-export default withErrorHandling(GetQuestionsAndAnswersEndpoint, { exposeErrorDetails: false });
+const defaultHandler = withErrorHandling(GetQuestionsAndAnswersEndpoint, {
+  exposeErrorDetails: false,
+});
+export default defaultHandler;
+
+app.http('qa', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: defaultHandler,
+});

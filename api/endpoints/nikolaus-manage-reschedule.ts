@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { findNikolausSlot, isBookingClosed } from '../lib/nikolaus-config';
 import { isSlotInPast, rescheduleBooking } from '../lib/nikolaus-bookings';
 import { sendBookingChangedMail } from '../lib/nikolaus-mails';
@@ -81,3 +86,10 @@ export const RescheduleNikolausBookingEndpoint = withBookingConflictHandling(
 );
 
 export default RescheduleNikolausBookingEndpoint;
+
+app.http('nikolausManageReschedule', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/reschedule',
+  handler: RescheduleNikolausBookingEndpoint,
+});

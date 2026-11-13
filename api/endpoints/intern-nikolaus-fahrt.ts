@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings } from '../lib/nikolaus-bookings';
@@ -130,4 +130,19 @@ export const NikolausFahrtVisit = pflegeHandler('nikolaus-fahrt', async (request
   });
 });
 
-export default withErrorHandling(GetInternNikolausFahrtEndpoint);
+const defaultHandler = withErrorHandling(GetInternNikolausFahrtEndpoint);
+export default defaultHandler;
+
+app.http('internNikolausFahrt', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/fahrt',
+  handler: defaultHandler,
+});
+
+app.http('internPflegeNikolausFahrt', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-fahrt',
+  handler: NikolausFahrtVisit,
+});

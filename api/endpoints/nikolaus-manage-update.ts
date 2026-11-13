@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { validateNikolausDetails } from '../lib/nikolaus-validation';
 import {
   BookingEmailExistsError,
@@ -81,3 +86,10 @@ export const UpdateNikolausBookingEndpoint = withBookingConflictHandling(
 );
 
 export default UpdateNikolausBookingEndpoint;
+
+app.http('nikolausManageUpdate', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/update',
+  handler: UpdateNikolausBookingEndpoint,
+});

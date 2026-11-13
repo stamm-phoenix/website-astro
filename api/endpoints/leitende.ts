@@ -1,4 +1,4 @@
-import type { HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import { getLeitende } from '../lib/leitende-list';
 import { withErrorHandling } from '../lib/response-utils';
 
@@ -27,4 +27,11 @@ export async function GetLeitendeEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-export default withErrorHandling(GetLeitendeEndpoint);
+const defaultHandler = withErrorHandling(GetLeitendeEndpoint);
+export default defaultHandler;
+
+app.http('leitende', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: defaultHandler,
+});

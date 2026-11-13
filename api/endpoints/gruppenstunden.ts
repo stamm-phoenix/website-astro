@@ -1,4 +1,4 @@
-import type { HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import { getLeitende } from '../lib/leitende-list';
 import { getGruppenstunden } from '../lib/gruppenstunden-list';
 import { withErrorHandling } from '../lib/response-utils';
@@ -57,4 +57,11 @@ export async function GetGruppenstundenEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-export default withErrorHandling(GetGruppenstundenEndpoint);
+const defaultHandler = withErrorHandling(GetGruppenstundenEndpoint);
+export default defaultHandler;
+
+app.http('gruppenstunden', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: defaultHandler,
+});

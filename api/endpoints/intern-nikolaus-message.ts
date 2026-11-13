@@ -1,4 +1,4 @@
-import type { HttpRequest, InvocationContext } from '@azure/functions';
+import { app, type HttpRequest, type InvocationContext } from '@azure/functions';
 import { z } from 'zod';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { getPrincipalFirstName } from '../lib/staff-auth';
@@ -98,4 +98,12 @@ export const NikolausMessageEndpoint = pflegeHandler(
   }
 );
 
-export default withErrorHandling(NikolausMessageEndpoint);
+const defaultHandler = withErrorHandling(NikolausMessageEndpoint);
+export default defaultHandler;
+
+app.http('internNikolausMessage', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/bookings/{id}/message',
+  handler: defaultHandler,
+});

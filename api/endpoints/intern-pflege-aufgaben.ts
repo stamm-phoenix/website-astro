@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import { taskSource, recognizeTasks } from '../lib/aufgaben-erkennung';
 import {
   taskDate,
@@ -247,3 +248,66 @@ export const AufgabenRecognize = withErrorHandling(AufgabenRecognizeEndpoint);
 export const AufgabenDecision = withErrorHandling(AufgabenDecisionEndpoint);
 
 export const AufgabenUsers = withErrorHandling(AufgabenUsersEndpoint);
+
+app.http('internPflegeAufgaben', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben',
+  handler: AufgabenCollection,
+});
+
+app.http('internPflegeAufgabenBenutzer', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/benutzer',
+  handler: AufgabenUsers,
+});
+
+app.http('internPflegeAufgabe', {
+  methods: ['PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/{id:int}',
+  handler: AufgabeItem,
+});
+
+app.http('internPflegeAufgabenProjekte', {
+  methods: ['POST', 'PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/projekte/{id:int?}',
+  handler: AufgabenProject,
+});
+
+app.http('internPflegeAufgabenVorlagen', {
+  methods: ['POST', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/vorlagen/{id:int?}',
+  handler: AufgabenTemplate,
+});
+
+app.http('internPflegeAufgabenCheckliste', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/checkliste',
+  handler: AufgabenChecklist,
+});
+
+app.http('internPflegeAufgabenErkennen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/protokolle/{id}/erkennen',
+  handler: AufgabenRecognize,
+});
+
+app.http('internPflegeAufgabenEntscheidung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/{id:int}/entscheidung',
+  handler: AufgabenDecision,
+});
+
+app.http('internPflegeAufgabenZuordnung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aufgaben/{id:int}/zuordnung',
+  handler: AufgabenAssignment,
+});

@@ -1,4 +1,4 @@
-import type { HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import type { Aktion } from '../lib/aktionen-list';
 import type { PublicDownload } from '../lib/downloads-public';
 import { getAktionen, isLeitendeOnly } from '../lib/aktionen-list';
@@ -49,4 +49,11 @@ export async function GetAktionenEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-export default withErrorHandling(GetAktionenEndpoint);
+const defaultHandler = withErrorHandling(GetAktionenEndpoint);
+export default defaultHandler;
+
+app.http('aktionen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: defaultHandler,
+});

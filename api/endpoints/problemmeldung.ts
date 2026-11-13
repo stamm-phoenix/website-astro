@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { NO_STORE_HEADERS, readJsonBody } from '../lib/nikolaus-api';
 import { validateProblemReport } from '../lib/problemmeldung-model';
@@ -112,3 +117,10 @@ export async function ProblemMeldungSendEndpoint(
 }
 
 export const ProblemMeldungSend = withErrorHandling(ProblemMeldungSendEndpoint);
+
+app.http('problemMeldungSend', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'problemmeldung',
+  handler: ProblemMeldungSend,
+});

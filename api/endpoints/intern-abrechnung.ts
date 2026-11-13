@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { AbrechnungPerson, Bilanz, Nachweis } from '../lib/abrechnung';
 import { costUnitForEvent, kjrPersons, summarizeEntries, toNachweise } from '../lib/abrechnung';
 import { getAktionArt } from '../lib/aktion-art';
@@ -139,4 +139,12 @@ export async function GetInternAbrechnungEndpoint(request: HttpRequest): Promise
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: body };
 }
 
-export default withErrorHandling(GetInternAbrechnungEndpoint);
+const defaultHandler = withErrorHandling(GetInternAbrechnungEndpoint);
+export default defaultHandler;
+
+app.http('internAbrechnung', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/{id}',
+  handler: defaultHandler,
+});

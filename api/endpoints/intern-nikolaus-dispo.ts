@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { z } from 'zod';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import type { NikolausSettings } from '../lib/nikolaus-config';
@@ -183,4 +183,26 @@ export async function GetInternNikolausDispoRoutesEndpoint(
 
 export const NikolausDispoRoutes = withErrorHandling(GetInternNikolausDispoRoutesEndpoint);
 
-export default withErrorHandling(GetInternNikolausDispoEndpoint);
+const defaultHandler = withErrorHandling(GetInternNikolausDispoEndpoint);
+export default defaultHandler;
+
+app.http('internNikolausDispo', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/dispo',
+  handler: defaultHandler,
+});
+
+app.http('internNikolausDispoRoutes', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/dispo/routes',
+  handler: NikolausDispoRoutes,
+});
+
+app.http('internPflegeNikolausDispo', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-dispo',
+  handler: NikolausDispoSave,
+});

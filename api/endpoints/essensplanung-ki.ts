@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { gerichtZutatenSammeln, readPersonen } from '../lib/essen-gericht-zeilen';
 import {
   readKopf,
@@ -171,4 +171,46 @@ export const EssensplanungGerichtZutatenSammel = planungHandler(async (request: 
   // The people the amounts were scaled for: a change meanwhile is a conflict
   await gerichtZutatenSammeln(zugang, id, zeilen, readPersonen(body), personenSetzen, kopf);
   return ok(await ladeAnsicht(zugang), 201);
+});
+
+app.http('essensplanungGerichtZutatenSammel', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}/zutaten/sammel',
+  handler: EssensplanungGerichtZutatenSammel,
+});
+
+app.http('essensplanungKiPruefen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}/ki/pruefen',
+  handler: EssensplanungKiPruefen,
+});
+
+app.http('essensplanungKiRezept', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}/ki/rezept',
+  handler: EssensplanungKiRezept,
+});
+
+app.http('essensplanungKiGenerieren', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}/ki/generieren',
+  handler: EssensplanungKiGenerieren,
+});
+
+app.http('essensplanungKiUmrechnung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/ki/umrechnung',
+  handler: EssensplanungKiUmrechnung,
+});
+
+app.http('essensplanungKiEinheiten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/ki/einheiten',
+  handler: EssensplanungKiEinheiten,
 });

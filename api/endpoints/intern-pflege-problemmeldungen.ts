@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { GithubIssueError, githubIssuesUnavailable } from '../lib/github-issues';
 import {
   METHOD_NOT_ALLOWED,
@@ -184,3 +184,38 @@ export const ProblemMeldungItem = withErrorHandling(ProblemMeldungItemEndpoint);
 export const ProblemMeldungDiscard = withErrorHandling(ProblemMeldungDiscardEndpoint);
 export const ProblemMeldungGithub = withErrorHandling(ProblemMeldungGithubEndpoint);
 export const ProblemMeldungAssess = withErrorHandling(ProblemMeldungAssessEndpoint);
+
+app.http('internPflegeProblemmeldungen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/problemmeldungen',
+  handler: ProblemMeldungenCollection,
+});
+
+app.http('internPflegeProblemmeldung', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/problemmeldungen/{id}',
+  handler: ProblemMeldungItem,
+});
+
+app.http('internPflegeProblemmeldungVerwerfen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/problemmeldungen/{id}/verwerfen',
+  handler: ProblemMeldungDiscard,
+});
+
+app.http('internPflegeProblemmeldungGithub', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/problemmeldungen/{id}/github',
+  handler: ProblemMeldungGithub,
+});
+
+app.http('internPflegeProblemmeldungBewerten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/problemmeldungen/{id}/bewerten',
+  handler: ProblemMeldungAssess,
+});

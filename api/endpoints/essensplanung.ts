@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { getDb } from '../lib/db';
 import { alsGeoeffnetMerken } from '../lib/essen-leitung';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
@@ -582,4 +587,215 @@ export const EssensplanungMahlzeitGruppe = planungHandler(async (request) => {
     throw new ValidationError({ gruppeId: 'Bitte eine Gruppe wählen.' });
   await mahlzeitGruppeSetzen(zugang, readId(request), gruppeId, body.isst);
   return ok(await ladeAnsicht(zugang));
+});
+
+// Essensplanung: public, access only by the token of a link (docs/essensplanung.md).
+app.http('essensplanungAnlegen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/anlegen',
+  handler: EssensplanungAnlegen,
+});
+
+app.http('essensplanungBestaetigen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/anlegen/bestaetigen',
+  handler: EssensplanungBestaetigen,
+});
+
+app.http('essensplanungMeine', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/meine',
+  handler: EssensplanungMeine,
+});
+
+app.http('essensplanungBeitrittAnsehen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/beitritt/ansehen',
+  handler: EssensplanungBeitrittAnsehen,
+});
+
+app.http('essensplanungBeitreten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/beitritt',
+  handler: EssensplanungBeitreten,
+});
+
+app.http('essensplanungPlanung', {
+  methods: ['GET', 'PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung',
+  handler: EssensplanungPlanung,
+});
+
+app.http('essensplanungStand', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/stand',
+  handler: EssensplanungStand,
+});
+
+app.http('essensplanungIch', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/ich',
+  handler: EssensplanungIch,
+});
+
+app.http('essensplanungLinks', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/links',
+  handler: EssensplanungLinks,
+});
+
+app.http('essensplanungMitglieder', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mitglieder',
+  handler: EssensplanungMitglieder,
+});
+
+app.http('essensplanungMitglied', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mitglieder/{id}',
+  handler: EssensplanungMitglied,
+});
+
+app.http('essensplanungMitgliedLink', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mitglieder/{id}/link',
+  handler: EssensplanungMitgliedLink,
+});
+
+app.http('essensplanungTage', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/tage',
+  handler: EssensplanungTage,
+});
+
+app.http('essensplanungTag', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/tage/{id}',
+  handler: EssensplanungTag,
+});
+
+app.http('essensplanungMahlzeiten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mahlzeiten',
+  handler: EssensplanungMahlzeiten,
+});
+
+app.http('essensplanungMahlzeit', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mahlzeiten/{id}',
+  handler: EssensplanungMahlzeit,
+});
+
+app.http('essensplanungKatalog', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/katalog',
+  handler: EssensplanungKatalog,
+});
+
+app.http('essensplanungZutaten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zutaten',
+  handler: EssensplanungZutaten,
+});
+
+app.http('essensplanungZutat', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/zutaten/{id}',
+  handler: EssensplanungZutat,
+});
+
+app.http('essensplanungGerichte', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte',
+  handler: EssensplanungGerichte,
+});
+
+app.http('essensplanungGericht', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}',
+  handler: EssensplanungGericht,
+});
+
+app.http('essensplanungGerichtZutaten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gerichte/{id}/zutaten',
+  handler: EssensplanungGerichtZutaten,
+});
+
+app.http('essensplanungGerichtZutat', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gericht-zutaten/{id}',
+  handler: EssensplanungGerichtZutat,
+});
+
+app.http('essensplanungEinplanungen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einplanungen',
+  handler: EssensplanungEinplanungen,
+});
+
+app.http('essensplanungGruppen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gruppen',
+  handler: EssensplanungGruppen,
+});
+
+app.http('essensplanungGruppe', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/gruppen/{id}',
+  handler: EssensplanungGruppe,
+});
+
+app.http('essensplanungTeilnehmendeListe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/teilnehmende',
+  handler: EssensplanungTeilnehmendeListe,
+});
+
+app.http('essensplanungTeilnehmende', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/teilnehmende/{id}',
+  handler: EssensplanungTeilnehmende,
+});
+
+app.http('essensplanungMahlzeitGruppe', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/mahlzeiten/{id}/gruppen',
+  handler: EssensplanungMahlzeitGruppe,
+});
+
+app.http('essensplanungEinplanung', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einplanungen/{id}',
+  handler: EssensplanungEinplanung,
 });

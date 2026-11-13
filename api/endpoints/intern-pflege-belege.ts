@@ -1,4 +1,4 @@
-import type { HttpRequest, InvocationContext } from '@azure/functions';
+import { app, type HttpRequest, type InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { isPreviewDeployment } from '../lib/staff-auth';
 import {
@@ -530,3 +530,46 @@ export const BelegItem = withErrorHandling(BelegItemEndpoint);
 export const BelegPhoto = withErrorHandling(BelegPhotoEndpoint);
 export const BelegCampflow = withErrorHandling(BelegCampflowEndpoint);
 export const BelegeCampflow = withErrorHandling(BelegeCampflowEndpoint);
+
+app.http('internPflegeBelege', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege',
+  handler: BelegeCollection,
+});
+
+// Registered before `belege/{id}` as well
+app.http('internPflegeBelegeCampflow', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/campflow',
+  handler: BelegeCampflow,
+});
+
+app.http('internPflegeBelegRolle', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/rolle',
+  handler: BelegRolle,
+});
+
+app.http('internPflegeBelegItem', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/{id}',
+  handler: BelegItem,
+});
+
+app.http('internPflegeBelegFoto', {
+  methods: ['GET', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/{id}/foto',
+  handler: BelegPhoto,
+});
+
+app.http('internPflegeBelegCampflow', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/{id}/campflow',
+  handler: BelegCampflow,
+});

@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { z } from 'zod';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { NIKOLAUS_MAX_LENGTH, isValidNikolausPostalCode } from '../lib/nikolaus-validation';
@@ -36,4 +36,12 @@ export async function GeocodeNikolausAddressEndpoint(
   };
 }
 
-export default withNikolausWriteHandling(GeocodeNikolausAddressEndpoint);
+const defaultHandler = withNikolausWriteHandling(GeocodeNikolausAddressEndpoint);
+export default defaultHandler;
+
+app.http('nikolausGeocode', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/geocode',
+  handler: defaultHandler,
+});

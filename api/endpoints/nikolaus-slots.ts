@@ -1,4 +1,4 @@
-import type { HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import { getSlotAvailability } from '../lib/nikolaus-bookings';
 import { BOOKING_INACTIVE, NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
@@ -17,4 +17,12 @@ export async function GetNikolausSlotsEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-export default withErrorHandling(GetNikolausSlotsEndpoint);
+const defaultHandler = withErrorHandling(GetNikolausSlotsEndpoint);
+export default defaultHandler;
+
+app.http('nikolausSlots', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/slots',
+  handler: defaultHandler,
+});

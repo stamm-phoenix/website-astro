@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { cancelBooking, getBooking, isBeforeChangeDeadline } from '../lib/nikolaus-bookings';
 import {
   deadlinePassed,
@@ -36,3 +36,10 @@ export const CancelNikolausBookingEndpoint = withBookingConflictHandling(
 );
 
 export default CancelNikolausBookingEndpoint;
+
+app.http('nikolausManageCancel', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/cancel',
+  handler: CancelNikolausBookingEndpoint,
+});

@@ -1,4 +1,4 @@
-import type { HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import { toNikolausConfig } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
 import { withErrorHandling } from '../lib/response-utils';
@@ -15,4 +15,12 @@ export async function GetNikolausSettingsEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-export default withErrorHandling(GetNikolausSettingsEndpoint);
+const defaultHandler = withErrorHandling(GetNikolausSettingsEndpoint);
+export default defaultHandler;
+
+app.http('nikolausSettings', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/settings',
+  handler: defaultHandler,
+});

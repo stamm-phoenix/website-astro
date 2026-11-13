@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { readAktionBeitraege } from '../lib/beitraege';
 import { CAMPFLOW_EVENT_ID_PATTERN } from '../lib/campflow';
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
@@ -48,4 +48,12 @@ export async function GetInternAktionBeitraegeEndpoint(
   }
 }
 
-export default withErrorHandling(GetInternAktionBeitraegeEndpoint);
+const defaultHandler = withErrorHandling(GetInternAktionBeitraegeEndpoint);
+export default defaultHandler;
+
+app.http('internAktionBeitraege', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/aktionen/{id}/beitraege',
+  handler: defaultHandler,
+});

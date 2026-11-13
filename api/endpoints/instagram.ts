@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { getInstagramFeed, type InstagramMediaType } from '../lib/instagram-feed';
 import { getScaledImage } from '../lib/instagram-images';
 import { withErrorHandling } from '../lib/response-utils';
@@ -119,6 +124,27 @@ export async function GetInstagramVideoInternal(
   };
 }
 
-export default withErrorHandling(GetInstagramEndpoint);
+const defaultHandler = withErrorHandling(GetInstagramEndpoint);
+export default defaultHandler;
 export const GetInstagramImage = withErrorHandling(GetInstagramImageInternal);
 export const GetInstagramVideo = withErrorHandling(GetInstagramVideoInternal);
+
+app.http('instagram', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: defaultHandler,
+});
+
+app.http('instagramImage', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'instagram/{id}/image',
+  handler: GetInstagramImage,
+});
+
+app.http('instagramVideo', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'instagram/{id}/video',
+  handler: GetInstagramVideo,
+});

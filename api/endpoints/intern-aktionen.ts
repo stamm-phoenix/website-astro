@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { AktionArt } from '../lib/aktion-art';
 import { withAktionArt } from '../lib/aktion-art';
 import { getCampflowEvents } from '../lib/campflow';
@@ -26,4 +26,12 @@ export async function GetInternAktionenEndpoint(request: HttpRequest): Promise<H
   return { status: 200, headers: NO_STORE_HEADERS, jsonBody: body };
 }
 
-export default withErrorHandling(GetInternAktionenEndpoint);
+const defaultHandler = withErrorHandling(GetInternAktionenEndpoint);
+export default defaultHandler;
+
+app.http('internAktionen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/aktionen',
+  handler: defaultHandler,
+});

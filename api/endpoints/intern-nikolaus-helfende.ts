@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { EinteilungDay } from '../lib/nikolaus-einteilung';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import {
@@ -238,3 +238,45 @@ export const NikolausHelfendeCollectionEndpoint = withErrorHandling(NikolausHelf
 export const NikolausHelfendeItemEndpoint = withErrorHandling(NikolausHelfendeItem);
 export const NikolausBookingTagsEndpoint = withErrorHandling(NikolausBookingTags);
 export const NikolausEinteilungSaveEndpoint = withErrorHandling(NikolausEinteilungSave);
+
+app.http('internNikolausHelfende', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/helfende',
+  handler: NikolausHelfende,
+});
+
+app.http('internNikolausEinteilung', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/einteilung',
+  handler: NikolausEinteilung,
+});
+
+app.http('internPflegeNikolausHelfende', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-helfende',
+  handler: NikolausHelfendeCollectionEndpoint,
+});
+
+app.http('internPflegeNikolausHelfendeItem', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-helfende/{id}',
+  handler: NikolausHelfendeItemEndpoint,
+});
+
+app.http('internPflegeNikolausBookingTags', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-bookings/{id}/tags',
+  handler: NikolausBookingTagsEndpoint,
+});
+
+app.http('internPflegeNikolausEinteilung', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-einteilung',
+  handler: NikolausEinteilungSaveEndpoint,
+});

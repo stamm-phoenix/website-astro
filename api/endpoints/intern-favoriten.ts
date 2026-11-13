@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import { METHOD_NOT_ALLOWED, NO_CONTENT, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
 import { validateStaffFavorites } from '../lib/validation/staff';
 import { withErrorHandling } from '../lib/response-utils';
@@ -33,3 +33,10 @@ export const StaffFavoritesEndpoint = pflegeHandler(
 );
 
 export const StaffFavorites = withErrorHandling(StaffFavoritesEndpoint);
+
+app.http('internFavoriten', {
+  methods: ['GET', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/favoriten',
+  handler: StaffFavorites,
+});

@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import type { ClientPrincipalClaim } from '../lib/staff-auth';
 import type { ReadMemberGroups } from '../lib/staff-roles';
 import { getTeamRoles, readMemberGroups } from '../lib/staff-roles';
@@ -55,3 +60,11 @@ export function createGetRolesEndpoint(read: ReadMemberGroups = readMemberGroups
 }
 
 export const GetRoles = createGetRolesEndpoint();
+
+// `rolesSource` of staticwebapp.config.json, called by Static Web Apps after each login
+app.http('getRoles', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'GetRoles',
+  handler: GetRoles,
+});

@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import { METHOD_NOT_ALLOWED, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
 import { validateStaffRecentVisit } from '../lib/validation/staff';
 import { withErrorHandling } from '../lib/response-utils';
@@ -23,3 +23,10 @@ export const StaffRecentEndpoint = pflegeHandler(
 );
 
 export const StaffRecent = withErrorHandling(StaffRecentEndpoint);
+
+app.http('internZuletzt', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/zuletzt',
+  handler: StaffRecent,
+});

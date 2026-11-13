@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import { METHOD_NOT_ALLOWED, ok, pflegeHandler } from '../lib/pflege-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import {
@@ -52,3 +52,11 @@ export const BelegPruefungEndpoint = pflegeHandler(
 );
 
 export const BelegPruefung = withErrorHandling(BelegPruefungEndpoint);
+
+// Registered before `belege/{id}`, which would otherwise match `pruefung`
+app.http('internPflegeBelegPruefung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/belege/pruefung',
+  handler: BelegPruefung,
+});
