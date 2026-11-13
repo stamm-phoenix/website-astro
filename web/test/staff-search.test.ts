@@ -1,12 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import {
-  NIKOLAUS_CONTROL_MODULE,
-  STAFF_MODULES,
-  STAFF_MODULE_SECTIONS,
-  staffModuleOf,
-  staffPage,
-} from '../src/lib/staffModules';
+import { staffModuleOf, staffPage } from '../src/lib/staffModules';
+import { STAFF_MODULE_SECTIONS } from '../src/lib/staffSections';
+import { NIKOLAUS_CONTROL_MODULE } from '../src/lib/staffModulesNikolaus';
+import { STAFF_MODULES } from '../src/lib/staffModuleList';
 import { searchStaffModules, yourStaffModules } from '../src/lib/staffSearch';
 
 const titles = (query: string): string[] =>

@@ -1,3 +1,4 @@
+import { formatDateTimeLong } from './dates';
 import { SAMMEL_SHOPS, getSammelShop } from './sammelbestellung-shops';
 import { CONFIG } from './config';
 import { escapeHtml, sendMail } from './mail';
@@ -33,14 +34,7 @@ export async function sendSammelStaffMessage(
 
 /** Formats the campaign deadline for German mail recipients in Europe/Berlin. */
 function formatDeadline(campaign: SammelAktion): string {
-  return new Intl.DateTimeFormat('de-DE', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Europe/Berlin',
-  }).format(new Date(campaign.endsAt));
+  return formatDateTimeLong(new Date(campaign.endsAt));
 }
 
 /** Sends the personal order link and editing deadline from the configured order mailbox. */

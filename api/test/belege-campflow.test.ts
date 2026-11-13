@@ -15,7 +15,8 @@ import {
   transferBelegToCampflow,
 } from '../lib/beleg-campflow';
 import type { StoredBeleg } from '../lib/beleg-list';
-import { BelegCampflow, BelegeCampflow, BelegItem } from '../endpoints/intern-pflege-belege';
+import { BelegCampflow, BelegeCampflow } from '../endpoints/intern-pflege-belege-campflow';
+import { BelegItem } from '../endpoints/intern-pflege-belege';
 import { dbTest } from './fixtures/database';
 import test from 'node:test';
 

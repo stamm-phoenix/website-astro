@@ -1,5 +1,6 @@
 import { CONFIG } from './config';
 import { sendLeitendenMail } from './leitenden-mail';
+import { formatEuro } from './money';
 import { escapeHtml } from './mail';
 import { mailButton, mailLayout } from './mail-template';
 import { readTaskDirectory } from './task-directory';
@@ -47,10 +48,6 @@ export function belegMailSender(): string | undefined {
 function formatDate(iso: string): string {
   const [year, month, day] = iso.split('-');
   return year && month && day ? `${day}.${month}.${year}` : iso;
-}
-
-function formatEuro(cent: number): string {
-  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(cent / 100);
 }
 
 /**

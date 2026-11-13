@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { berlinDay } from '../../../../api/lib/dates';
   import { onDestroy, onMount, tick } from 'svelte';
   import StaffPageHead from '../StaffPageHead.svelte';
   import ReloadButton from './ReloadButton.svelte';
@@ -33,14 +34,10 @@
   let baseline = $state('');
   const dirty = $derived(form !== null && JSON.stringify(form.exception) !== baseline);
   let message = $state<string | null>(null);
-  let today = $state(berlinDate());
-
-  function berlinDate(): string {
-    return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
-  }
+  let today = $state(berlinDay());
 
   $effect(() => {
-    const timer = setInterval(() => (today = berlinDate()), 60_000);
+    const timer = setInterval(() => (today = berlinDay()), 60_000);
     return () => clearInterval(timer);
   });
 

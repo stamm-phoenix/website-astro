@@ -1,5 +1,5 @@
 import { authStore } from './authStore.svelte';
-import type { StaffModule } from './staffModules';
+import type { StaffModule } from './staffModuleTypes';
 
 /**
  * Whether the logged-in user may open the module. A module for some teams stays hidden until the

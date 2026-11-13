@@ -1,4 +1,4 @@
-import { aufgabenAnzahl } from '../../../api/lib/protokoll-editor-model';
+import { aufgabenAnzahl } from '../../../api/lib/protokoll-editor-inhalt';
 import { erwaehnungenIn } from '../../../api/lib/protokoll-markdown';
 import { parseProtokollMarkdown } from './protokollMarkdown';
 import type {

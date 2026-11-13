@@ -1,3 +1,4 @@
+import { formatDateTimeMedium } from './dates';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type pdfmake from 'pdfmake';
@@ -99,11 +100,7 @@ function formatLongDate(iso: string): string {
 }
 
 function formatDateTime(at: Date): string {
-  return new Intl.DateTimeFormat('de-DE', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'Europe/Berlin',
-  }).format(at);
+  return formatDateTimeMedium(at);
 }
 
 /** File name in the folder of the minutes: `JJJJ-MM-TT Titel.pdf`, without forbidden characters. */

@@ -14,7 +14,7 @@ import type {
   ProtokollEditorAufgaben,
   ProtokollInhalt,
 } from './protokoll-editor-model';
-import { MAX_TASK_TITLE, einzeilig, protokollEintraege } from './protokoll-editor-model';
+import { MAX_TASK_TITLE, einzeilig, protokollEintraege } from './protokoll-editor-inhalt';
 
 /**
  * The minutes of the editor and the module Aufgaben (#277, step 3, `docs/protokoll-editor.md`):

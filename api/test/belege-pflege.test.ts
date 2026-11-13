@@ -11,15 +11,11 @@ import { seedPreviewBelege, seedPreviewBelegeCampflow } from '../lib/db-preview-
 import { overrideConfig } from './fixtures/config';
 import * as mail from '../lib/mail';
 import * as taskDirectory from '../lib/task-directory';
-import {
-  beforeDeadline,
-  BelegeCollection,
-  BelegItem,
-  BelegPhoto,
-  BelegRolle,
-  downloadFileName,
-  todayInBerlin,
-} from '../endpoints/intern-pflege-belege';
+import { BelegeCollection, BelegItem } from '../endpoints/intern-pflege-belege';
+import { BelegRolle } from '../endpoints/intern-pflege-belege-campflow';
+import { BelegPhoto } from '../endpoints/intern-pflege-belege-foto';
+import { beforeDeadline, todayInBerlin } from '../lib/belege-http';
+import { downloadFileName } from '../lib/beleg-list';
 import { validateBeleg } from '../lib/validation/beleg';
 import { ValidationError } from '../lib/validation/errors';
 import { dbTest } from './fixtures/database';

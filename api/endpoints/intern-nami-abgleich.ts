@@ -1,5 +1,5 @@
 import { app, type HttpResponseInit } from '@azure/functions';
-import { berlinDay } from '../lib/calendar-day';
+import { berlinDay } from '../lib/dates';
 import { CampflowError, getCampflowMembersWithTime } from '../lib/campflow';
 import { gleicheAb } from '../lib/nami-abgleich';
 import { getNamiMitglieder, NamiError } from '../lib/nami';

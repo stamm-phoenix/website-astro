@@ -11,7 +11,7 @@ import {
   normalizeBullets,
 } from './protokoll-markdown';
 import type { ProtokollInhalt, ProtokollPunkt } from './protokoll-editor-model';
-import { punktNummer } from './protokoll-editor-model';
+import { punktNummer } from './protokoll-editor-inhalt';
 import { loadEditorPersonen } from './protokoll-editor-personen';
 import { sendProtokollErwaehnungMail } from './protokoll-mails';
 import { CONFIG } from './config';

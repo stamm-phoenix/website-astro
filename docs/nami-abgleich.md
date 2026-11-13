@@ -2,7 +2,7 @@
 
 Das Modul „Nami-Abgleich“ im Leitendenbereich (`/leitendenbereich/nami-abgleich`) vergleicht die
 Mitglieder in NaMi, der Mitgliederverwaltung der DPSG, mit der Mitgliederliste in CampFlow. Es
-sehen nur die Teams Admin und Vorstand (`roles` in `staffModules.ts`, `hasTeam` in der API).
+sehen nur die Teams Admin und Vorstand (`roles` in `staffModuleList.ts`, `hasTeam` in der API).
 
 Erste Ausbaustufe: **nur lesend**. Es wird nichts gespeichert und nichts in NaMi oder CampFlow
 geändert.

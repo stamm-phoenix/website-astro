@@ -1,0 +1,408 @@
+import { POSTFACH_MODULES } from './postfaecher';
+import { CHANGELOG_PATH, type StaffModule } from './staffModuleTypes';
+
+export const STAFF_MODULES: StaffModule[] = [
+  {
+    href: '/leitendenbereich/aufgaben',
+    title: 'Aufgaben',
+    description: 'Aufgaben verteilen, Fristen im Blick behalten und Erledigtes abhaken.',
+    keywords: ['todo', 'erledigen', 'frist', 'kanban', 'projekt', 'vorlage', 'zuständig'],
+    icon: 'M9 11l3 3 8-8M4 4h11M4 9h4M4 14h4M4 19h16',
+  },
+  {
+    href: '/leitendenbereich/sammelbestellungen',
+    title: 'Sammelbestellungen',
+    description:
+      'Rüsthaus-Bestellungen der Mitglieder sammeln, bestellen und Zahlung sowie Auslieferung festhalten.',
+    wrap: 'Sammel|bestellungen',
+    keywords: ['rüsthaus', 'kluft', 'bestellen', 'bestellung', 'halstuch', 'material'],
+    icon: 'M3 3h2l3 12h10l3-8H6M9 21h.01M18 21h.01',
+  },
+  {
+    href: '/leitendenbereich/belege',
+    title: 'Belege',
+    description:
+      'Kassenbelege fotografieren und einreichen, und alle Belege aus CampFlow mit ihrem Stand ansehen.',
+    intro:
+      'Belege fotografieren und bei der Kasse einreichen. Lehnt die Kasse einen Beleg ab, bekommst du die Begründung per Mail und kannst ihn korrigiert erneut einreichen. Die Belege aus CampFlow kannst du hier nur ansehen; gebucht und erstattet wird in CampFlow. „Neu laden“ holt den aktuellen Stand aus CampFlow.',
+    keywords: ['kasse', 'kassenzettel', 'quittung', 'rechnung', 'geld', 'auslage', 'erstattung'],
+    icon: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4',
+  },
+  {
+    href: '/leitendenbereich/eigenbeleg',
+    title: 'Eigenbeleg',
+    description: 'Für Ausgaben ohne Kassenzettel einen Eigenbeleg als PDF erstellen.',
+    intro:
+      'Für Ausgaben ohne Originalbeleg, z. B. am Parkautomaten oder bei einem verlorenen Kassenzettel: ausfüllen, als PDF herunterladen, unterschreiben und wie einen Kassenbeleg unter „Belege“ einreichen.',
+    keywords: ['kasse', 'quittung', 'parkautomat', 'ohne beleg', 'pdf', 'geld'],
+    icon: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 17h2l5-5-2-2-5 5z',
+  },
+  {
+    href: '/leitendenbereich/protokolle',
+    title: 'Protokolle',
+    description:
+      'Protokolle der Leitendenrunde schreiben, freigeben und an alle Leitenden schicken.',
+    intro:
+      'Eine Person schreibt, alle anderen lesen live mit. Nach der Freigabe, auf Wunsch mit Review, liegt das Protokoll als PDF im Protokoll-Ordner und geht an alle Leitenden.',
+    keywords: ['leiterrunde', 'leitendenrunde', 'sitzung', 'treffen', 'word', 'mitschrift'],
+    icon: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5',
+  },
+  {
+    href: '/leitendenbereich/abstimmungen',
+    title: 'Abstimmungen',
+    wrap: 'Abstim|mungen',
+    description:
+      'Termine finden oder über Vorschläge abstimmen, die Leitendenrunde und Gäste per Mail einladen und erinnern.',
+    intro:
+      'Wie Doodle oder eine Umfrage in WhatsApp: Du legst eine Frage mit Terminen oder anderen Optionen an. Leitende stimmen hier ab, alle anderen über ihren Link aus der Einladung oder über den Link für alle, bei dem sie ihren Namen eintragen. Ändern, einladen und erinnern kann nur, wer die Abstimmung angelegt hat.',
+    keywords: [
+      'doodle',
+      'umfrage',
+      'termin',
+      'terminfindung',
+      'abstimmen',
+      'entscheidung',
+      'datum',
+      'whatsapp',
+    ],
+    icon: 'M4 20h16M7 16v-6M12 16V4M17 16v-9',
+  },
+  {
+    href: '/leitendenbereich/qr-code',
+    title: 'QR-Code-Generator',
+    wrap: 'QR-Code-|Generator',
+    description: 'QR-Codes für Links erstellen, Farbe und Form anpassen und als PNG herunterladen.',
+    intro:
+      'QR-Code für einen Link oder Text erstellen, Farbe und Form anpassen und als PNG herunterladen. Die Codes laufen nicht ab.',
+    keywords: ['qr', 'link', 'code', 'plakat'],
+    icon: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM6 6h1M17 6h1M6 17h1M14 14h3v3h-3zM20 14v1M14 20h1M18 18h3v3',
+  },
+  {
+    href: '/leitendenbereich/problemmeldungen',
+    title: 'Problemmeldungen',
+    wrap: 'Problem|meldungen',
+    description:
+      'Probleme, die Besuchende der Website melden, sichten, verwerfen oder an GitHub weitergeben.',
+    intro:
+      'Besuchende melden Probleme über „Problem melden“ auf der Website. Hier siehst du jede Meldung mit ihren technischen Angaben und einer automatischen Einschätzung, ob sie plausibel ist. Erst wenn du „An GitHub senden“ wählst, entsteht ein Eintrag auf GitHub. Verworfene und gesendete Meldungen werden nach einiger Zeit gelöscht.',
+    keywords: ['fehler', 'bug', 'melden', 'github', 'issue', 'website', 'feedback'],
+    icon: 'M4 21V4M4 4h13l-2 4 2 4H4',
+  },
+  {
+    href: '/leitendenbereich/redaktion',
+    title: 'Redaktionsübersicht',
+    description: 'Öffentliche Inhalte prüfen und ältere Prüfungen finden.',
+    keywords: ['website', 'prüfung', 'redaktion'],
+    icon: 'M9 12l2 2 4-4M4 4h16v16H4z',
+  },
+  {
+    href: '/leitendenbereich/fragen-und-antworten',
+    title: 'Fragen & Antworten',
+    description: 'Fragen, Antworten und Themen der öffentlichen FAQ bearbeiten.',
+    keywords: ['faq', 'fragen', 'antworten', 'website'],
+    icon: 'M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4M12 17h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+  },
+  {
+    href: '/leitendenbereich/anwesenheit',
+    title: 'Anwesenheit',
+    description:
+      'Eintragen, wer in der Gruppenstunde war oder entschuldigt fehlte, was ihr gemacht habt, und Verlauf je Stufe ansehen.',
+    intro: 'Namen von Kindern werden nach zwölf Monaten gelöscht; die Zahlen bleiben.',
+    wrap: 'Anwesen|heit',
+    keywords: [
+      'kinder',
+      'gruppenstunde',
+      'teilnehmende',
+      'liste',
+      'da gewesen',
+      'abhaken',
+      'entschuldigt',
+      'ausgefallen',
+    ],
+    icon: 'M9 4h6v3H9zM9 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3M9 14l2 2 4-4',
+  },
+  {
+    href: '/leitendenbereich/schnupperanfragen',
+    title: 'Schnupperanfragen',
+    wrap: 'Schnupper|anfragen',
+    description:
+      'Anfragen von Familien für eine Schnupperstunde ansehen, einen Termin bestätigen oder absagen.',
+    intro:
+      'Familien fragen auf der Seite „Mitmachen“ eine Schnupperstunde an. Bestätigst du einen Termin oder sagst ab, bekommt die Familie sofort eine E-Mail mit dem neuen Stand. Offene Anfragen werden nach 180 Tagen gelöscht, bestätigte 60 Tage nach dem Termin und abgesagte 60 Tage nach der Absage.',
+    keywords: ['schnuppern', 'schnupperstunde', 'probestunde', 'anfrage', 'neue kinder', 'termin'],
+    icon: 'M8 7V3M16 7V3M4 11h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 16l2 2 4-4',
+  },
+  {
+    href: '/leitendenbereich/mitglieder',
+    title: 'Mitglieder',
+    description: 'Die Mitglieder aus CampFlow nach Gruppen ansehen und ihre Angaben nachschlagen.',
+    intro:
+      'Die Mitgliederliste aus CampFlow zum Nachschlagen. Ändern, aufnehmen und austragen geht nur in CampFlow. Bankverbindungen, Gesundheitsangaben und Notizen werden hier nicht angezeigt.',
+    keywords: [
+      'mitgliederliste',
+      'mitgliederverwaltung',
+      'campflow',
+      'gruppe',
+      'stufe',
+      'kinder',
+      'adresse',
+      'telefon',
+      'geburtstag',
+      'kontakt',
+      'eltern',
+    ],
+    icon: 'M4 4h16v16H4zM9.5 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6.5 16a3 3 0 0 1 6 0M15 9h3M15 13h3',
+  },
+  {
+    href: '/leitendenbereich/nami-abgleich',
+    title: 'Nami-Abgleich',
+    wrap: 'Nami-|Abgleich',
+    description:
+      'Die Mitglieder in NaMi und CampFlow vergleichen: Unterschiede und wer nur in einer Liste steht – für Admins und Vorstand.',
+    intro:
+      'Vergleicht die Mitglieder in NaMi mit der Mitgliederliste in CampFlow. Gleiche Personen werden über die Mitgliedsnummer, den Namen und das Geburtsdatum gefunden. Geändert wird nichts, weder in NaMi noch in CampFlow. Nur die Teams Admin und Vorstand sehen diesen Bereich.',
+    roles: ['team_admin', 'team_vorstand'],
+    keywords: [
+      'nami',
+      'dpsg',
+      'mitgliederverwaltung',
+      'abgleich',
+      'vergleich',
+      'campflow',
+      'mitgliedsnummer',
+      'unterschiede',
+    ],
+    icon: 'M3 5h7v14H3zM14 5h7v14h-7zM10 9h4M10 15h4M12 7l2 2-2 2M12 13l-2 2 2 2',
+  },
+  {
+    href: '/leitendenbereich/aktionen',
+    title: 'Aktionen',
+    description:
+      'Aktionen aus CampFlow mit Teilnehmendenlisten ansehen und im öffentlichen Kalender veröffentlichen.',
+    intro:
+      'Titel, Datum und Anmeldelink kommen aus CampFlow; hier wählst du Stufen und Beschreibung für den Kalender der Website. Aktionen ohne CampFlow legst du hier an.',
+    keywords: [
+      'termine',
+      'kalender',
+      'lager',
+      'fahrt',
+      'campflow',
+      'teilnehmende',
+      'anmeldungen',
+      'bezahlt',
+      'verwendungszweck',
+    ],
+    icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
+  },
+  {
+    href: '/leitendenbereich/aktionen/fahrten',
+    title: 'Fahrten',
+    description: 'Fahrgemeinschaften für Hin- und Rückfahrt einer Aktion planen.',
+    parent: '/leitendenbereich/aktionen',
+    keywords: ['auto', 'mitfahren', 'fahrgemeinschaft', 'plätze', 'anreise'],
+    icon: 'M5 17h14M6 17v2M18 17v2M3 13l2-6h14l2 6v4H3zM7 13h.01M17 13h.01',
+  },
+  {
+    href: '/leitendenbereich/abrechnung',
+    title: 'Abrechnung',
+    description:
+      'Einnahmen und Ausgaben einer Aktion nach Kategorien, Teilnehmende und möglicher KJR-Zuschuss.',
+    intro:
+      'KJR ist der Kreisjugendring Rosenheim. Er bezuschusst ein Defizit für Teilnehmende aus dem Landkreis; die Abrechnung zeigt, was möglich ist.',
+    keywords: ['kasse', 'kjr', 'zuschuss', 'kreisjugendring', 'einnahmen', 'ausgaben', 'geld'],
+    icon: 'M4 3h16v18H4zM8 7h8M8 11h2M14 11h2M8 15h2M14 15h2M8 19h8',
+  },
+  {
+    href: '/leitendenbereich/beitraege',
+    title: 'Beiträge',
+    description:
+      'Nachschauen, wer für welche Aktion schon bezahlt hat – die Beiträge aus CampFlow, nur zum Lesen.',
+    icon: 'M17 6.5A7 7 0 1 0 17 17.5M4 10h9M4 14h9',
+    keywords: [
+      'bezahlt',
+      'zahlung',
+      'überweisung',
+      'teilnehmerbeitrag',
+      'mitgliedsbeitrag',
+      'offen',
+    ],
+  },
+  {
+    href: '/leitendenbereich/essensplanungen',
+    title: 'Meine Planungen',
+    heading: 'Meine Essensplanungen',
+    description: 'Deine Planungen aus der Essensplanung öffnen, ohne Link aus der Mail.',
+    intro:
+      'Hier stehen die Planungen, in denen du mit der Adresse deines Stammes-Kontos Mitglied bist, als Besitzer:in oder zum Bearbeiten. Planungen, zu denen du mit einer anderen Adresse eingeladen wurdest, und der gemeinsame Lese-Link erscheinen hier nicht. Deine Links aus den Mails gelten weiter.',
+    keywords: ['essensplanung', 'essen', 'küche', 'kochen', 'einkauf', 'rezepte', 'lager'],
+    icon: 'M4 3v8a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3M6 13v8M6 3v5M17 21V3c-2 1-3 4-3 7h3',
+  },
+  {
+    href: '/leitendenbereich/essensplanung-steuerung',
+    title: 'Steuerung',
+    shortcut: 'Essens|planung steuern',
+    heading: 'Essensplanung: Steuerung',
+    description:
+      'Essensplanung einrichten: wer Planungen anlegen darf, Vorlagen, Aufbewahrung und alle Planungen – für Admins und Vorstand.',
+    intro:
+      'Die Essensplanung ist ein öffentliches Werkzeug, mit dem Küchenteams – auch außerhalb des Stammes – Mahlzeiten, Gerichte und Einkäufe für Aktionen planen. Hier legst du fest, wer Planungen anlegen darf und wie lange sie aufbewahrt werden. Nur die Teams Admin und Vorstand sehen diesen Bereich.',
+    roles: ['team_admin', 'team_vorstand'],
+    keywords: [
+      'essensplanung',
+      'essen',
+      'küche',
+      'einstellungen',
+      'vorlagen',
+      'wartung',
+      'löschen',
+    ],
+    icon: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+  },
+  {
+    href: '/leitendenbereich/essensplanung-zutaten',
+    title: 'Zutatenliste',
+    wrap: 'Zutaten|liste',
+    heading: 'Essensplanung: Zutatenliste',
+    description:
+      'Die zentrale Liste der Zutaten mit Kategorien und Allergenen pflegen, die alle Planungen teilen – für Admins und Vorstand.',
+    roles: ['team_admin', 'team_vorstand'],
+    keywords: [
+      'essensplanung',
+      'essen',
+      'zutaten',
+      'lebensmittel',
+      'allergene',
+      'unverträglichkeiten',
+      'kategorien',
+      'vegan',
+      'vegetarisch',
+    ],
+    icon: 'M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01',
+  },
+  {
+    href: '/leitendenbereich/inventur',
+    title: 'Inventur',
+    description:
+      'Pullis, Aufnäher, Zelte und anderes Material mit Bestand, Lagerort und Zustand erfassen und zählen.',
+    intro:
+      'Bei Kleidung und Aufnähern hat jede Größe oder jedes Motiv einen eigenen Bestand. „Zählen“ speichert den gezählten Bestand mit Datum und deinem Namen.',
+    keywords: [
+      'material',
+      'lager',
+      'bestand',
+      'zelt',
+      'kohte',
+      'pulli',
+      'aufnäher',
+      'zählen',
+      'reparatur',
+      'verleih',
+    ],
+    icon: 'M21 8l-9-5-9 5v8l9 5 9-5V8zM3.3 7.5L12 12.5l8.7-5M12 22V12.5',
+  },
+  {
+    href: '/leitendenbereich/kostenstellen',
+    title: 'Kostenstellen',
+    wrap: 'Kosten|stellen',
+    description:
+      'Einnahmen, Ausgaben und Saldo je Kostenstelle und Kategorie aus CampFlow – für Kasse und Vorstand.',
+    intro:
+      'Summen aller Buchungen in CampFlow über den gesamten Zeitraum, je Kostenstelle und je Kategorie; ist ein Jahr gewählt, gelten alle Zahlen nur für dieses Jahr. „Offen“ ist der Teil, der noch keiner Zahlung auf dem Konto zugeordnet ist: bei Einnahmen zum Beispiel unbezahlte Beiträge, bei Ausgaben noch nicht erstattete Auslagen. Nur die Kasse und der Vorstand sehen diesen Bereich.',
+    roles: ['team_kasse', 'team_vorstand'],
+    keywords: [
+      'kasse',
+      'vorstand',
+      'kategorie',
+      'saldo',
+      'einnahmen',
+      'ausgaben',
+      'haushalt',
+      'budget',
+      'statistik',
+      'auswertung',
+      'geld',
+    ],
+    icon: 'M21 12a9 9 0 1 1-9-9v9zM15 3.5A9 9 0 0 1 20.5 9H15z',
+  },
+  {
+    href: '/leitendenbereich/gruppenstunden',
+    title: 'Gruppenstunden',
+    description: 'Zeiten, Orte und Beschreibungen der Gruppenstunden bearbeiten.',
+    intro: 'Änderungen erscheinen sofort auf der Website.',
+    wrap: 'Gruppen|stunden',
+    keywords: ['uhrzeit', 'wochentag', 'ort', 'website'],
+    icon: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+  },
+  {
+    href: '/leitendenbereich/gruppenstunden-hinweise',
+    title: 'Gruppenstunden-Hinweise',
+    description: 'Hinweise, abweichende Orte und Uhrzeiten für Gruppenstunden veröffentlichen.',
+    wrap: 'Gruppenstunden-|Hinweise',
+    keywords: ['gruppenstunde', 'hinweis', 'abweichung', 'ort', 'uhrzeit', 'website'],
+    icon: 'M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+  },
+  {
+    href: '/leitendenbereich/leitende',
+    title: 'Leitende & Teams',
+    description: 'Leitende, Fotos und Teams (Stufen, Vorstand) verwalten.',
+    intro: 'Änderungen erscheinen sofort auf der Website.',
+    keywords: ['vorstand', 'stufe', 'team', 'foto', 'kontakt', 'website'],
+    icon: 'M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 20v-1a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
+  },
+  {
+    href: '/leitendenbereich/personen',
+    title: 'Personen',
+    description:
+      'Leitende mit ihrer Person in CampFlow verknüpfen, Altleitende und weitere Beteiligte pflegen.',
+    intro:
+      'Über die Verknüpfung erkennen die Module dich in CampFlow, z. B. mit „(ich)“ in Teilnehmendenlisten. Altleitende und andere, die oft dabei sind, bietet der Protokoll-Editor neben den Leitenden zur Auswahl an.',
+    keywords: [
+      'altleitende',
+      'protokoll',
+      'gäste',
+      'campflow',
+      'microsoft',
+      'konto',
+      'verknüpfen',
+      'weitere personen',
+    ],
+    icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 8v6M22 11h-6',
+  },
+  {
+    href: '/leitendenbereich/fotos',
+    title: 'Fotos',
+    description:
+      'Fotos und Videos von Aktionen ansehen, herunterladen und vom Handy in die Foto-Ablage hochladen.',
+    intro: 'Löschen geht nur in SharePoint.',
+    keywords: ['bilder', 'videos', 'hochladen', 'sharepoint'],
+    icon: 'M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  },
+  {
+    href: '/leitendenbereich/downloads',
+    title: 'Downloads',
+    description: 'Dateien für die Downloads-Seite hochladen, umbenennen und löschen.',
+    keywords: ['datei', 'pdf', 'formular', 'hochladen', 'website'],
+    icon: 'M12 4v12M7 11l5 5 5-5M4 20h16',
+  },
+  {
+    href: '/leitendenbereich/blog',
+    title: 'Blog',
+    description: 'Blogbeiträge mit Bildern schreiben und veröffentlichen.',
+    intro: 'Entwürfe sind nur hier sichtbar, nicht auf der Website.',
+    keywords: ['beitrag', 'bericht', 'news', 'neuigkeiten', 'website'],
+    icon: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
+  },
+  {
+    href: CHANGELOG_PATH,
+    title: 'Neuigkeiten',
+    description:
+      'Nachlesen, was sich im Leitendenbereich geändert hat und was du jetzt Neues nutzen kannst.',
+    intro:
+      'Hier steht, was sich im Leitendenbereich geändert hat, die neueste Änderung zuerst. Die Zahl am Menü zeigt, wie viele Neuigkeiten du noch nicht gelesen hast.',
+    keywords: ['changelog', 'änderungen', 'neu', 'update', 'version', 'was ist neu'],
+    icon: 'M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
+  },
+  ...POSTFACH_MODULES,
+];
+
+/** The Steuerung of the Nikolausdienst: always shown, it switches the other modules on and off. */

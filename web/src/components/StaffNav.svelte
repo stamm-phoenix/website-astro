@@ -14,12 +14,9 @@
   } from '../lib/staffFavoritesStore.svelte';
   import { guardUnsavedChanges } from '../lib/unsavedChanges';
   import { loadRecent, recordVisit } from '../lib/staffRecentStore.svelte';
-  import {
-    STAFF_DEFAULT_QUICK,
-    STAFF_FAVORITE_PATHS,
-    STAFF_HOME,
-    type StaffModule,
-  } from '../lib/staffModules';
+  import { STAFF_DEFAULT_QUICK, STAFF_FAVORITE_PATHS } from '../lib/staffModules';
+  import { STAFF_HOME } from '../lib/staffSubpages';
+  import { type StaffModule } from '../lib/staffModuleTypes';
   import { yourStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
   import { canOpenModule } from '../lib/staffAccess.svelte';
   import {

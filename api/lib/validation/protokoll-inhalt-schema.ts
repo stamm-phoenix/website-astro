@@ -22,7 +22,7 @@ import {
   MAX_TITEL,
   MAX_UNTERPUNKTE,
   MAX_ZUSTAENDIG,
-} from '../protokoll-editor-model';
+} from '../protokoll-editor-inhalt';
 import type { ProtokollInhalt, ProtokollPerson } from '../protokoll-editor-model';
 
 /** Control characters other than tab and line breaks; typed text never contains them. */

@@ -6,7 +6,7 @@
   import { ApiError } from '../../lib/api';
   import { centToInput, formatIsoDate, parseEuroToCent } from '../../lib/belege';
   import { confirmAction } from '../../lib/confirm';
-  import { euro } from '../../lib/essensplanungBelege';
+  import { formatEuro } from '../../../../api/lib/money';
   import { todayIso } from '../../lib/format';
   import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
   import type { PlanungBeleg } from '../../../../api/lib/essen-belege-model';
@@ -258,7 +258,7 @@
   async function loeschen(): Promise<void> {
     if (!(await gespeichert())) return;
     const { id, etag } = beleg;
-    const was = [beleg.haendler, euro(beleg.betragCent)].filter(Boolean).join(' über ');
+    const was = [beleg.haendler, formatEuro(beleg.betragCent)].filter(Boolean).join(' über ');
     if (
       !(await confirmAction({
         title: `Beleg ${was} löschen?`,
@@ -350,7 +350,8 @@
   {:else}
     <td class="{zelle} whitespace-nowrap">{formatIsoDate(beleg.datum)}</td>
     <td class="{zelle} [overflow-wrap:anywhere]">{beleg.haendler || '–'}</td>
-    <td class="{zelle} text-right whitespace-nowrap tabular-nums">{euro(beleg.betragCent)}</td>
+    <td class="{zelle} text-right whitespace-nowrap tabular-nums">{formatEuro(beleg.betragCent)}</td
+    >
     <td class={zelle}>{beleg.bezahltVon}</td>
     <td class="{zelle} {beleg.erstattet ? 'text-success' : 'text-neutral-700'}"
       >{beleg.erstattet ? 'erstattet' : 'offen'}</td

@@ -2,14 +2,9 @@
 // is still to pay back, the table of all receipts and the photos, two per page. The rows come
 // from `essensplanungBelege.ts`; this file only lays them out.
 import { saveFile } from './api';
+import { formatEuro } from '../../../api/lib/money';
 import { datumKurz } from './essensplanung';
-import {
-  belegDruckZeile,
-  belegStatistik,
-  belegTitel,
-  euro,
-  statistikDruck,
-} from './essensplanungBelege';
+import { belegDruckZeile, belegStatistik, belegTitel, statistikDruck } from './essensplanungBelege';
 import {
   BRAND,
   FOOTER_SPACE,
@@ -106,7 +101,7 @@ export async function downloadBelegePdf(
     y = endeTabelle(doc, y) + 4;
     doc.setFontSize(9);
     doc.setTextColor(...GREY);
-    doc.text(pdfText(`Davon erstattet: ${euro(statistik.erstattetCent)}`), MARGIN, y + 2);
+    doc.text(pdfText(`Davon erstattet: ${formatEuro(statistik.erstattetCent)}`), MARGIN, y + 2);
     y += 6;
     autoTable(doc, {
       ...TABLE_STYLES,

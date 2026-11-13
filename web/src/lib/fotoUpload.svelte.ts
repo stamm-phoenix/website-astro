@@ -1,12 +1,35 @@
+import {
+  type FotoUploadItem,
+  type FotoTargetRequest,
+  fotoUpload,
+  fotoUploadDraft,
+} from './fotoUploadState.svelte';
+import {
+  PARALLEL_FILES,
+  CHUNK_BYTES,
+  MAX_ATTEMPTS,
+  MAX_RESTARTS,
+  MAX_WAIT_MS,
+  NO_CONNECTION,
+  CancelledError,
+  SessionLostError,
+  NameTakenError,
+  type ChunkAnswer,
+  expectedOffset,
+  isTransientStatus,
+  putChunk,
+  waitFor,
+} from './fotoUploadTransport';
 import { HELP_CONTACTS } from './helpContacts';
-import { ApiError, errorMessage, fetchApi, sendApi } from './api';
-import type { FotoAktion } from './fotoAktionen';
+import type { FotoTarget } from './types/staff';
+import { ApiError, errorMessage, sendApi } from './api';
+import { startKeepAwake, stopKeepAwake } from './fotoUploadKeepAwake';
+import { isActive } from './fotoUploadState.svelte';
 import { forgetFotoFolder } from './fotoOrdnerStore.svelte';
 
 export { selectFotoFiles, type FotoSelection } from './fotoAuswahl';
 import { uploadName } from './fotoAuswahl';
 import { fotoNameCandidates, numberedName } from './fotoPfade';
-import type { FotoTarget } from './types/staff';
 import type { FotoUploadSession } from '../../../api/lib/fotos-model';
 
 /**
@@ -16,157 +39,6 @@ import type { FotoUploadSession } from '../../../api/lib/fotos-model';
  * so a train tunnel or a switch between mobile data and Wi-Fi loses nothing. Closing the tab
  * ends the upload; files that arrived completely stay in SharePoint.
  */
-
-export type FotoUploadStatus = 'waiting' | 'uploading' | 'done' | 'skipped' | 'failed';
-
-export interface FotoUploadItem {
-  id: number;
-  name: string;
-  size: number;
-  status: FotoUploadStatus;
-  /** Bytes SharePoint has received. */
-  sent: number;
-  error: string | null;
-}
-
-/** Where the files go: an Aktion (`<Jahr>/<Aktion>/<Vorname>`) or a folder chosen freely. */
-export type FotoTargetRequest =
-  { jahr: string; aktion: string } | { pfad: string; unterordner?: string };
-
-export type FotoUploadPhase = 'idle' | 'preparing' | 'running' | 'finished' | 'cancelled' | 'error';
-
-interface FotoUploadState {
-  phase: FotoUploadPhase;
-  items: FotoUploadItem[];
-  target: FotoTarget | null;
-  /** Shown in the summary, e.g. the name of the Aktion. */
-  label: string;
-  /** Why the upload is waiting; several files may wait at the same time. */
-  waits: { offline: number; login: number; retry: number };
-  /** Why the folder could not be prepared (phase `error`). */
-  error: string | null;
-  /** Measured over the last seconds; null until known. */
-  bytesPerSecond: number | null;
-  /** Files of this upload the leaders were told about, and the addresses of the last note. */
-  notified: { recipients: number; names: string[] } | null;
-}
-
-export const fotoUpload = $state<FotoUploadState>({
-  phase: 'idle',
-  items: [],
-  target: null,
-  label: '',
-  waits: { offline: 0, login: 0, retry: 0 },
-  error: null,
-  bytesPerSecond: null,
-  notified: null,
-});
-
-/**
- * What the upload form holds before the upload starts. It lives here, not in the form, so that
- * switching to the photo view and back or a failed preparation keeps the chosen files.
- */
-export interface FotoUploadDraft {
-  files: File[];
-  mode: 'aktion' | 'ordner';
-  aktion: FotoAktion | null;
-  /** Folder of the free choice; empty for the top folder. */
-  folder: string;
-  subfolder: string;
-}
-
-export const fotoUploadDraft = $state<FotoUploadDraft>({
-  files: [],
-  mode: 'aktion',
-  aktion: null,
-  folder: '',
-  subfolder: '',
-});
-
-/** Whether files are chosen but not being uploaded, e.g. to warn before leaving the page. */
-export function hasFotoDraft(): boolean {
-  switch (fotoUpload.phase) {
-    case 'idle':
-      return fotoUploadDraft.files.length > 0;
-    case 'error':
-    case 'cancelled':
-      return true;
-    case 'finished':
-      return fotoUpload.items.some((item) => item.status === 'failed' || item.status === 'waiting');
-    default:
-      return false;
-  }
-}
-
-/** Presets the free choice with a folder, e.g. from „Hierher hochladen“; keeps chosen files. */
-export function presetFotoFolder(path: string): void {
-  fotoUploadDraft.mode = 'ordner';
-  fotoUploadDraft.folder = path;
-  fotoUploadDraft.subfolder = '';
-}
-
-/**
- * First name of the folder an Aktion upload creates, from the API: the browser may see other
- * claims, and the form must show the folder that is really created.
- */
-export const fotoPerson = $state<{ name: string | null; loading: boolean; error: string | null }>({
-  name: null,
-  loading: false,
-  error: null,
-});
-
-export async function loadFotoPerson(): Promise<void> {
-  if (fotoPerson.name || fotoPerson.loading) return;
-  fotoPerson.loading = true;
-  fotoPerson.error = null;
-  try {
-    fotoPerson.name = (await fetchApi<{ vorname: string }>('/intern/fotos/ziel')).vorname;
-  } catch (error: unknown) {
-    fotoPerson.error = errorMessage(
-      error,
-      'Dein Vorname für den Ordner konnte nicht geladen werden. Prüfe deine Internetverbindung und versuch es noch einmal.'
-    );
-  } finally {
-    fotoPerson.loading = false;
-  }
-}
-
-/** Files uploaded at the same time; more does not get faster on a phone. */
-const PARALLEL_FILES = 3;
-/** Size of the parts; SharePoint wants multiples of 320 KiB. */
-const CHUNK_BYTES = 16 * 320 * 1024;
-/** Failed attempts per file while online, before it is marked as failed. */
-const MAX_ATTEMPTS = 12;
-const MAX_RESTARTS = 4;
-const MAX_WAIT_MS = 30_000;
-/** A part that makes no progress for this long counts as a lost connection. */
-const STALL_TIMEOUT_MS = 5 * 60_000;
-
-const NO_CONNECTION =
-  'Keine Verbindung zu SharePoint. Prüfe dein Internet und tippe auf „Erneut versuchen“.';
-
-class CancelledError extends Error {
-  constructor() {
-    super('Upload cancelled');
-    this.name = 'CancelledError';
-  }
-}
-
-/** The upload session is gone: expired, or completed while the answer got lost. */
-class SessionLostError extends Error {
-  constructor() {
-    super('Upload session lost');
-    this.name = 'SessionLostError';
-  }
-}
-
-/** Someone else's file took the name while this one was uploading. */
-class NameTakenError extends SessionLostError {
-  constructor() {
-    super();
-    this.name = 'NameTakenError';
-  }
-}
 
 interface Run {
   controller: AbortController;
@@ -179,24 +51,6 @@ let nextId = 1;
 let run: Run | null = null;
 let resumeLogin: (() => void) | null = null;
 let loginWait: Promise<void> | null = null;
-let wakeLock: { release: () => Promise<void> } | null = null;
-let speedTimer: ReturnType<typeof setInterval> | null = null;
-
-export const uploadTotals = {
-  get bytes(): number {
-    return fotoUpload.items.reduce((sum, item) => sum + item.size, 0);
-  },
-  get sent(): number {
-    return fotoUpload.items.reduce(
-      (sum, item) => sum + (item.status === 'failed' ? 0 : item.sent),
-      0
-    );
-  },
-};
-
-function isActive(): boolean {
-  return fotoUpload.phase === 'preparing' || fotoUpload.phase === 'running';
-}
 
 /** Whether an upload is running, e.g. to warn before leaving the page. */
 export function fotoUploadActive(): boolean {
@@ -400,23 +254,6 @@ async function uploadItem(current: Run, item: FotoUploadItem): Promise<void> {
   }
 }
 
-interface ChunkAnswer {
-  status: number;
-  body: unknown;
-}
-
-/** First byte SharePoint still expects, from `nextExpectedRanges` (`["5242880-"]`). */
-function expectedOffset(body: unknown): number | null {
-  const ranges = (body as { nextExpectedRanges?: unknown } | null)?.nextExpectedRanges;
-  if (!Array.isArray(ranges) || typeof ranges[0] !== 'string') return null;
-  const start = Number.parseInt(ranges[0], 10);
-  return Number.isFinite(start) ? start : null;
-}
-
-function isTransientStatus(status: number): boolean {
-  return status === 408 || status === 429 || status >= 500;
-}
-
 async function sendFile(
   current: Run,
   item: FotoUploadItem,
@@ -470,65 +307,6 @@ async function sendFile(
       `SharePoint hat „${item.name}“ nicht angenommen (Fehler ${answer.status}). Tippe auf „Erneut versuchen“. Wenn es wieder nicht klappt, schreib an ${HELP_CONTACTS.technik}.`
     );
   }
-}
-
-/** Sends one part with progress; rejects on a lost connection or when cancelled. */
-function putChunk(
-  current: Run,
-  url: string,
-  file: File,
-  start: number,
-  end: number,
-  onProgress: (loaded: number) => void
-): Promise<ChunkAnswer> {
-  return new Promise((resolve, reject) => {
-    const { signal } = current.controller;
-    if (signal.aborted) return reject(new CancelledError());
-    const xhr = new XMLHttpRequest();
-    const abort = (): void => xhr.abort();
-    signal.addEventListener('abort', abort, { once: true });
-    // Only a part without any progress counts as lost: a slow connection may need longer
-    let stalled = false;
-    let watchdog: ReturnType<typeof setTimeout> | undefined;
-    const watch = (): void => {
-      clearTimeout(watchdog);
-      watchdog = setTimeout(() => {
-        stalled = true;
-        xhr.abort();
-      }, STALL_TIMEOUT_MS);
-    };
-    const done = (): void => {
-      clearTimeout(watchdog);
-      signal.removeEventListener('abort', abort);
-    };
-    // No login: the URL itself grants the upload
-    xhr.open('PUT', url);
-    xhr.setRequestHeader('Content-Range', `bytes ${start}-${end - 1}/${file.size}`);
-    xhr.upload.onprogress = (event) => {
-      watch();
-      onProgress(event.loaded);
-    };
-    xhr.onload = () => {
-      done();
-      let body: unknown = null;
-      try {
-        body = xhr.responseText ? JSON.parse(xhr.responseText) : null;
-      } catch {
-        // Not JSON; the status decides
-      }
-      resolve({ status: xhr.status, body });
-    };
-    xhr.onerror = () => {
-      done();
-      reject(new Error('Network error'));
-    };
-    xhr.onabort = () => {
-      done();
-      reject(stalled ? new Error('Upload stalled') : new CancelledError());
-    };
-    watch();
-    xhr.send(file.slice(start, end));
-  });
 }
 
 /** Asks SharePoint which byte it expects next, waiting out lost connections. */
@@ -631,73 +409,5 @@ async function waitForLogin(current: Run): Promise<void> {
     });
   } finally {
     fotoUpload.waits.login--;
-  }
-}
-
-function waitFor(signal: AbortSignal, setup: (resolve: () => void) => () => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) return reject(new CancelledError());
-    let cleanup = (): void => undefined;
-    const finish = (): void => {
-      cleanup();
-      signal.removeEventListener('abort', onAbort);
-    };
-    const onAbort = (): void => {
-      finish();
-      reject(new CancelledError());
-    };
-    signal.addEventListener('abort', onAbort, { once: true });
-    cleanup = setup(() => {
-      finish();
-      resolve();
-    });
-  });
-}
-
-/** Keeps the phone's screen on while uploading: a locked phone stops the upload. */
-function startKeepAwake(): void {
-  void requestWakeLock();
-  document.addEventListener('visibilitychange', onVisibilityChange);
-  let lastSent = uploadTotals.sent;
-  let lastTime = performance.now();
-  if (speedTimer) clearInterval(speedTimer);
-  speedTimer = setInterval(() => {
-    const sent = uploadTotals.sent;
-    const now = performance.now();
-    const current = Math.max(0, sent - lastSent) / ((now - lastTime) / 1000);
-    lastSent = sent;
-    lastTime = now;
-    const previous = fotoUpload.bytesPerSecond;
-    fotoUpload.bytesPerSecond = previous === null ? current : previous * 0.7 + current * 0.3;
-  }, 2000);
-}
-
-function stopKeepAwake(): void {
-  document.removeEventListener('visibilitychange', onVisibilityChange);
-  if (speedTimer) clearInterval(speedTimer);
-  speedTimer = null;
-  void wakeLock?.release().catch(() => undefined);
-  wakeLock = null;
-}
-
-function onVisibilityChange(): void {
-  // The browser releases the lock when the page is hidden
-  if (document.visibilityState === 'visible' && isActive()) void requestWakeLock();
-}
-
-async function requestWakeLock(): Promise<void> {
-  const nav = navigator as Navigator & {
-    wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> };
-  };
-  try {
-    const lock = (await nav.wakeLock?.request('screen')) ?? null;
-    // The upload may have ended while the lock was being granted
-    if (lock && !isActive()) void lock.release().catch(() => undefined);
-    else if (lock) {
-      void wakeLock?.release().catch(() => undefined);
-      wakeLock = lock;
-    }
-  } catch {
-    // Not supported or not allowed (e.g. battery saver); the upload works anyway
   }
 }

@@ -1,7 +1,7 @@
 import type { Task } from '../../../api/lib/aufgaben-model';
 import { taskHasAssignee } from '../../../api/lib/aufgaben-zuordnung';
-export { berlinDay as taskToday } from '../../../api/lib/calendar-day';
-import { berlinDay as taskToday } from '../../../api/lib/calendar-day';
+export { berlinDay as taskToday } from '../../../api/lib/dates';
+import { berlinDay as taskToday } from '../../../api/lib/dates';
 export interface TaskFilters {
   project: string;
   own: boolean;

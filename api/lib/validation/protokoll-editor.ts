@@ -1,7 +1,7 @@
 /** Request bodies of the Protokoll-Editor (#277): new minutes, the lock and a save. */
 import { z } from 'zod';
 import { isValidDate } from '../calendar-date';
-import { ELEMENT_ID, MAX_TITEL } from '../protokoll-editor-model';
+import { ELEMENT_ID, MAX_TITEL } from '../protokoll-editor-inhalt';
 import { protokollInhaltSchema, TIME } from './protokoll-inhalt-schema';
 import { flagSchema } from './protokolle';
 import { labeledText, lenientObject, parseWith } from './zod';

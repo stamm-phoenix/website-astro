@@ -6,11 +6,11 @@ import {
   belegStatistik,
   belegTitel,
   bezahltVonWahl,
-  euro,
   gefilterteBelege,
   personKey,
   statistikDruck,
 } from '../src/lib/essensplanungBelege.ts';
+import { formatEuro } from '../../api/lib/money.ts';
 import type { PlanungBeleg } from '../../api/lib/essen-belege-model.ts';
 import type { PlanungMitglied } from '../../api/lib/essen-planung-model.ts';
 
@@ -88,18 +88,18 @@ test('the filter shows open or paid back receipts', () => {
 });
 
 test('the PDF rows read like the page', () => {
-  assert.equal(euro(123456).replace(/\s/g, ' '), '1.234,56 €');
+  assert.equal(formatEuro(123456).replace(/\s/g, ' '), '1.234,56 €');
   assert.deepEqual(belegDruckZeile(beleg({ haendler: '', notiz: 'Pfand', erstattet: true })), {
     datum: '01.08.2027',
     haendler: '–',
     notiz: 'Pfand',
     bezahltVon: 'Kim',
-    betrag: euro(1000),
+    betrag: formatEuro(1000),
     status: 'erstattet',
   });
   const zeilen = statistikDruck(belegStatistik(belege.slice(0, 2)));
-  assert.deepEqual(zeilen.at(-1), ['Summe', '2', euro(12985), euro(4250)]);
-  assert.equal(belegTitel(belege[0]), `01.08.2027 · Rewe · ${euro(4250)} · Kim`);
+  assert.deepEqual(zeilen.at(-1), ['Summe', '2', formatEuro(12985), formatEuro(4250)]);
+  assert.equal(belegTitel(belege[0]), `01.08.2027 · Rewe · ${formatEuro(4250)} · Kim`);
 });
 
 test('a member without access is offered only while they paid', () => {

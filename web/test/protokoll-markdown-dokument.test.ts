@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { neuerInhalt } from '../../api/lib/protokoll-editor-model.ts';
+import { neuerInhalt } from '../../api/lib/protokoll-editor-inhalt.ts';
 import { abgleichen } from '../src/lib/protokollMarkdownAbgleich.ts';
 import {
   dokumentText,

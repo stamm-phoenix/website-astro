@@ -7,20 +7,21 @@
   import ErwaehnungListe from './ErwaehnungListe.svelte';
   import { ErwaehnungAuswahl } from '../../lib/erwaehnungAuswahl.svelte';
   import { ErwaehnungSuchePlugin, erwaehnen } from '../../lib/erwaehnungNode';
+  import { dokumentExtensions } from '../../lib/protokollDokument';
   import {
-    DokumentUmwandlung,
-    PLACEHOLDER_TEXT,
-    PLACEHOLDER_TITEL,
-    PUNKTE_META,
-    activePunktId,
     appendUnterpunkt,
-    dokumentExtensions,
     movePunkt,
-    punkteKey,
     removePunkt,
     replacePunkte,
     selectPunkt,
-  } from '../../lib/protokollDokument';
+  } from '../../lib/protokollDokumentBefehle';
+  import { DokumentUmwandlung, punkteKey } from '../../lib/protokollDokumentUmwandlung';
+  import { activePunktId } from '../../lib/protokollDokumentPositionen';
+  import {
+    PLACEHOLDER_TEXT,
+    PLACEHOLDER_TITEL,
+    PUNKTE_META,
+  } from '../../lib/protokollDokumentNodes';
   import {
     DokumentViews,
     extrasView,

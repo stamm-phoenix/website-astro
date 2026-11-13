@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { CAMPFLOW_PERSON_ID } from '../personen-model';
 import type { PersonInput } from '../personen-model';
-import { MAX_TITEL } from '../protokoll-editor-model';
+import { MAX_TITEL } from '../protokoll-editor-inhalt';
 import { collapseText } from './text';
 import { choice, isRecord, labeledText, parseWith } from './zod';
 

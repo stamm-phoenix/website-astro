@@ -32,7 +32,7 @@ import {
   neuerPunkt,
   offeneAufgabenFuer,
   protokollEintraege,
-} from '../lib/protokoll-editor-model';
+} from '../lib/protokoll-editor-inhalt';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import * as taskDirectory from '../lib/task-directory';
 import { overrideConfig } from './fixtures/config';

@@ -1,3 +1,4 @@
+import { berlinDay } from '../lib/dates';
 import { app, type HttpRequest, type InvocationContext } from '@azure/functions';
 import { validateAbstimmung } from '../lib/abstimmung-schema';
 import { ABSTIMMUNG_MAIL_TIMEOUT_MS, abstimmungMail } from '../lib/abstimmung-mails';
@@ -221,9 +222,7 @@ export const AbstimmungEinladungEndpoint = staffHandler(
       context.error(error);
       return CAMPFLOW_UNAVAILABLE;
     }
-    const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(
-      new Date()
-    );
+    const today = berlinDay();
     const recipients = protokollRecipients(
       members,
       today,

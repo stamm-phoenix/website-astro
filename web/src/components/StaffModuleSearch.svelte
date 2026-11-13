@@ -3,7 +3,7 @@
   import { navigate } from 'astro:transitions/client';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { searchStaffModules, type StaffModuleGroup } from '../lib/staffSearch';
-  import { CHANGELOG_PATH, type StaffModule } from '../lib/staffModules';
+  import { CHANGELOG_PATH, type StaffModule } from '../lib/staffModuleTypes';
   import { canOpenModule } from '../lib/staffAccess.svelte';
   import { favoriteToggle } from '../lib/staffFavoritesStore.svelte';
   import { longPress } from '../lib/longPress';

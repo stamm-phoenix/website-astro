@@ -1,5 +1,5 @@
 import { POSTFAECHER, postfachRoles } from '../../../api/lib/postfach-liste';
-import type { StaffModule } from './staffModules';
+import type { StaffModule } from './staffModuleTypes';
 
 /** Envelope, 24×24 stroke. */
 const ICON = 'M3 6h18v12H3zM3 7l9 6 9-6';

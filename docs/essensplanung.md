@@ -68,7 +68,7 @@ Die Seite `/leitendenbereich/essensplanungen` (Kachel „Meine Planungen“ im B
 
 ## Steuerung (Leitendenbereich)
 
-Der Leitendenbereich hat einen eigenen Bereich „Essensplanung“ (`STAFF_MODULE_SECTIONS` in `web/src/lib/staffModules.ts`) mit „Meine Planungen“ (siehe oben), „Steuerung“ und „Zutatenliste“. Die Seiten `/leitendenbereich/essensplanung-steuerung` (Einstellungen, Planungen, Protokoll) und `/leitendenbereich/essensplanung-zutaten` (Zutaten, Kategorien, Allergene) teilen sich Daten und API und sind nur für die Teams **`team-admin`** und **`team-vorstand`**.
+Der Leitendenbereich hat einen eigenen Bereich „Essensplanung“ (`STAFF_MODULE_SECTIONS` in `web/src/lib/staffSections.ts`) mit „Meine Planungen“ (siehe oben), „Steuerung“ und „Zutatenliste“. Die Seiten `/leitendenbereich/essensplanung-steuerung` (Einstellungen, Planungen, Protokoll) und `/leitendenbereich/essensplanung-zutaten` (Zutaten, Kategorien, Allergene) teilen sich Daten und API und sind nur für die Teams **`team-admin`** und **`team-vorstand`**.
 
 - **Rollen:** `CONFIG.staff.teams.admin` ist die Gruppe „IT-Administratoren“ (Mail-Alias `team-admin`, Rolle `team_admin`), siehe [Berechtigungen](berechtigungen.md). Beide Kacheln haben `roles: ['team_admin', 'team_vorstand']`, die API prüft `hasTeam(principal, 'admin') || hasTeam(principal, 'vorstand')` (`api/endpoints/intern-essensplanung-steuerung.ts`).
   - Wie bei den Kostenstellen bleibt die Seite unter `team_leitende`. Admins ohne Leitenden-Rolle kommen also nicht hinein.

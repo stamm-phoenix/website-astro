@@ -1,5 +1,6 @@
 <script lang="ts" generics="T extends CalendarItem">
   import type { Snippet } from 'svelte';
+  import { addDays } from '../../../api/lib/dates';
   import ActionButton from './ui/ActionButton.svelte';
   import { localDate } from '../lib/dateUtils';
   import {
@@ -59,12 +60,6 @@
 
   function toDate(day: string): Date {
     return new Date(`${day}T00:00:00Z`);
-  }
-
-  function addDays(day: string, days: number): string {
-    const date = toDate(day);
-    date.setUTCDate(date.getUTCDate() + days);
-    return date.toISOString().slice(0, 10);
   }
 
   function shiftMonth(value: string, delta: number): string {

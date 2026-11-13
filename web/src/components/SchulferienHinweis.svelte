@@ -1,15 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { berlinDate, currentSchulferien } from '../lib/schulferien';
+  import { berlinDay } from '../../../api/lib/dates';
+  import { currentSchulferien } from '../lib/schulferien';
 
-  let today = $state(berlinDate());
+  let today = $state(berlinDay());
   const ferien = $derived(currentSchulferien(today));
 
   onMount(() => {
     let timer: ReturnType<typeof setTimeout>;
     function refresh(): void {
       const now = new Date();
-      today = berlinDate(now);
+      today = berlinDay(now);
       clearTimeout(timer);
       // Align with each minute, including Berlin midnight, rather than page load.
       timer = setTimeout(refresh, 60_000 - (now.getSeconds() * 1000 + now.getMilliseconds()));

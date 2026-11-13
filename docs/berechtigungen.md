@@ -62,7 +62,7 @@ Web Apps dürfen nur Buchstaben, Ziffern und `_` enthalten, deshalb `team_leiten
 2. In der API mit `hasTeam(principal, '<team>')` prüfen. Die Oberfläche fragt die API, ob sie
    die Bedienelemente zeigen soll (wie `GET /api/intern/pflege/belege/rolle`), statt selbst
    Rollen zu lesen.
-3. Ist ein ganzes Modul nur für ein Team, bekommt es in `staffModules.ts` `roles`, damit es nur
+3. Ist ein ganzes Modul nur für ein Team, bekommt es in `staffModuleList.ts` `roles`, damit es nur
    sieht, wer es öffnen darf. Keine eigene Route mit `allowedRoles` in
    `staticwebapp.config.json`: `allowedRoles` gilt als ODER und die erste passende Route gewinnt,
    eine solche Route ließe also Teammitglieder ohne `team_leitende` in den Leitendenbereich. Die

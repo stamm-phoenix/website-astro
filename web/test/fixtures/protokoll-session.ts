@@ -1,5 +1,5 @@
 /** A Protokoll editor session against a stubbed API, for the unit tests of saving and the lock. */
-import { neuerInhalt } from '../../../api/lib/protokoll-editor-model';
+import { neuerInhalt } from '../../../api/lib/protokoll-editor-inhalt';
 import type {
   ProtokollEditorDetail,
   ProtokollSperre,

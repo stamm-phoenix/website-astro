@@ -10,12 +10,6 @@ export function readDatum(value: unknown): string | undefined {
   return typeof value === 'string' && isValidDate(value) ? value : undefined;
 }
 
-export function addDays(datum: string, days: number): string {
-  const date = new Date(`${datum}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
 export function daysBetween(from: string, to: string): number {
   return Math.round(
     (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / (24 * 60 * 60_000)

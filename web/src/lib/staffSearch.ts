@@ -1,4 +1,4 @@
-import type { StaffModule } from './staffModules';
+import type { StaffModule } from './staffModuleTypes';
 
 /** A group of modules as the menu and the start page show it. */
 export interface StaffModuleGroup {

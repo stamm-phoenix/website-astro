@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { getDb } from '../lib/db';
-import { neuerInhalt } from '../lib/protokoll-editor-model';
+import { neuerInhalt } from '../lib/protokoll-editor-inhalt';
 import { vorbelegungFuer } from '../lib/protokoll-vorbelegung';
 import { dbTest } from './fixtures/database';
 

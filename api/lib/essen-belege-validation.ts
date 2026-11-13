@@ -3,6 +3,7 @@
  * `essen-belege-schema.ts`; the types they return are declared in `essen-belege-model.ts`, which
  * the browser imports and which therefore stays free of zod.
  */
+import { berlinDay } from './dates';
 import { z } from 'zod';
 import type { BelegAenderung, BelegFotoArt, BelegInput } from './essen-belege-model';
 import { BELEG_FOTO_ARTEN } from './essen-belege-model';
@@ -12,7 +13,7 @@ import { parseWith } from './validation/zod';
 
 /** Today in Germany as `YYYY-MM-DD`; receipts are dated in local time. */
 export function heuteInBerlin(now = new Date()): string {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(now);
+  return berlinDay(now);
 }
 
 export function validateBeleg(input: unknown, heute = heuteInBerlin()): BelegInput {

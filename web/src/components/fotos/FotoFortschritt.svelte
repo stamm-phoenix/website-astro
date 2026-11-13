@@ -9,11 +9,10 @@
   import {
     cancelFotoUpload,
     continueFotoUpload,
-    fotoUpload,
     resetFotoUpload,
     retryFotoUpload,
-    uploadTotals,
   } from '../../lib/fotoUpload.svelte';
+  import { fotoUpload, uploadTotals } from '../../lib/fotoUploadState.svelte';
 
   interface Props {
     onshow: (path: string) => void;

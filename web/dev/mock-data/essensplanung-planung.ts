@@ -4,8 +4,8 @@
  * `/essensplanung/planung#t=demo…` (see `DEMO_TOKEN`).
  */
 import { randomBytes } from 'node:crypto';
+import { addDays } from '../../../api/lib/dates';
 import {
-  addDays,
   darfBearbeiten,
   darfMitgliederVerwalten,
   daysBetween,

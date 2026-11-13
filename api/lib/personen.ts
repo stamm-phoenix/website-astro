@@ -1,3 +1,4 @@
+import { berlinDay } from './dates';
 import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
 import type { CampflowPerson } from './campflow';
@@ -151,10 +152,6 @@ function names(person: CampflowPerson): { firstName: string; lastName: string } 
   return { firstName: text(name.first_name), lastName: text(name.last_name) };
 }
 
-function berlinToday(now: Date): string {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(now);
-}
-
 /** Reduces a person of the member list to its name and groups; no contact details. */
 export function toCampflowMitglied(person: CampflowPerson, today: string): CampflowMitglied {
   const leaveDate = text(person.leave_date);
@@ -170,7 +167,7 @@ export function toCampflowMitglied(person: CampflowPerson, today: string): Campf
 
 /** The persons of the CampFlow member list, by name; throws `CampflowError` if it fails. */
 export async function getCampflowMitglieder(now: Date = new Date()): Promise<CampflowMitglied[]> {
-  const today = berlinToday(now);
+  const today = berlinDay(now);
   return (await getCampflowMembers())
     .filter((person) => typeof person.id === 'string')
     .map((person) => toCampflowMitglied(person, today))

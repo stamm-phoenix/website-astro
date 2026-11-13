@@ -2,12 +2,15 @@
   import { onDestroy, tick, untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
+  import KurzbeschreibungKopf from './KurzbeschreibungKopf.svelte';
+  import ZeitplanBlockZeile from './ZeitplanBlockZeile.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { zeitplanFreitext, zeitplanZeilen } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { pdfFileName } from '../../lib/pdfBasis';
   import { errorMessage } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
+  import { dropBlock, ensureTage, moveBlock } from '../../lib/kurzbeschreibungBloecke';
   import { formatEventRange } from '../../lib/campflowFields';
   import { berlinDay, todayIso } from '../../lib/format';
   import { fetchVorstand, vorstandStore } from '../../lib/vorstandStore.svelte';
@@ -17,8 +20,8 @@
     MAX_ZEITPLAN_TAGE,
     aktionTage,
     istNachUhrzeit,
-    kurzbeschreibungPdfData,
     kurzerWochentag,
+    kurzbeschreibungPdfData,
     mitAktionTagen,
     mitId,
     nachUhrzeit,
@@ -81,15 +84,8 @@
   let controller: AbortController | null = null;
   onDestroy(() => controller?.abort());
 
-  /**
-   * The days to change. Until something was entered the page shows the days of the Aktion
-   * without keeping them; the first change keeps them with the entries.
-   */
   function editable(): ZeitplanTag[] {
-    if (session.kurzbeschreibung.tage.length === 0) {
-      session.kurzbeschreibung.tage = tage.map((tag) => ({ datum: tag.datum, bloecke: [] }));
-    }
-    return session.kurzbeschreibung.tage;
+    return ensureTage(session.kurzbeschreibung, tage);
   }
 
   function say(text: string, kind: 'success' | 'error' | 'warning' = 'success'): void {
@@ -121,24 +117,15 @@
   /** Moves a block up or down; at the edge of a day it moves on to the day before or after. */
   async function move(tagIndex: number, index: number, delta: -1 | 1): Promise<void> {
     const days = editable();
-    const from = days[tagIndex].bloecke;
-    const target = index + delta;
-    const crossing = target < 0 || target >= from.length;
-    if (crossing && days[tagIndex + delta].bloecke.length >= MAX_ZEITBLOECKE_PRO_TAG) {
+    const result = moveBlock(days, tagIndex, index, delta);
+    if (result.kind === 'full') {
       say(
-        `${tagTitel(days[tagIndex + delta].datum)} hat schon ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke. Lösche dort zuerst einen.`,
+        `${tagTitel(result.datum)} hat schon ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke. Lösche dort zuerst einen.`,
         'warning'
       );
       return;
     }
-    const [block] = from.splice(index, 1);
-    if (target >= 0 && target <= from.length) {
-      from.splice(target, 0, block);
-    } else {
-      const day = days[tagIndex + delta];
-      if (delta < 0) day.bloecke.push(block);
-      else day.bloecke.unshift(block);
-    }
+    const block = result.block;
     notice = null;
     await tick();
     const button = document.getElementById(`block-${block.id}-${delta < 0 ? 'hoch' : 'runter'}`);
@@ -511,18 +498,8 @@
   function onDrop(event: DragEvent): void {
     event.preventDefault();
     if (!dragged || !dropAt) return endDrag();
-    const days = editable();
-    const [block] = days[dragged.tagIndex].bloecke.splice(dragged.index, 1);
-    const sameDay = dragged.tagIndex === dropAt.tagIndex;
-    const index = sameDay && dropAt.index > dragged.index ? dropAt.index - 1 : dropAt.index;
-    const target = days[dropAt.tagIndex].bloecke;
-    if (!sameDay && target.length >= MAX_ZEITBLOECKE_PRO_TAG) {
-      days[dragged.tagIndex].bloecke.splice(dragged.index, 0, block);
-      say(`An einen Tag passen höchstens ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke.`, 'warning');
-    } else {
-      target.splice(index, 0, block);
-      notice = null;
-    }
+    if (dropBlock(editable(), dragged, dropAt)) notice = null;
+    else say(`An einen Tag passen höchstens ${MAX_ZEITBLOECKE_PRO_TAG} Blöcke.`, 'warning');
     endDrag();
   }
 
@@ -538,51 +515,16 @@
   }
 </script>
 
-{#snippet arrow(direction: 'up' | 'down')}
-  <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" fill="currentColor">
-    {#if direction === 'up'}
-      <path d="M10 4 4 10.5l1.4 1.4L9 8.3V16h2V8.3l3.6 3.6 1.4-1.4z" />
-    {:else}
-      <path d="m10 16 6-6.5-1.4-1.4L11 11.7V4H9v7.7L5.4 8.1 4 9.5z" />
-    {/if}
-  </svg>
-{/snippet}
-
 <div class="space-y-6">
-  <section aria-labelledby="kurzbeschreibung-titel" class="surface p-4 sm:p-6">
-    <div class="flex flex-wrap items-start justify-between gap-4">
-      <div class="flex items-center gap-2">
-        <h2 id="kurzbeschreibung-titel" class="font-serif text-lg font-semibold text-brand-900">
-          Kurzbeschreibung für den KJR
-        </h2>
-        <InfoHint
-          label="Kurzbeschreibung"
-          text="Der KJR verlangt beim Antrag auf Zuschuss eine Kurzbeschreibung: wozu die Aktion dient und einen groben Zeitplan. Lade sie als PDF herunter und füge sie dem Antrag bei. Sie gehört zu deinen Eingaben und wird mit „Eingaben speichern“ gesichert."
-        />
-      </div>
-      <div class="flex flex-wrap gap-2">
-        {#if filled || kurz.tage.length > 0}
-          <ActionButton variant="secondary" onclick={resetAll}>Zurücksetzen</ActionButton>
-        {/if}
-        <ActionButton variant="primary" disabled={pdfBusy} onclick={exportPdf}>
-          {pdfBusy ? 'PDF wird erstellt …' : 'Als PDF herunterladen'}
-        </ActionButton>
-      </div>
-    </div>
-    <StatusNotice class="mt-3" kind="error" message={pdfError} />
-
-    <label class="mt-4 block max-w-3xl">
-      <span class="form-label">Zielsetzung</span>
-      <textarea
-        class="form-input min-h-24"
-        rows="3"
-        maxlength={2000}
-        value={kurz.einleitung}
-        oninput={(e) => (session.kurzbeschreibung.einleitung = e.currentTarget.value)}
-        placeholder="z. B. Mit der Aktion wollen wir die Gemeinschaft im Stamm stärken und ein bisschen Fantasie zurück in den Alltag bringen."
-      ></textarea>
-    </label>
-  </section>
+  <KurzbeschreibungKopf
+    einleitung={kurz.einleitung}
+    zuruecksetzbar={filled || kurz.tage.length > 0}
+    {pdfBusy}
+    {pdfError}
+    oneinleitung={(value) => (session.kurzbeschreibung.einleitung = value)}
+    onreset={resetAll}
+    onpdf={exportPdf}
+  />
 
   <section aria-labelledby="zeitplan-titel" class="surface p-4 sm:p-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -739,115 +681,29 @@
             ondrop={onDrop}
           >
             {#each tag.bloecke as block, index (block.id)}
-              {@const first = tagIndex === 0 && index === 0}
-              {@const last = tagIndex === tage.length - 1 && index === tag.bloecke.length - 1}
-              <li
-                class="zeitplan-block flex flex-wrap items-center gap-x-2 gap-y-1 rounded-sm py-1
-                  {dragged?.id === block.id ? 'opacity-40' : ''}
-                  {dropAt?.tagIndex === tagIndex && dropAt.index === index ? 'drop-before' : ''}
-                  {dropAt?.tagIndex === tagIndex &&
-                dropAt.index === tag.bloecke.length &&
-                index === tag.bloecke.length - 1
-                  ? 'drop-after'
-                  : ''}"
-                ondragover={(e) => onDragOver(e, tagIndex, index)}
-                ondrop={onDrop}
-              >
-                <span
-                  class="hidden cursor-grab touch-none select-none self-stretch px-1 text-neutral-700 sm:flex sm:items-center"
-                  draggable="true"
-                  aria-hidden="true"
-                  title="Ziehen zum Verschieben"
-                  ondragstart={(e) => onDragStart(e, tagIndex, index, block.id)}
-                  ondragend={endDrag}
-                >
-                  <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor">
-                    <circle cx="7" cy="5" r="1.5" /><circle cx="13" cy="5" r="1.5" />
-                    <circle cx="7" cy="10" r="1.5" /><circle cx="13" cy="10" r="1.5" />
-                    <circle cx="7" cy="15" r="1.5" /><circle cx="13" cy="15" r="1.5" />
-                  </svg>
-                </span>
-                <div class="flex items-center gap-1">
-                  <input
-                    id={`block-${block.id}-von`}
-                    type="time"
-                    step="300"
-                    class="form-input mt-0! w-[6.75rem] tabular-nums"
-                    aria-label={`Beginn von „${block.text || 'neuer Block'}“`}
-                    value={block.von}
-                    oninput={(e) => setField(tagIndex, block.id, 'von', e.currentTarget.value)}
-                  />
-                  <span aria-hidden="true" class="text-neutral-700">–</span>
-                  <input
-                    id={`block-${block.id}-bis`}
-                    type="time"
-                    step="300"
-                    class="form-input mt-0! w-[6.75rem] tabular-nums"
-                    aria-label={`Ende von „${block.text || 'neuer Block'}“`}
-                    value={block.bis}
-                    oninput={(e) => setField(tagIndex, block.id, 'bis', e.currentTarget.value)}
-                  />
-                </div>
-                <input
-                  id={`block-${block.id}-text`}
-                  type="text"
-                  class="form-input order-last mt-0! w-full sm:order-none sm:w-auto sm:flex-1"
-                  aria-label="Programmpunkt"
-                  maxlength={MAX_ZEITBLOCK_TEXT}
-                  placeholder="z. B. Geländespiel"
-                  enterkeyhint="next"
-                  value={block.text}
-                  oninput={(e) => setField(tagIndex, block.id, 'text', e.currentTarget.value)}
-                  onkeydown={(e) => onTextKey(e, tagIndex, index)}
-                />
-                <div class="ml-auto flex">
-                  <button
-                    type="button"
-                    id={`block-${block.id}-hoch`}
-                    class="zeitplan-icon"
-                    disabled={first}
-                    aria-label={index === 0 && vortag
-                      ? `„${block.text || 'Block'}“ auf ${tagTitel(vortag.datum)} verschieben`
-                      : `„${block.text || 'Block'}“ nach oben`}
-                    title={index === 0 && vortag
-                      ? `Auf ${kurzerWochentag(vortag.datum)} verschieben`
-                      : 'Nach oben'}
-                    onclick={() => move(tagIndex, index, -1)}>{@render arrow('up')}</button
-                  >
-                  <button
-                    type="button"
-                    id={`block-${block.id}-runter`}
-                    class="zeitplan-icon"
-                    disabled={last}
-                    aria-label={index === tag.bloecke.length - 1 && tage[tagIndex + 1]
-                      ? `„${block.text || 'Block'}“ auf ${tagTitel(tage[tagIndex + 1].datum)} verschieben`
-                      : `„${block.text || 'Block'}“ nach unten`}
-                    title={index === tag.bloecke.length - 1 && tage[tagIndex + 1]
-                      ? `Auf ${kurzerWochentag(tage[tagIndex + 1].datum)} verschieben`
-                      : 'Nach unten'}
-                    onclick={() => move(tagIndex, index, 1)}>{@render arrow('down')}</button
-                  >
-                  <button
-                    type="button"
-                    class="zeitplan-icon text-danger"
-                    aria-label={`„${block.text || 'Block'}“ löschen`}
-                    title="Löschen"
-                    onclick={() => remove(tagIndex, index)}
-                  >
-                    <svg
-                      viewBox="0 0 20 20"
-                      width="18"
-                      height="18"
-                      aria-hidden="true"
-                      fill="currentColor"
-                    >
-                      <path
-                        d="M8 3h4l1 1h3v2H4V4h3zm-2 4h8l-.7 9.1a1 1 0 0 1-1 .9H7.7a1 1 0 0 1-1-.9z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </li>
+              <ZeitplanBlockZeile
+                {block}
+                {tagIndex}
+                {index}
+                anzahl={tag.bloecke.length}
+                first={tagIndex === 0 && index === 0}
+                last={tagIndex === tage.length - 1 && index === tag.bloecke.length - 1}
+                {vortag}
+                nachtag={tage[tagIndex + 1]}
+                dragging={dragged?.id === block.id}
+                dropBefore={dropAt?.tagIndex === tagIndex && dropAt.index === index}
+                dropAfter={dropAt?.tagIndex === tagIndex &&
+                  dropAt.index === tag.bloecke.length &&
+                  index === tag.bloecke.length - 1}
+                {setField}
+                {move}
+                {remove}
+                {onDragStart}
+                {onDragOver}
+                {onDrop}
+                {endDrag}
+                {onTextKey}
+              />
             {/each}
           </ul>
 
@@ -898,32 +754,6 @@
 </div>
 
 <style>
-  .zeitplan-icon {
-    display: inline-flex;
-    min-height: 2.75rem;
-    min-width: 2.75rem;
-    align-items: center;
-    justify-content: center;
-    border-radius: 0.25rem;
-    color: var(--color-brand-900);
-  }
-  .zeitplan-icon:hover:not(:disabled) {
-    background: var(--color-field);
-  }
-  .zeitplan-icon:focus-visible {
-    outline: 3px solid var(--color-focus);
-    outline-offset: 1px;
-  }
-  .zeitplan-icon:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-  .drop-before {
-    box-shadow: inset 0 3px 0 var(--color-brand-900);
-  }
-  .drop-after {
-    box-shadow: inset 0 -3px 0 var(--color-brand-900);
-  }
   .zeitplan-progress {
     animation: zeitplan-progress 1.4s ease-in-out infinite;
   }

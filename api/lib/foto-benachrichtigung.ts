@@ -3,6 +3,7 @@
  * mail in blind copy with a few small previews in the text and a link to the folder. The
  * recipients come from CampFlow like those of the minutes and can be changed per mail.
  */
+import { berlinDay } from './dates';
 import type { CampflowPerson } from './campflow';
 import { campflowGetAll } from './campflow';
 import { CONFIG } from './config';
@@ -37,7 +38,7 @@ export function loadFotoMembers(): Promise<CampflowPerson[]> {
 
 /** Current members of the groups and labels in `CONFIG.fotos`, like the minutes. */
 export function fotoRecipients(persons: CampflowPerson[]): ProtokollRecipient[] {
-  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+  const today = berlinDay();
   return protokollRecipients(
     persons,
     today,

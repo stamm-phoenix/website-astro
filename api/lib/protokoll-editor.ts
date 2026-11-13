@@ -27,9 +27,9 @@ import type {
   ProtokollRevisionReason,
   ProtokollSaveResponse,
   ProtokollSperre,
-  Vorbelegung,
 } from './protokoll-editor-model';
-import { SPERRE_SECONDS, neuerInhalt, offeneAufgabenPunkt } from './protokoll-editor-model';
+import type { Vorbelegung } from './protokoll-editor-inhalt';
+import { SPERRE_SECONDS, neuerInhalt, offeneAufgabenPunkt } from './protokoll-editor-inhalt';
 import type {
   ProtokollEditorCreateInput,
   ProtokollEditorSaveInput,

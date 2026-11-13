@@ -31,7 +31,7 @@ import type {
 } from '../lib/protokoll-editor-model';
 import type { ProtokollEditorPersonen } from '../lib/protokoll-editor-model';
 import type { Person, PersonenUebersicht } from '../lib/personen-model';
-import { SPERRE_SECONDS, neuerInhalt, upgradeInhalt } from '../lib/protokoll-editor-model';
+import { SPERRE_SECONDS, neuerInhalt, upgradeInhalt } from '../lib/protokoll-editor-inhalt';
 import { PersonItem, PersonenCollection } from '../endpoints/intern-pflege-personen';
 import * as taskDirectory from '../lib/task-directory';
 import { CONFIG } from '../lib/config';

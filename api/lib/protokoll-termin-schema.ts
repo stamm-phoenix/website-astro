@@ -4,6 +4,7 @@
  * and the date a leader confirms (strict, with a message per field).
  */
 import { z } from 'zod';
+import { addDays } from './dates';
 import { isValidDate } from './calendar-date';
 import type { ConfirmedTermin, ProtokollTermin } from './protokoll-termin-model';
 import { TERMIN_DECISIONS, TERMIN_EXTRACTIONS } from './protokoll-termin-model';
@@ -85,13 +86,6 @@ export const storedTerminSchema = z
   });
 
 // --- Answer of the model ------------------------------------------------------------------
-
-/** Days from `isoDate`, as `YYYY-MM-DD`. */
-export function addDays(isoDate: string, days: number): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
 
 /** For comparing a quote with the text: one line, lower case, plain quotes and dashes. */
 function normalizeForSearch(text: string): string {

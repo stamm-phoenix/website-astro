@@ -4,12 +4,9 @@
   import { aufgabenStore, loadTasks, loadTaskUsers } from '../lib/aufgabenStore.svelte';
   import { fetchPrincipal } from '../lib/authStore.svelte';
   import { favoritesStore, loadFavorites } from '../lib/staffFavoritesStore.svelte';
-  import {
-    STAFF_MODULES,
-    NIKOLAUS_CONTROL_MODULE,
-    NIKOLAUS_MODULES,
-    STAFF_FAVORITE_PATHS,
-  } from '../lib/staffModules';
+  import { STAFF_FAVORITE_PATHS } from '../lib/staffModules';
+  import { NIKOLAUS_CONTROL_MODULE, NIKOLAUS_MODULES } from '../lib/staffModulesNikolaus';
+  import { STAFF_MODULES } from '../lib/staffModuleList';
   import { loadRecent, recentStore } from '../lib/staffRecentStore.svelte';
   import { fetchNikolausStatus, nikolausStatusStore } from '../lib/nikolausStatusStore.svelte';
   import { yourStaffModules } from '../lib/staffSearch';

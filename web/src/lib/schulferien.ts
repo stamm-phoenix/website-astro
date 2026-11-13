@@ -1,11 +1,9 @@
+import { berlinDay } from '../../../api/lib/dates';
+
 export interface Schulferien {
   name: string;
   start: string;
   end: string;
-}
-
-export function berlinDate(now = new Date()): string {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(now);
 }
 
 // Official Bavarian Ferienordnung, checked 2026-11-03:
@@ -58,7 +56,7 @@ export function currentSchulferien(date: string): Schulferien | null | undefined
 
 /** Stop builds early enough to renew the calendar before visitors lose coverage. */
 export function requireCurrentSchulferien(now = new Date()): void {
-  if (berlinDate(now) >= RENEW_BY) {
+  if (berlinDay(now) >= RENEW_BY) {
     throw new Error('Bayerische Schulferien erneuern: amtliche Termine ab September 2030 fehlen.');
   }
 }

@@ -1,4 +1,5 @@
 import { formatIsoDate } from './belege';
+import { formatEuro } from '../../../api/lib/money';
 import type { PlanungBeleg } from '../../../api/lib/essen-belege-model';
 import type { PlanungMitglied } from '../../../api/lib/essen-planung-model';
 
@@ -14,13 +15,6 @@ export function gefilterteBelege(belege: PlanungBeleg[], filter: BelegFilter): P
   if (filter === 'offen') return belege.filter((beleg) => !beleg.erstattet);
   if (filter === 'erstattet') return belege.filter((beleg) => beleg.erstattet);
   return belege;
-}
-
-const EURO = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
-
-/** „12,34 €“. */
-export function euro(cent: number): string {
-  return EURO.format(cent / 100);
 }
 
 /** One person who paid: by member, or by the free name written alike. */
@@ -125,7 +119,7 @@ export function belegDruckZeile(beleg: PlanungBeleg): BelegDruckZeile {
     haendler: beleg.haendler || '–',
     notiz: beleg.notiz,
     bezahltVon: beleg.bezahltVon,
-    betrag: euro(beleg.betragCent),
+    betrag: formatEuro(beleg.betragCent),
     status: beleg.erstattet ? 'erstattet' : 'offen',
   };
 }
@@ -136,16 +130,26 @@ export function statistikDruck(statistik: BelegStatistik): string[][] {
     ...statistik.personen.map((person) => [
       person.name,
       String(person.anzahl),
-      euro(person.gesamtCent),
-      euro(person.offenCent),
+      formatEuro(person.gesamtCent),
+      formatEuro(person.offenCent),
     ]),
-    ['Summe', String(statistik.anzahl), euro(statistik.gesamtCent), euro(statistik.offenCent)],
+    [
+      'Summe',
+      String(statistik.anzahl),
+      formatEuro(statistik.gesamtCent),
+      formatEuro(statistik.offenCent),
+    ],
   ];
 }
 
 /** Title of a receipt's photo page, e.g. „01.10.2026 · Rewe · 42,50 € · Kim“. */
 export function belegTitel(beleg: PlanungBeleg): string {
-  return [formatIsoDate(beleg.datum), beleg.haendler, euro(beleg.betragCent), beleg.bezahltVon]
+  return [
+    formatIsoDate(beleg.datum),
+    beleg.haendler,
+    formatEuro(beleg.betragCent),
+    beleg.bezahltVon,
+  ]
     .filter(Boolean)
     .join(' · ');
 }

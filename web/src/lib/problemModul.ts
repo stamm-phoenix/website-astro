@@ -1,9 +1,6 @@
-import {
-  NIKOLAUS_CONTROL_MODULE,
-  NIKOLAUS_MODULES,
-  STAFF_MODULES,
-  STAFF_SUBPAGES,
-} from './staffModules';
+import { STAFF_SUBPAGES } from './staffSubpages';
+import { NIKOLAUS_CONTROL_MODULE, NIKOLAUS_MODULES } from './staffModulesNikolaus';
+import { STAFF_MODULES } from './staffModuleList';
 
 /**
  * The name of the module or page of the Leitendenbereich a path belongs to (the most specific

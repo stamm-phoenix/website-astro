@@ -4,6 +4,7 @@
  * from before this module, count as Archiv. Approved minutes are mailed as PDF to all current
  * leaders and to members with the label „Protokollempfang“, whose addresses come from CampFlow.
  */
+import { berlinDay } from './dates';
 import { createHash } from 'node:crypto';
 import type { CampflowPerson } from './campflow';
 import { campflowGetAll } from './campflow';
@@ -372,7 +373,7 @@ export function membersWithoutAddress(
  */
 export async function loadProtokollRecipients(): Promise<ProtokollRecipient[]> {
   const persons = await campflowGetAll<CampflowPerson>('/lists/member/persons');
-  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date());
+  const today = berlinDay();
   return protokollRecipients(
     persons,
     today,
