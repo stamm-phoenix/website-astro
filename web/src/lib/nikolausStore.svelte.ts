@@ -1,42 +1,16 @@
 import type { NikolausSlot } from './types';
-import { fetchApi } from './api';
+import { createResource } from './resource.svelte';
+import { loadStateOf } from './storeView';
 
-interface NikolausStoreState {
-  data: NikolausSlot[] | null;
-  loading: boolean;
-  error: boolean;
-}
+const slots = createResource<NikolausSlot[]>('/nikolaus/slots');
 
-export const nikolausStore = $state<NikolausStoreState>({
-  data: null,
-  loading: true,
-  error: false,
-});
-
-let fetchPromise: Promise<void> | null = null;
+/** A reload keeps showing the last known slots, also when it fails. */
+export const nikolausStore = loadStateOf(slots.state, { background: true });
 
 /**
  * Loads the slot availability. Pass `force` to reload after a booking attempt,
  * so the displayed capacity reflects bookings made in the meantime.
  */
 export function fetchNikolausSlots(force = false): Promise<void> {
-  if (fetchPromise) return fetchPromise;
-  if (nikolausStore.data !== null && !force) return Promise.resolve();
-
-  nikolausStore.loading = nikolausStore.data === null;
-  nikolausStore.error = false;
-
-  fetchPromise = (async () => {
-    try {
-      nikolausStore.data = await fetchApi<NikolausSlot[]>('/nikolaus/slots');
-    } catch {
-      // Keep showing the last known slots when a background refresh fails
-      nikolausStore.error = nikolausStore.data === null;
-    } finally {
-      fetchPromise = null;
-      nikolausStore.loading = false;
-    }
-  })();
-
-  return fetchPromise;
+  return slots.load({ force });
 }

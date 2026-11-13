@@ -115,7 +115,7 @@
   function loadBeitraege(refresh: boolean): Promise<void> {
     // Another Aktion's Beiträge are dropped, so they neither show nor count as loaded
     if (beitraege.data && beitraege.data.eventId !== id) beitraege.data = null;
-    return aktionBeitraegeStore.load({ force: refresh, param: { id, refresh } });
+    return refresh ? aktionBeitraegeStore.refresh(id) : aktionBeitraegeStore.load({ param: id });
   }
 
   function reload(): void {

@@ -11,17 +11,29 @@ test('the due label and filter do not include March reviews on August 31', () =>
 });
 
 test('calendar subtraction clamps month ends, including leap years', () => {
-  for (const [year, day] of [[2027, 28], [2028, 29]]) {
+  for (const [year, day] of [
+    [2027, 28],
+    [2028, 29],
+  ]) {
     const cutoff = contentReviewCutoff(new Date(year, 7, 31, 12));
     assert.equal(cutoff.getMonth(), 1);
     assert.equal(cutoff.getDate(), day);
     assert.equal(cutoff.getHours(), 12);
-    assert.equal(contentReviewDue({ reviewedAt: cutoff.toISOString(), changedSinceReview: false }, new Date(year, 7, 31, 12)), true);
+    assert.equal(
+      contentReviewDue(
+        { reviewedAt: cutoff.toISOString(), changedSinceReview: false },
+        new Date(year, 7, 31, 12)
+      ),
+      true
+    );
   }
 });
 
 test('unreviewed and changed content stays due regardless of its age', () => {
   const now = new Date(2027, 7, 31, 12);
   assert.equal(contentReviewDue({ reviewedAt: null, changedSinceReview: false }, now), true);
-  assert.equal(contentReviewDue({ reviewedAt: now.toISOString(), changedSinceReview: true }, now), true);
+  assert.equal(
+    contentReviewDue({ reviewedAt: now.toISOString(), changedSinceReview: true }, now),
+    true
+  );
 });

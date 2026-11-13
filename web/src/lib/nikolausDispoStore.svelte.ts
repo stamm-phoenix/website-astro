@@ -1,4 +1,4 @@
-import { createResource } from './pflegeStore.svelte';
+import { createResource } from './resource.svelte';
 import type { StaffNikolausDispoData } from './types';
 
 const dispo = createResource<StaffNikolausDispoData, string>(

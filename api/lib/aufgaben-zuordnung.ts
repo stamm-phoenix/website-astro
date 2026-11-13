@@ -1,6 +1,4 @@
-import type { TaskInput, TaskPerson } from './aufgaben-model';
-import type { SharePointSiteUser } from './sharepoint-types';
-export type { SharePointSiteUser } from './sharepoint-types';
+import type { TaskInput, TaskPerson, TaskUser } from './aufgaben-model';
 
 /** Compare full names without guessing nicknames or constructing email addresses. */
 function normalized(value: string): string {
@@ -38,7 +36,7 @@ export function taskAssignedToLogin(assignee: string, login: string | undefined)
  */
 export function taggedTaskAssignee(
   task: Pick<TaskInput, 'assignee'> & { quote: string },
-  users: SharePointSiteUser[]
+  users: TaskUser[]
 ): string | undefined {
   const assignee = normalized(task.assignee).replace(/^@\s*/, '');
   if (!assignee) return undefined;
@@ -61,7 +59,7 @@ export function taggedTaskAssignee(
 }
 
 /** Prefer directory names, preserving manual names and readable fallbacks for legacy logins. */
-export function taskAssigneeName(value: string, users: SharePointSiteUser[] = []): string {
+export function taskAssigneeName(value: string, users: TaskUser[] = []): string {
   const login = taskAssigneeLogin(value);
   const user = users.find((user) => user.login.toLowerCase() === login.toLowerCase());
   if (user) return user.name;
@@ -77,7 +75,7 @@ export function taskAssigneeName(value: string, users: SharePointSiteUser[] = []
 /** Normalize and deduplicate people while retaining the original single-person API as a fallback. */
 export function taskPeople(
   task: Pick<TaskInput, 'assignee' | 'assignees'>,
-  users: SharePointSiteUser[] = []
+  users: TaskUser[] = []
 ): TaskPerson[] {
   const source = task.assignees ?? (task.assignee ? [{ name: task.assignee, login: '' }] : []);
   const people: TaskPerson[] = [];
@@ -109,7 +107,7 @@ export function taskHasAssignee(
 /** Render names consistently in task lists, Kanban and the personal dashboard. */
 export function taskAssigneeNames(
   task: Pick<TaskInput, 'assignee' | 'assignees'>,
-  users: SharePointSiteUser[] = []
+  users: TaskUser[] = []
 ): string {
   return (
     taskPeople(task, users)

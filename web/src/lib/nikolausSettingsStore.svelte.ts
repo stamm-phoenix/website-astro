@@ -1,5 +1,5 @@
 import type { NikolausConfig } from './nikolausConfig';
-import { createResource } from './pflegeStore.svelte';
+import { createResource } from './resource.svelte';
 import type { LoadState } from './storeView';
 
 const settings = createResource<NikolausConfig>('/nikolaus/settings');

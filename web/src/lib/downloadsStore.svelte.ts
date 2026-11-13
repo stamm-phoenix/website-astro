@@ -1,44 +1,20 @@
 import type { DownloadFile } from './types';
-import { fetchApi } from './api';
 import { bakedUrl } from './bakedImages';
-
-interface DownloadsStoreState {
-  data: DownloadFile[] | null;
-  loading: boolean;
-  error: boolean;
-}
-
-export const downloadsStore = $state<DownloadsStoreState>({
-  data: null,
-  loading: true,
-  error: false,
-});
-
-let fetchPromise: Promise<void> | null = null;
+import { createResource } from './resource.svelte';
+import { loadStateOf } from './storeView';
 
 /** Newest first; also applied to the data baked at build time. */
 export function sortDownloads(data: DownloadFile[]): DownloadFile[] {
-  return data.sort((a, b) => Date.parse(b.lastModifiedAt) - Date.parse(a.lastModifiedAt));
+  return [...data].sort((a, b) => Date.parse(b.lastModifiedAt) - Date.parse(a.lastModifiedAt));
 }
 
+const downloads = createResource<DownloadFile[]>('/downloads', { transform: sortDownloads });
+
+export const downloadsStore = loadStateOf(downloads.state);
+
+/** Asks again on every call, unless a request is already running, which is joined. */
 export function fetchDownloads(): Promise<void> {
-  if (fetchPromise) return fetchPromise;
-
-  downloadsStore.loading = true;
-  downloadsStore.error = false;
-
-  fetchPromise = (async () => {
-    try {
-      downloadsStore.data = sortDownloads(await fetchApi<DownloadFile[]>('/downloads'));
-    } catch {
-      downloadsStore.error = true;
-    } finally {
-      fetchPromise = null;
-      downloadsStore.loading = false;
-    }
-  })();
-
-  return fetchPromise;
+  return downloads.load({ maxAge: 0 });
 }
 
 export function getDownloadPreviewUrl(

@@ -1,36 +1,12 @@
 import type { Vorstand } from './types';
-import { fetchApi } from './api';
+import { createResource } from './resource.svelte';
+import { loadStateOf } from './storeView';
 
-interface VorstandStoreState {
-  data: Vorstand[] | null;
-  loading: boolean;
-  error: boolean;
-}
+const vorstand = createResource<Vorstand[]>('/vorstand');
 
-export const vorstandStore = $state<VorstandStoreState>({
-  data: null,
-  loading: true,
-  error: false,
-});
+export const vorstandStore = loadStateOf(vorstand.state);
 
-let fetchPromise: Promise<void> | null = null;
-
+/** Asks again on every call, unless a request is already running, which is joined. */
 export function fetchVorstand(): Promise<void> {
-  if (fetchPromise) return fetchPromise;
-
-  vorstandStore.loading = true;
-  vorstandStore.error = false;
-
-  fetchPromise = (async () => {
-    try {
-      vorstandStore.data = await fetchApi<Vorstand[]>('/vorstand');
-    } catch {
-      vorstandStore.error = true;
-    } finally {
-      fetchPromise = null;
-      vorstandStore.loading = false;
-    }
-  })();
-
-  return fetchPromise;
+  return vorstand.load({ maxAge: 0 });
 }

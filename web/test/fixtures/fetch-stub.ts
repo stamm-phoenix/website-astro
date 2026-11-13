@@ -17,6 +17,8 @@ export interface StubbedCall {
   /** The endpoint without the `/api` prefix, with its query. */
   path: string;
   body: unknown;
+  /** Aborted when the store gives up on the request, e.g. because a newer one replaced it. */
+  signal?: AbortSignal;
 }
 
 export type StubAnswer = Response | Promise<Response>;
@@ -44,6 +46,7 @@ export function stubFetch(answer: (call: StubbedCall) => StubAnswer): {
       method: init.method ?? 'GET',
       path: url.replace(/^\/api/, ''),
       body: typeof init.body === 'string' ? JSON.parse(init.body) : undefined,
+      signal: init.signal ?? undefined,
     };
     calls.push(call);
     return answer(call);

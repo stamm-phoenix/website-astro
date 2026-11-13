@@ -105,10 +105,11 @@
   let pickKostenstelle = $state(false);
 
   const key = $derived(abrechnungKey(eventId, kostenstelle));
-  const abrechnung = $derived(eventId ? abrechnungStore.data[key] : undefined);
-  const loadError = $derived(eventId ? abrechnungStore.errors[key] : undefined);
-  const loading = $derived(eventId !== '' && abrechnungStore.loading[key] === true);
-  const costUnitMissing = $derived(loadError?.code === 'KOSTENSTELLE_NOT_FOUND');
+  const loaded = $derived(eventId ? abrechnungStore[key] : undefined);
+  const abrechnung = $derived(loaded?.data ?? undefined);
+  const loadError = $derived(loaded?.error ?? undefined);
+  const loading = $derived(loaded?.loading === true);
+  const costUnitMissing = $derived(loaded?.errorCode === 'KOSTENSTELLE_NOT_FOUND');
 
   /** Registrations plus persons added on the page, without the ones left out. */
   const activePersons = $derived(
@@ -354,7 +355,7 @@
     <div>
       <h1 class="text-lg font-semibold text-brand-900">Kostenstelle nicht gefunden</h1>
       <p class="mt-1 text-sm text-neutral-700">
-        {loadError.message} Wähle die Kostenstelle, auf die diese Aktion in CampFlow gebucht wird.
+        {loadError} Wähle die Kostenstelle, auf die diese Aktion in CampFlow gebucht wird.
       </p>
     </div>
     {@render kostenstellenPicker()}
@@ -363,7 +364,7 @@
   <LoadState
     data={ablage.loaded ? (abrechnung ?? null) : null}
     loading={loading || (!ablage.loaded && !ablage.error)}
-    error={loadError?.message ?? ablage.error ?? null}
+    error={loadError ?? ablage.error ?? null}
     loadingText="Die Abrechnung wird geladen. Das dauert einige Sekunden …"
     onretry={() => {
       void fetchAbrechnung(eventId, kostenstelle, { force: true });

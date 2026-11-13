@@ -1,3 +1,4 @@
+import { ETAG_PATTERN } from './etag-version';
 import { addTiming, measureTiming } from './server-timing';
 import { Kysely, MssqlDialect, sql } from 'kysely';
 import type { Transaction } from 'kysely';
@@ -187,7 +188,7 @@ export function toVersion(rowversion: Buffer): string {
 
 /** The rowversion of a client version, or `undefined` if it is malformed. */
 export function fromVersion(version: string | undefined): Buffer | undefined {
-  const match = /^"([0-9a-f]{16})"$/.exec(version?.trim() ?? '');
+  const match = ETAG_PATTERN.exec(version?.trim() ?? '');
   return match ? Buffer.from(match[1], 'hex') : undefined;
 }
 

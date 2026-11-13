@@ -1,6 +1,6 @@
 // PDFs of the Aufgaben: the list as shown, one section per project, and a Vorlage as a checklist
 // with an empty box in front of every task to tick off by hand.
-import type { SharePointSiteUser } from '../../../api/lib/sharepoint-types';
+import type { TaskUser } from '../../../api/lib/aufgaben-model';
 import { saveFile } from './api';
 import {
   BRAND,
@@ -21,7 +21,7 @@ import { taskAssigneeNames, taskPeople } from '../../../api/lib/aufgaben-zuordnu
 export interface AufgabenPdfAuswahl {
   tasks: Task[];
   projects: TaskProject[];
-  users?: SharePointSiteUser[];
+  users?: TaskUser[];
   /** `alle`, `offen` or `erledigt`, as the status tabs. */
   status: string;
   /** `alle`, `''` (without project) or the ID of a project, as the filter. */
@@ -116,10 +116,7 @@ function wann(daysBefore: number): string {
 }
 
 /** A Vorlage as a checklist to tick off by hand; pure, so it can be tested. */
-export function vorlageChecklistReport(
-  template: TaskTemplate,
-  users: SharePointSiteUser[] = []
-): PdfReport {
+export function vorlageChecklistReport(template: TaskTemplate, users: TaskUser[] = []): PdfReport {
   // Earliest first, as the tasks fall due before the Aktion
   const items = [...template.items].sort((a, b) => b.daysBefore - a.daysBefore);
   return {
@@ -149,7 +146,7 @@ export async function downloadAufgabenPdf(auswahl: AufgabenPdfAuswahl): Promise<
 
 export async function downloadVorlagePdf(
   template: TaskTemplate,
-  users: SharePointSiteUser[] = []
+  users: TaskUser[] = []
 ): Promise<void> {
   const report = vorlageChecklistReport(template, users);
   const [table] = report.sections;
