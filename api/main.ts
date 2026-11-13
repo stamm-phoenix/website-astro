@@ -70,6 +70,8 @@ import './endpoints/intern-pflege-leitende';
 import './endpoints/intern-pflege-belege';
 import './endpoints/intern-pflege-beleg-pruefung';
 import './endpoints/intern-pflege-protokolle';
+import './endpoints/intern-pflege-protokolle-termin';
+import './endpoints/intern-pflege-protokolle-versand';
 import './endpoints/intern-fotos';
 import './endpoints/intern-pflege-downloads';
 import './endpoints/intern-pflege-blog';
