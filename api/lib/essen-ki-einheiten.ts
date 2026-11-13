@@ -5,8 +5,9 @@ import { einheitenVorkommen, vorkommendeEinheiten } from './essen-einheiten-mode
 import { einheitText } from './essen-gerichte-model';
 import { DATEN, frage, pruefeKiZugang } from './essen-ki';
 import { leseKiEinheiten } from './essen-ki-einheiten-antwort';
-import type { Zugang } from './essen-planung';
-import { PlanungError, ladeAnsicht } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { PlanungError } from './essen-zugang';
+import { ladeAnsicht } from './essen-ansicht';
 import type { EssenEinheitenart } from './essen-validation';
 
 /**

@@ -20,7 +20,8 @@ import { validateLeitende, validateQuestionAndAnswer } from './validation/conten
 import { validateBeleg } from './validation/beleg';
 import type { Database } from './db-schema';
 import { dateToLocalParts } from './nikolaus-config';
-import { anfrageBestaetigen, hashToken, neuesToken } from './essen-planung';
+import { anfrageBestaetigen } from './essen-planung';
+import { hashToken, neuesToken } from './essen-zugang';
 import {
   createSammelCampaign,
   ensureSammelOrder,

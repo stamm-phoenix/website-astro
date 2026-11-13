@@ -122,6 +122,7 @@ export interface Database {
   'essen.einstellungen': EssenEinstellungenTable;
   'essen.audit_log': AuditLogTable;
   'essen.kategorie': EssenKategorieTable;
+  'essen.katalog_stand': EssenKatalogStandTable;
   'essen.unvertraeglichkeit': EssenUnvertraeglichkeitTable;
   'essen.zutat': EssenZutatTable;
   'essen.zutat_unvertraeglichkeit': EssenZutatUnvertraeglichkeitTable;
@@ -934,6 +935,12 @@ export interface EssenEinstellungenTable {
   vorlage_mahlzeiten: string;
   updated_at: Generated<Date>;
   updated_by: string;
+}
+
+/** The one row that counts every change of the central lists (`0088`). */
+export interface EssenKatalogStandTable {
+  id: number;
+  seq: ColumnType<string, never, string>;
 }
 
 export interface EssenKategorieTable {

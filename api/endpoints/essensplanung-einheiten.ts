@@ -1,6 +1,6 @@
 import { einheitenUebernehmen } from '../lib/essen-einheiten';
 import { validateEinheiten } from '../lib/essen-einheiten-schema';
-import { ladeAnsicht } from '../lib/essen-planung';
+import { ladeAnsicht } from '../lib/essen-ansicht';
 import {
   METHOD_NOT_ALLOWED,
   ok,

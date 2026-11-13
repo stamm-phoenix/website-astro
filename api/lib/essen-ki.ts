@@ -14,8 +14,8 @@ import {
   leseKiUmrechnung,
 } from './essen-ki-model';
 import { leseKiRezept, rezeptKandidaten } from './essen-ki-rezept';
-import type { Zugang } from './essen-planung';
-import { NUR_LESEN, PlanungError, WARTUNG } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { NUR_LESEN, PlanungError, WARTUNG } from './essen-zugang';
 import { darfBearbeiten } from './essen-planung-model';
 import { loadEssenEinstellungen } from './essen-steuerung';
 

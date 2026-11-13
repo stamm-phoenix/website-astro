@@ -11,7 +11,7 @@ import {
   validateZuteilungAenderung,
 } from '../lib/essen-packliste-validation';
 import { zuteilungAbhaken } from '../lib/essen-packliste-zuteilung';
-import { ladeAnsicht } from '../lib/essen-planung';
+import { ladeAnsicht } from '../lib/essen-ansicht';
 import {
   METHOD_NOT_ALLOWED,
   ok,

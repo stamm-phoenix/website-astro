@@ -1,6 +1,6 @@
 import { einplanungAbhaken } from '../lib/essen-kochen';
 import { validateAbhaken } from '../lib/essen-kochen-validation';
-import { ladeAnsicht } from '../lib/essen-planung';
+import { ladeAnsicht } from '../lib/essen-ansicht';
 import {
   METHOD_NOT_ALLOWED,
   ok,

@@ -14,7 +14,7 @@ import {
   validateBelegAenderung,
 } from '../lib/essen-belege-validation';
 import { KiNichtVerfuegbar } from '../lib/essen-ki';
-import { ladeAnsicht } from '../lib/essen-planung';
+import { ladeAnsicht } from '../lib/essen-ansicht';
 import {
   METHOD_NOT_ALLOWED,
   ok,

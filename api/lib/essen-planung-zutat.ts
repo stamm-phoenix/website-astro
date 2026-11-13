@@ -4,7 +4,8 @@ import type { Database } from './db-schema';
 import { RecordNotFoundError, lockResource } from './db';
 import { MAX_PLANUNG_ZUTATEN, einheitenartVon, zutatSperre } from './essen-gerichte-model';
 import type { GerichtEinheit } from './essen-gerichte-model';
-import type { Zugang } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { katalogGeaendert } from './essen-katalog-stand';
 import type { EssenEinheitenart } from './essen-validation';
 import { ValidationError } from './validation/errors';
 
@@ -127,6 +128,7 @@ async function sonstigesKategorie(trx: Transaction<Database>): Promise<number> {
     .values({ name: SONSTIGES })
     .output('inserted.id')
     .executeTakeFirstOrThrow();
+  await katalogGeaendert(trx);
   return neu.id;
 }
 

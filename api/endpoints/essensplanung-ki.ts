@@ -17,7 +17,7 @@ import { einheitenVorschlagen } from '../lib/essen-ki-einheiten';
 import { gerichtGenerieren } from '../lib/essen-ki-generieren';
 import { KI_MASSE, MAX_GERICHT_BESCHREIBUNG, MAX_REZEPT_TEXT } from '../lib/essen-ki-model';
 import type { KiMass } from '../lib/essen-ki-model';
-import { ladeAnsicht } from '../lib/essen-planung';
+import { ladeAnsicht } from '../lib/essen-ansicht';
 import {
   METHOD_NOT_ALLOWED,
   ok,

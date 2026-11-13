@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
 import type { Db } from './db';
 import { VersionConflictError, getDb, getSqlErrorNumber, requireVersion, toVersion } from './db';
@@ -12,8 +11,8 @@ import type {
 import { MAX_PLANUNG_ZUTATEN } from './essen-gerichte-model';
 import type { PlanungZutatInput } from './essen-gerichte-validation';
 import { validatePlanungZutat } from './essen-gerichte-validation';
-import type { Zugang } from './essen-planung';
-import { aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import { listKategorien, listUnvertraeglichkeiten, listZutaten } from './essen-steuerung';
 import { COLLATOR } from './essen-validation';
 import { ValidationError } from './validation/errors';
@@ -65,27 +64,6 @@ export async function ladeKatalog(db: Db = getDb()): Promise<EssenKatalog> {
       grammProStueck: zutat.grammProStueck,
     })),
   };
-}
-
-/**
- * A short version of the central lists (ingredients, categories, intolerances): newest row
- * version and number of rows of each, so changes and deletions in the Steuerung reach open
- * Planungen with the next poll.
- */
-export async function ladeKatalogStand(db: Db): Promise<string> {
-  const row = await sql<{ stand: string }>`
-    select concat(
-      (select count_big(*) from essen.zutat), '-',
-      (select convert(varchar(18), max(version), 2) from essen.zutat), '-',
-      (select count_big(*) from essen.kategorie), '-',
-      (select convert(varchar(18), max(version), 2) from essen.kategorie), '-',
-      (select count_big(*) from essen.unvertraeglichkeit), '-',
-      (select convert(varchar(18), max(version), 2) from essen.unvertraeglichkeit)
-    ) as stand`.execute(db);
-  return createHash('sha256')
-    .update(row.rows[0]?.stand ?? '')
-    .digest('hex')
-    .slice(0, 12);
 }
 
 /** The ingredients and dishes of a Planung, for its view. */

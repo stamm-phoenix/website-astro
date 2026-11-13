@@ -8,11 +8,13 @@ import {
   seedPreviewEssensplanungGerichte,
   seedPreviewEssensplanungPlanung,
 } from '../lib/db-preview';
-import { loadEssenSteuerung, updateZutat } from '../lib/essen-steuerung';
+import { updateZutat } from '../lib/essen-katalog-pflege';
+import { loadEssenSteuerung } from '../lib/essen-steuerung';
 import type { ZutatInput } from '../lib/essen-validation';
 import type { EssenKatalog } from '../lib/essen-gerichte-model';
 import { gerichtStand, gerichtWarnungen } from '../lib/essen-gerichte-model';
-import { planungLoeschen, ladeZugang } from '../lib/essen-planung';
+import { planungLoeschen } from '../lib/essen-planung';
+import { ladeZugang } from '../lib/essen-zugang';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { dbTest } from './fixtures/database';
 import { anlegen, call, captureMails, context, json } from './fixtures/essensplanung';

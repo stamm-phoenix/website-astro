@@ -10,7 +10,7 @@ import type {
   PlanungZutat,
 } from '../lib/essen-gerichte-model';
 import { KiNichtVerfuegbar, liesRezept, pruefeGericht, schaetzeUmrechnung } from '../lib/essen-ki';
-import { PlanungError } from '../lib/essen-planung';
+import { PlanungError } from '../lib/essen-zugang';
 
 /**
  * The AI of the Essensplanung against a mocked deployment: what is sent (schema, no personal

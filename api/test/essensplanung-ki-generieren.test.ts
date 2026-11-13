@@ -4,7 +4,7 @@ import type { TestContext } from 'node:test';
 import type { EssenKatalog, KatalogZutat, PlanungZutat } from '../lib/essen-gerichte-model';
 import { readKopf } from '../lib/essen-gerichte-validation';
 import { generiereGericht } from '../lib/essen-ki-generieren';
-import { PlanungError } from '../lib/essen-planung';
+import { PlanungError } from '../lib/essen-zugang';
 import { ValidationError } from '../lib/validation/errors';
 
 /**

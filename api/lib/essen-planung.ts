@@ -1,8 +1,5 @@
-import { createHash, randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
-import type { Transaction } from 'kysely';
 import type { Db } from './db';
-import type { Database } from './db-schema';
 import {
   RecordNotFoundError,
   VersionConflictError,
@@ -18,12 +15,8 @@ import type {
   BeitrittInput,
   EinladungInput,
   MahlzeitInput,
-  PlanungAenderung,
-  PlanungAnsicht,
   PlanungEinstellungenInput,
-  PlanungMitglied,
   PlanungRolle,
-  PlanungZugang,
 } from './essen-planung-model';
 import {
   ANFRAGE_GUELTIG_MS,
@@ -32,343 +25,34 @@ import {
   MAX_MAHLZEITEN_PRO_TAG,
   MAX_MITGLIEDER,
   MAX_TAGE,
-  darfBearbeiten,
-  darfMitgliederVerwalten,
-  loeschDatum,
   neuesteVersion,
-  nummeriereTage,
 } from './essen-planung-model';
 import { loadEssenEinstellungen } from './essen-steuerung';
+import { aendere, beginneAenderung, istWartung, protokolliereAenderung } from './essen-aendern';
+import { nummeriereMahlzeiten } from './essen-mahlzeiten-reihenfolge';
+import type { Zugang } from './essen-zugang';
+import {
+  LINK_UNGUELTIG,
+  NICHT_ERLAUBT,
+  PlanungError,
+  WARTUNG,
+  hashToken,
+  isToken,
+  neuesToken,
+} from './essen-zugang';
 import { darfPlanungAnlegen } from './essen-validation';
 import { deletePlanung } from './essen-planung-loeschen';
-import { ladeGerichte, ladeKatalogStand } from './essen-gerichte';
-import { ladeEinplanungen } from './essen-einplanung';
-import { ladeTeilnehmende } from './essen-teilnehmende';
-import { ladeEinkauf } from './essen-einkauf';
-import { ladeEinkaeufe } from './essen-einkaeufe';
-import { ladePackliste } from './essen-packliste';
-import { belegOrdnerAufraeumen, ladeBelege } from './essen-belege';
+import { belegOrdnerAufraeumen } from './essen-belege';
 import { pruefeAnwesenheit, verschiebeGrenzen } from './essen-teilnehmende-grenzen';
-import { leitungLinkVergessen, leitungMitglied } from './essen-leitung';
+import { leitungLinkVergessen } from './essen-leitung';
 import { legePlanungAn } from './essen-planung-anlegen';
 import { ValidationError } from './validation/errors';
 
 /**
- * Planungen of the Essensplanung (`docs/essensplanung.md`): access by link, the view a page
- * shows, and every change. Each change bumps `essen.planung.aenderung_seq` in the same
- * transaction, which also serializes the changes of one Planung, and is logged in
- * `essen.aenderung`; the pages poll the counter.
+ * Planungen of the Essensplanung (`docs/essensplanung.md`): requests, members, links, settings,
+ * days and meals. Access by link is in `essen-zugang.ts`, the view in `essen-ansicht.ts` and the
+ * change protocol (counter and log) in `essen-aendern.ts`.
  */
-
-/** A request the link does not allow, or a rule of the Planung; the endpoint answers with it. */
-export class PlanungError extends Error {
-  constructor(
-    public status: number,
-    public code: string,
-    message: string
-  ) {
-    super(message);
-    this.name = 'PlanungError';
-  }
-}
-
-export const LINK_UNGUELTIG = () =>
-  new PlanungError(
-    404,
-    'LINK_UNGUELTIG',
-    'Dieser Link gilt nicht (mehr). Vielleicht wurde er durch einen neuen ersetzt oder der Zugang entzogen. Neue Links bekommst du auf der Seite „Essensplanung“ unter „Meine Planungen“.'
-  );
-
-export const NUR_LESEN = () =>
-  new PlanungError(403, 'NUR_LESEN', 'Mit diesem Link kannst du die Planung nur ansehen.');
-
-const NICHT_ERLAUBT = () =>
-  new PlanungError(
-    403,
-    'NICHT_ERLAUBT',
-    'Das dürfen nur die Besitzer:innen der Planung (oder, wenn sie es erlauben, alle Bearbeitenden).'
-  );
-
-export const WARTUNG = () =>
-  new PlanungError(
-    503,
-    'MAINTENANCE',
-    'Die Essensplanung wird gerade gewartet. Ansehen geht, Änderungen bitte etwas später noch einmal.'
-  );
-
-/** 32 random bytes, base64url: the secret part of every link. */
-export function neuesToken(): string {
-  return randomBytes(32).toString('base64url');
-}
-
-export function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
-
-/** Whether a string can be a token at all; anything else never reaches the database. */
-export function isToken(value: unknown): value is string {
-  return typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
-}
-
-export interface Zugang {
-  planungId: number;
-  zugang: PlanungZugang;
-  mitgliedId: number | null;
-  name: string;
-}
-
-/**
- * The access a token gives: a member's own link (from a mail or, for Leitende, from the
- * Leitendenbereich), or the shared read-only link.
- */
-export async function ladeZugang(token: unknown, db: Db = getDb()): Promise<Zugang> {
-  if (!isToken(token)) throw LINK_UNGUELTIG();
-  const mitglied = await db
-    .selectFrom('essen.mitglied')
-    .select(['id', 'planung_id', 'rolle', 'name'])
-    .where('token_hash', '=', hashToken(token))
-    .where('entzogen_am', 'is', null)
-    .executeTakeFirst()
-    // The member's token for the Leitendenbereich gives the same access
-    .then((row) => row ?? leitungMitglied(db, token));
-  if (mitglied) {
-    return {
-      planungId: mitglied.planung_id,
-      zugang: mitglied.rolle,
-      mitgliedId: mitglied.id,
-      name: mitglied.name,
-    };
-  }
-  const planung = await db
-    .selectFrom('essen.planung')
-    .select('id')
-    .where('lese_token', '=', token)
-    .executeTakeFirst();
-  if (planung) return { planungId: planung.id, zugang: 'lesen', mitgliedId: null, name: '' };
-  throw LINK_UNGUELTIG();
-}
-
-async function istWartung(db: Db): Promise<boolean> {
-  return (await loadEssenEinstellungen(db)).einstellungen.wartung;
-}
-
-const AENDERUNGEN_ANZEIGEN = 30;
-
-/** The view of a Planung for the given access. */
-export async function ladeAnsicht(zugang: Zugang, db: Db = getDb()): Promise<PlanungAnsicht> {
-  const { seq, stand, stored, katalogStand } = await standUndEinstellungen(zugang, db);
-  const [
-    planung,
-    mitglieder,
-    tage,
-    mahlzeiten,
-    aenderungen,
-    gerichte,
-    einplanungen,
-    teilnehmende,
-    einkauf,
-    einkaeufe,
-    packliste,
-    belege,
-  ] = await Promise.all([
-    db
-      .selectFrom('essen.planung')
-      .selectAll()
-      .where('id', '=', zugang.planungId)
-      .executeTakeFirst(),
-    db
-      .selectFrom('essen.mitglied')
-      .selectAll()
-      .where('planung_id', '=', zugang.planungId)
-      .orderBy('id')
-      .execute(),
-    db.selectFrom('essen.tag').selectAll().where('planung_id', '=', zugang.planungId).execute(),
-    db
-      .selectFrom('essen.mahlzeit as m')
-      .innerJoin('essen.tag as t', 't.id', 'm.tag_id')
-      .select(['m.id', 'm.version', 'm.tag_id', 'm.position', 'm.name'])
-      .where('t.planung_id', '=', zugang.planungId)
-      .execute(),
-    db
-      .selectFrom('essen.aenderung')
-      .selectAll()
-      .where('planung_id', '=', zugang.planungId)
-      .orderBy('seq', 'desc')
-      .top(AENDERUNGEN_ANZEIGEN)
-      .execute(),
-    ladeGerichte(db, zugang.planungId),
-    ladeEinplanungen(db, zugang.planungId),
-    ladeTeilnehmende(db, zugang.planungId),
-    ladeEinkauf(db, zugang.planungId),
-    ladeEinkaeufe(db, zugang.planungId),
-    ladePackliste(db, zugang.planungId),
-    ladeBelege(db, zugang.planungId),
-  ]);
-  if (!planung) throw LINK_UNGUELTIG();
-
-  const verwalten = darfMitgliederVerwalten(zugang.zugang, planung.mitglieder_verwalten);
-  const namen = new Map(mitglieder.map((mitglied) => [mitglied.id, mitglied.name]));
-  const nummerierteTage = nummeriereTage(
-    tage.map((tag) => ({
-      id: tag.id,
-      etag: toVersion(tag.version),
-      datum: toDateString(tag.datum),
-    })),
-    mahlzeiten.map((mahlzeit) => ({
-      id: mahlzeit.id,
-      etag: toVersion(mahlzeit.version),
-      tagId: mahlzeit.tag_id,
-      position: mahlzeit.position,
-      name: mahlzeit.name,
-      einplanungen: einplanungen.get(mahlzeit.id) ?? [],
-      ohneGruppen: teilnehmende.ohneGruppen.get(mahlzeit.id) ?? [],
-    }))
-  );
-  const letzterTag = nummerierteTage.at(-1)?.datum;
-  return {
-    id: planung.id,
-    etag: toVersion(planung.version),
-    name: planung.name,
-    seq,
-    stand,
-    zugang: zugang.zugang,
-    ichId: zugang.mitgliedId,
-    darfVerwalten: verwalten,
-    mitgliederVerwalten: planung.mitglieder_verwalten,
-    links: verwalten ? { beitritt: planung.beitritt_token, lesen: planung.lese_token } : null,
-    tage: nummerierteTage,
-    mitglieder: mitglieder
-      // The read-only link sees no members; removed ones only those who manage
-      .filter((mitglied) => zugang.zugang !== 'lesen' && (verwalten || !mitglied.entzogen_am))
-      .map((mitglied): PlanungMitglied => ({
-        id: mitglied.id,
-        etag: toVersion(mitglied.version),
-        name: mitglied.name,
-        rolle: mitglied.rolle,
-        email: verwalten || mitglied.id === zugang.mitgliedId ? mitglied.email : null,
-        entzogen: mitglied.entzogen_am !== null,
-        ich: mitglied.id === zugang.mitgliedId,
-      })),
-    // Without days the day it was created counts, as in the retention run
-    loeschtAm: loeschDatum(
-      letzterTag ?? planung.erstellt_am.toISOString().slice(0, 10),
-      stored.einstellungen.aufbewahrungMonate
-    ),
-    wartung: stored.einstellungen.wartung,
-    aenderungen: aenderungen.map((row): PlanungAenderung => ({
-      seq: Number(row.seq),
-      at: row.at.toISOString(),
-      wer: row.mitglied_id === null ? '' : (namen.get(row.mitglied_id) ?? ''),
-      aktion: row.aktion,
-      details: JSON.parse(row.details) as Record<string, unknown>,
-    })),
-    katalogStand,
-    zutaten: gerichte.zutaten,
-    gerichte: gerichte.gerichte,
-    gruppen: teilnehmende.gruppen,
-    teilnehmende: teilnehmende.teilnehmende,
-    geschaefte: einkauf.geschaefte,
-    bestand: einkauf.bestand,
-    zusatzbedarf: einkauf.zusatzbedarf,
-    einkaeufe,
-    packliste,
-    belege,
-  };
-}
-
-/** The change counter of a Planung, for the pages that poll it. */
-export async function ladeStand(zugang: Zugang, db: Db = getDb()): Promise<string> {
-  return (await standUndEinstellungen(zugang, db)).stand;
-}
-
-/**
- * The counter of the Planung and the settings of the Steuerung, read before anything else: a
- * change committed later has a higher counter or a new settings version, so the next poll loads
- * the view again instead of keeping a mix of old and new rows.
- */
-async function standUndEinstellungen(zugang: Zugang, db: Db) {
-  const [row, stored, katalogStand] = await Promise.all([
-    db
-      .selectFrom('essen.planung')
-      .select('aenderung_seq')
-      .where('id', '=', zugang.planungId)
-      .executeTakeFirst(),
-    loadEssenEinstellungen(db),
-    ladeKatalogStand(db),
-  ]);
-  if (!row) throw LINK_UNGUELTIG();
-  const seq = Number(row.aenderung_seq);
-  return {
-    seq,
-    stand: `${seq}.${stored.etag.replace(/\W/g, '')}.${katalogStand}`,
-    stored,
-    katalogStand,
-  };
-}
-
-interface AendernOptionen {
-  /** Who may do it: edit (default), manage members, or only owners. */
-  recht?: 'bearbeiten' | 'verwalten' | 'besitzer';
-}
-
-/**
- * Runs a change of a Planung in one transaction: checks the access and the maintenance mode,
- * bumps the change counter (which locks the Planung until the end) and logs the change.
- */
-export async function aendere<T>(
-  zugang: Zugang,
-  aktion: string,
-  /** Gets the access as checked in the transaction, with the member's current role. */
-  work: (
-    trx: Transaction<Database>,
-    aktuell: Zugang
-  ) => Promise<{ result: T; details: Record<string, unknown> }>,
-  { recht = 'bearbeiten' }: AendernOptionen = {}
-): Promise<T> {
-  if (!darfBearbeiten(zugang.zugang)) throw NUR_LESEN();
-  return inTransaction(async (trx) => {
-    if (await istWartung(trx)) throw WARTUNG();
-    const bumped = await trx
-      .updateTable('essen.planung')
-      .set({
-        aenderung_seq: sql<string>`aenderung_seq + 1`,
-        geaendert_am: sql<Date>`SYSUTCDATETIME()`,
-      })
-      .output(['inserted.aenderung_seq', 'inserted.mitglieder_verwalten'])
-      .where('id', '=', zugang.planungId)
-      .executeTakeFirst();
-    if (!bumped) throw LINK_UNGUELTIG();
-    // The member may have lost access or the role since the link was read
-    if (zugang.mitgliedId !== null) {
-      const mitglied = await trx
-        .selectFrom('essen.mitglied')
-        .select(['rolle', 'entzogen_am'])
-        .where('id', '=', zugang.mitgliedId)
-        .executeTakeFirst();
-      if (!mitglied || mitglied.entzogen_am) throw LINK_UNGUELTIG();
-      zugang = { ...zugang, zugang: mitglied.rolle };
-    }
-    if (recht === 'besitzer' && zugang.zugang !== 'besitzer') throw NICHT_ERLAUBT();
-    if (
-      recht === 'verwalten' &&
-      !darfMitgliederVerwalten(zugang.zugang, bumped.mitglieder_verwalten)
-    ) {
-      throw NICHT_ERLAUBT();
-    }
-    const { result, details } = await work(trx, zugang);
-    await trx
-      .insertInto('essen.aenderung')
-      .values({
-        planung_id: zugang.planungId,
-        seq: bumped.aenderung_seq,
-        mitglied_id: zugang.mitgliedId,
-        aktion,
-        details: JSON.stringify(details),
-      })
-      .execute();
-    return result;
-  });
-}
 
 // ---------------------------------------------------------------------------------------------
 // Creating a Planung
@@ -702,17 +386,8 @@ export async function beitreten(beitrittToken: unknown, input: BeitrittInput): P
   const token = neuesToken();
   // A new member joins by itself; the change is logged under its own name
   await inTransaction(async (trx) => {
-    if (await istWartung(trx)) throw WARTUNG();
-    const bumped = await trx
-      .updateTable('essen.planung')
-      .set({
-        aenderung_seq: sql<string>`aenderung_seq + 1`,
-        geaendert_am: sql<Date>`SYSUTCDATETIME()`,
-      })
-      .output(['inserted.aenderung_seq', 'inserted.beitritt_token'])
-      .where('id', '=', planung.id)
-      .executeTakeFirstOrThrow();
-    if (bumped.beitritt_token !== beitrittToken) throw LINK_UNGUELTIG();
+    const bumped = await beginneAenderung(trx, planung.id);
+    if (bumped.beitrittToken !== beitrittToken) throw LINK_UNGUELTIG();
     if ((await zaehleMitglieder(trx, planung.id)) >= MAX_MITGLIEDER) throw ZU_VIELE_MITGLIEDER();
     const mitglied = await trx
       .insertInto('essen.mitglied')
@@ -725,16 +400,9 @@ export async function beitreten(beitrittToken: unknown, input: BeitrittInput): P
       })
       .output('inserted.id')
       .executeTakeFirstOrThrow();
-    await trx
-      .insertInto('essen.aenderung')
-      .values({
-        planung_id: planung.id,
-        seq: bumped.aenderung_seq,
-        mitglied_id: mitglied.id,
-        aktion: 'mitglied-beigetreten',
-        details: JSON.stringify({ name: input.name }),
-      })
-      .execute();
+    await protokolliereAenderung(trx, planung.id, bumped.seq, mitglied.id, 'mitglied-beigetreten', {
+      name: input.name,
+    });
   });
   return token;
 }
@@ -1025,34 +693,6 @@ export async function tagLoeschen(zugang: Zugang, tagId: number, etag: string): 
   });
 }
 
-/** Moves a meal to `position` (1-based) within its day and renumbers the others. */
-async function sortiere(
-  trx: Db,
-  tagId: number,
-  mahlzeitId: number,
-  position: number
-): Promise<void> {
-  const mahlzeiten = await trx
-    .selectFrom('essen.mahlzeit')
-    .select(['id', 'position'])
-    .where('tag_id', '=', tagId)
-    .orderBy('position')
-    .orderBy('id')
-    .execute();
-  const ohne = mahlzeiten.filter((mahlzeit) => mahlzeit.id !== mahlzeitId).map((m) => m.id);
-  ohne.splice(Math.min(Math.max(position - 1, 0), ohne.length), 0, mahlzeitId);
-  for (const [index, id] of ohne.entries()) {
-    const current = mahlzeiten.find((mahlzeit) => mahlzeit.id === id);
-    if (current?.position !== index + 1) {
-      await trx
-        .updateTable('essen.mahlzeit')
-        .set({ position: index + 1 })
-        .where('id', '=', id)
-        .execute();
-    }
-  }
-}
-
 export async function mahlzeitHinzufuegen(
   zugang: Zugang,
   tagId: number,
@@ -1080,7 +720,9 @@ export async function mahlzeitHinzufuegen(
       })
       .output('inserted.id')
       .executeTakeFirstOrThrow();
-    if (position !== undefined) await sortiere(trx, tagId, mahlzeit.id, position);
+    if (position !== undefined) {
+      await nummeriereMahlzeiten(trx, tagId, { id: mahlzeit.id, position });
+    }
     return { result: undefined, details: { name: input.name, datum: toDateString(tag.datum) } };
   });
 }
@@ -1113,7 +755,10 @@ export async function mahlzeitAendern(
       .executeTakeFirst();
     if (Number(result.numUpdatedRows) === 0) throw new VersionConflictError();
     if (input.position !== undefined) {
-      await sortiere(trx, mahlzeit.tag_id, mahlzeitId, input.position);
+      await nummeriereMahlzeiten(trx, mahlzeit.tag_id, {
+        id: mahlzeitId,
+        position: input.position,
+      });
       await pruefeAnwesenheit(trx, zugang.planungId);
     }
     return {
@@ -1153,22 +798,7 @@ export async function mahlzeitLoeschen(
       .executeTakeFirst();
     if (Number(result.numDeletedRows) === 0) throw new VersionConflictError();
     // Close the gap in the order
-    const rest = await trx
-      .selectFrom('essen.mahlzeit')
-      .select(['id', 'position'])
-      .where('tag_id', '=', mahlzeit.tag_id)
-      .orderBy('position')
-      .orderBy('id')
-      .execute();
-    for (const [index, row] of rest.entries()) {
-      if (row.position !== index + 1) {
-        await trx
-          .updateTable('essen.mahlzeit')
-          .set({ position: index + 1 })
-          .where('id', '=', row.id)
-          .execute();
-      }
-    }
+    await nummeriereMahlzeiten(trx, mahlzeit.tag_id);
     return {
       result: undefined,
       details: { name: mahlzeit.name, datum: toDateString(mahlzeit.datum) },

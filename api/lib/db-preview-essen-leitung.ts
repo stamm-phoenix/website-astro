@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { CONFIG } from './config';
 import { getDb } from './db';
-import { hashToken, neuesToken } from './essen-planung';
+import { hashToken, neuesToken } from './essen-zugang';
 
 /**
  * The preview test account becomes a member of the invented „Sommerlager (Test)“ with its token

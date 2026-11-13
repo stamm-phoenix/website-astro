@@ -24,8 +24,9 @@ import {
   loescheVerwaisteBelegFotos,
   speichereBelegFoto,
 } from './essen-beleg-fotos';
-import type { Zugang } from './essen-planung';
-import { NUR_LESEN, aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { NUR_LESEN } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import { darfBearbeiten } from './essen-planung-model';
 import { ValidationError } from './validation/errors';
 

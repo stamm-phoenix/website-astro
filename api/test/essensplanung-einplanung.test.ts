@@ -8,7 +8,8 @@ import {
   seedPreviewEssensplanungPlanung,
 } from '../lib/db-preview';
 import { gerichtStand } from '../lib/essen-gerichte-model';
-import { planungLoeschen, ladeZugang } from '../lib/essen-planung';
+import { planungLoeschen } from '../lib/essen-planung';
+import { ladeZugang } from '../lib/essen-zugang';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { mahlzeitStand, tagStand } from '../lib/essen-planung-model';
 import { dbTest } from './fixtures/database';

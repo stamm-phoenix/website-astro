@@ -2,8 +2,8 @@ import type { Db } from './db';
 import { RecordNotFoundError, VersionConflictError, requireVersion, toVersion } from './db';
 import type { PackPersonen, PackZuteilung } from './essen-packliste-model';
 import { MAX_PACK_PERSONEN, packlisteSchluessel } from './essen-packliste-model';
-import type { Zugang } from './essen-planung';
-import { aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import { ValidationError } from './validation/errors';
 
 /**

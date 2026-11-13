@@ -8,8 +8,8 @@ import type {
 } from './essen-packliste-model';
 import { MAX_PACKLISTE, packlisteSchluessel } from './essen-packliste-model';
 import { allePacken, ladeZuteilungen, personenAendern } from './essen-packliste-zuteilung';
-import type { Zugang } from './essen-planung';
-import { aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import { ValidationError } from './validation/errors';
 
 /**

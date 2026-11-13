@@ -8,8 +8,8 @@ import {
 } from './db';
 import { MAX_GERICHTE, gerichtSperre, gerichtStand } from './essen-gerichte-model';
 import type { GerichtInput } from './essen-gerichte-validation';
-import type { Zugang } from './essen-planung';
-import { aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import { fuegeEinplanungEin, sortiere as sortiereEinplanungen } from './essen-einplanung';
 import type { EinplanungInput } from './essen-planung-model';
 import { eindeutig, zaehle } from './essen-gerichte';

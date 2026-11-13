@@ -1,7 +1,8 @@
 import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { RecordNotFoundError, VersionConflictError } from './db';
-import type { Zugang } from './essen-planung';
-import { PlanungError, ladeAnsicht, ladeZugang } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { PlanungError, ladeZugang } from './essen-zugang';
+import { ladeAnsicht } from './essen-ansicht';
 import { readEtag as parseEtag } from './essen-planung-request';
 import { NO_STORE_HEADERS } from './nikolaus-api';
 import { errorResponse, withErrorHandling } from './response-utils';
