@@ -24,6 +24,11 @@ const initialItems = (): ContentReviewItem[] =>
     campflowOwned: kind === 'aktion',
   }));
 let items = initialItems();
+/** Served by `mockContentReview` instead of the route table of `mockApi.ts`. */
+export const CONTENT_REVIEW_ROUTES = [
+  { methods: ['GET'], path: '/api/intern/pflege/content-review' },
+  { methods: ['POST'], path: '/api/intern/pflege/content-review/:kind/:id' },
+];
 export async function mockContentReview(
   req: IncomingMessage,
   res: ServerResponse,

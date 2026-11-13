@@ -331,6 +331,8 @@ type Handler = (req: MockRequest) => MockResult;
 
 interface Route {
   methods: string[];
+  /** The path as registered, with `:name` segments. */
+  path: string;
   pattern: RegExp;
   keys: string[];
   handler: Handler;
@@ -356,11 +358,17 @@ function route(methods: string | string[], path: string, handler: Handler, insta
   );
   routes.push({
     methods: Array.isArray(methods) ? methods : [methods],
+    path,
     pattern,
     keys,
     handler,
     instant,
   });
+}
+
+/** Method and path of every registered route, for the check against the real API. */
+export function mockRouteTable(): { methods: string[]; path: string }[] {
+  return routes.map(({ methods, path }) => ({ methods, path }));
 }
 
 const json = (body: unknown, status = 200): MockResult => ({ kind: 'json', status, body });
