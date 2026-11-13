@@ -19,7 +19,7 @@ import {
   toVersion,
   requireRowversion,
 } from './db';
-import type { BelegCampflowTable, BelegTable } from './db-schema';
+import type { BelegCampflowTable, BelegTable } from './db-schema-beleg';
 import type { BelegArt, BelegInput, BelegStatus } from './validation/beleg';
 import type { StaffBeleg, BelegCampflow } from './beleg-model';
 export type { StaffBeleg, BelegCampflow } from './beleg-model';

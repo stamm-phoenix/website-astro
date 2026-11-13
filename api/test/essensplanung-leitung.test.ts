@@ -7,7 +7,10 @@ import { EssensplanungLeitende } from '../endpoints/essensplanung-leitende';
 import * as taskDirectory from '../lib/task-directory';
 import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
-import { seedPreviewEssensplanung, seedPreviewEssensplanungPlanung } from '../lib/db-preview';
+import {
+  seedPreviewEssensplanung,
+  seedPreviewEssensplanungPlanung,
+} from '../lib/db-preview-essen-planung';
 import { seedPreviewEssensplanungLeitung } from '../lib/db-preview-essen-leitung';
 import type { LeitungPlanung } from '../lib/essen-leitung-model';
 import { PlanungError, ladeZugang } from '../lib/essen-zugang';

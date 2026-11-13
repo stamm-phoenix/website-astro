@@ -7,7 +7,7 @@ import {
   isZuschussfaehig,
   setZuschussfaehig,
 } from '../lib/aktion-zuschuss';
-import { seedPreviewAktionenOhneZuschuss } from '../lib/db-preview';
+import { seedPreviewAktionenOhneZuschuss } from '../lib/db-preview-aktion-art';
 import { GetInternAktionenEndpoint } from '../endpoints/intern-aktionen';
 import { GetInternAktionEndpoint } from '../endpoints/intern-aktion';
 import { AktionZuschussEndpoint } from '../endpoints/intern-pflege-aktion-zuschuss';

@@ -23,7 +23,7 @@ import {
 } from '../lib/aufgaben';
 import { dbTest } from './fixtures/database';
 import { recordQueries } from './fixtures/queries';
-import { seedPreviewTasks } from '../lib/db-preview';
+import { seedPreviewTasks } from '../lib/db-preview-aufgaben';
 import { ValidationError } from '../lib/validation/errors';
 
 const input = {

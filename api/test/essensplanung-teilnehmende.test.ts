@@ -5,7 +5,7 @@ import { getDb } from '../lib/db';
 import {
   seedPreviewEssensplanungPlanung,
   seedPreviewEssensplanungTeilnehmende,
-} from '../lib/db-preview';
+} from '../lib/db-preview-essen-planung';
 import { planungLoeschen } from '../lib/essen-planung';
 import { ladeZugang } from '../lib/essen-zugang';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';

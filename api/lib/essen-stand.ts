@@ -1,6 +1,6 @@
 import type { Selectable } from 'kysely';
 import type { Db } from './db';
-import type { EssenPlanungTable } from './db-schema';
+import type { EssenPlanungTable } from './db-schema-essen-planung';
 import { getDb, toVersion } from './db';
 import type { Zugang } from './essen-zugang';
 import { LINK_UNGUELTIG } from './essen-zugang';

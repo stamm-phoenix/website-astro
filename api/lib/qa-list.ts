@@ -1,6 +1,6 @@
 import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
-import type { FaqTable } from './db-schema';
+import type { FaqTable } from './db-schema-content';
 import {
   RecordNotFoundError,
   VersionConflictError,

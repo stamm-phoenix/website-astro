@@ -7,7 +7,7 @@ import { CONFIG } from '../lib/config';
 import { getDb } from '../lib/db';
 import { getBelege } from '../lib/beleg-list';
 import { getStaffAktionen } from '../lib/aktionen-list';
-import { seedPreviewBelege, seedPreviewBelegeCampflow } from '../lib/db-preview';
+import { seedPreviewBelege, seedPreviewBelegeCampflow } from '../lib/db-preview-belege';
 import { overrideConfig } from './fixtures/config';
 import * as mail from '../lib/mail';
 import * as taskDirectory from '../lib/task-directory';

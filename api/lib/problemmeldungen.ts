@@ -3,7 +3,7 @@ import { sql } from 'kysely';
 import { CONFIG } from './config';
 import { getDb, inTransaction, lockResource, parseId, toVersion, requireRowversion } from './db';
 import type { Db } from './db';
-import type { ProblemMeldungTable } from './db-schema';
+import type { ProblemMeldungTable } from './db-schema-problem';
 import { PREVIEW_DATABASE } from './deployment';
 import type {
   ProblemLabel,

@@ -1,6 +1,6 @@
 import { completeUpload, listDownloads, newDownloadKey, stageUploadPart } from './downloads';
 import { getDb } from './db';
-import { testPicture } from './db-preview';
+import { testPicture } from './db-preview-blog';
 
 const PREVIEW_ACTOR = 'preview';
 

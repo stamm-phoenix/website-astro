@@ -13,7 +13,7 @@ import {
   requireRowversion,
 } from './db';
 import type { Db } from './db';
-import type { EditorSperreTable } from './db-schema';
+import type { EditorSperreTable } from './db-schema-protokoll';
 import { dateToLocalParts } from './nikolaus-config';
 import type {
   OffeneAufgabeQuelle,

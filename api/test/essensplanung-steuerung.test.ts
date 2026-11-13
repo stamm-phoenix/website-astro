@@ -13,7 +13,7 @@ import {
   EssensplanungSteuerung,
 } from '../endpoints/intern-essensplanung-steuerung';
 import { getDb } from '../lib/db';
-import { seedPreviewEssensplanung } from '../lib/db-preview';
+import { seedPreviewEssensplanung } from '../lib/db-preview-essen-planung';
 import { buildStartdatenSql, buildUmrechnungSql, readCsv } from '../lib/essen-startdaten';
 import type { EssenEinstellungen, EssenSteuerungView, EssenZutat } from '../lib/essen-validation';
 import {

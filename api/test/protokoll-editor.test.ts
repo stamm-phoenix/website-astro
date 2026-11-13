@@ -13,7 +13,7 @@ import {
   GetEditorRevisions,
 } from '../endpoints/intern-protokoll-editor';
 import { aktionZeitraum } from '../lib/protokoll-zeitraum';
-import { seedPreviewProtokollEditor } from '../lib/db-preview';
+import { seedPreviewProtokollEditor } from '../lib/db-preview-protokolle';
 import * as leitendeList from '../lib/leitende-list';
 import { ValidationError } from '../lib/validation/errors';
 import { validateProtokollEditorCreate } from '../lib/validation/protokoll-editor';

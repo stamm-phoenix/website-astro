@@ -2,7 +2,8 @@ import { taskPeople, taskAssigneeLogin } from './aufgaben-zuordnung';
 import { createHash } from 'node:crypto';
 import { insertTasks } from './aufgaben-batch';
 import { sql, type Insertable, type Selectable, type Transaction } from 'kysely';
-import type { Database, TaskTable } from './db-schema';
+import type { Database } from './db-schema';
+import type { TaskTable } from './db-schema-aufgaben';
 import type { Task, TaskInput, TaskProject, TaskTemplate, TemplateItem } from './aufgaben-model';
 import {
   getDb,

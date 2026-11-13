@@ -1,5 +1,6 @@
 import type { Insertable, Transaction } from 'kysely';
-import type { Database, TaskTable } from './db-schema';
+import type { Database } from './db-schema';
+import type { TaskTable } from './db-schema-aufgaben';
 
 /** A task row has about 25 columns; this keeps a statement below the 2100 parameters of SQL Server. */
 const TASKS_PER_STATEMENT = 50;

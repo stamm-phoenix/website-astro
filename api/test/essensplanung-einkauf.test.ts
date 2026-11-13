@@ -8,7 +8,7 @@ import {
   seedPreviewEssensplanung,
   seedPreviewEssensplanungGerichte,
   seedPreviewEssensplanungPlanung,
-} from '../lib/db-preview';
+} from '../lib/db-preview-essen-planung';
 import { ladeZugang } from '../lib/essen-zugang';
 import { planungLoeschen } from '../lib/essen-planung';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';

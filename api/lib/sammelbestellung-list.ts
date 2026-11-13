@@ -19,7 +19,7 @@ import type {
   SammelOrderTable,
   SammelPaymentEventTable,
   SammelPaymentTable,
-} from './db-schema';
+} from './db-schema-sammel';
 import { SAMMEL_STATUS } from './sammelbestellung-model';
 import type {
   SammelAktion,
