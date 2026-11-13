@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
-import { campflowGetAll } from './campflow';
+import { getCampflowMembers } from './campflow';
 import type { CampflowPerson } from './campflow';
 import { getDb, inTransaction, lockResource, parseId } from './db';
 import { InvalidSammelDataError, sammelUrl } from './sammelbestellung-list';
@@ -126,10 +126,7 @@ export async function sammelInvitationStep(
     const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(
       new Date()
     );
-    const addresses = sammelInvitationRecipients(
-      await campflowGetAll<CampflowPerson>('/lists/member/persons'),
-      today
-    );
+    const addresses = sammelInvitationRecipients(await getCampflowMembers(), today);
     const audienceVersion = sammelAudienceVersion(addresses);
     if (action === 'preview')
       return {

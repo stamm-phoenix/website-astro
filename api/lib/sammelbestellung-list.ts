@@ -28,6 +28,8 @@ import type {
   SammelKatalogArtikel,
   SammelStatus,
 } from './sammelbestellung-model';
+import { groupBy, loadOrderRows } from './sammelbestellung-rows';
+import type { OrderFilter } from './sammelbestellung-rows';
 import { validateSammelCatalog, validateSammelItems } from './sammelbestellung-validation';
 import { parseSammelPayment, parseSammelPaymentEvents } from './sammelbestellung-payment-storage';
 import type { SammelPaymentRecord, SammelPaymentEvent } from './sammelbestellung-payment-model';
@@ -320,15 +322,6 @@ function paymentRecord(row: Selectable<SammelPaymentTable>, emails: string[]): S
   });
 }
 
-function groupBy<T extends Record<K, number>, K extends string>(
-  rows: T[],
-  key: K
-): Map<number, T[]> {
-  const groups = new Map<number, T[]>();
-  for (const row of rows) groups.set(row[key], [...(groups.get(row[key]) ?? []), row]);
-  return groups;
-}
-
 /** One campaign by its ID, or the campaign of an order by the order's ID. */
 type CampaignFilter = { id: number } | { orderId: number };
 
@@ -366,7 +359,9 @@ async function loadCampaigns(db: Db, filter?: CampaignFilter): Promise<SammelAkt
   const variantsOf = new Map<string, string[]>();
   for (const row of variantRows) {
     const key = `${row.campaign_id}:${row.item_position}`;
-    variantsOf.set(key, [...(variantsOf.get(key) ?? []), row.variant]);
+    const variantList = variantsOf.get(key);
+    if (variantList) variantList.push(row.variant);
+    else variantsOf.set(key, [row.variant]);
   }
   return rows.map((row) => ({
     id: String(row.id),
@@ -451,82 +446,21 @@ export async function createSammelCampaign(
   }
 }
 
-type OrderFilter = { id: number } | { campaignId: number; email?: string };
-
-/**
- * Reads orders with their articles, payment and history. The statements see no common snapshot,
- * so a write committing in between could pair a new order version with an old payment state.
- * Every change of those rows also writes the order row, so the order versions are read first
- * and checked again at the end; if one changed, the whole read is repeated.
- */
 async function loadOrders(db: Db, filter: OrderFilter): Promise<OrderRow[]> {
-  const ids = (): ReturnType<typeof orderIds> => orderIds(db, filter);
-  for (let attempt = 1; ; attempt++) {
-    const orders = await db
-      .selectFrom('sammel.member_order')
-      .selectAll()
-      .where('id', 'in', ids())
-      .orderBy('id')
-      .execute();
-    if (!orders.length) return [];
-    const [items, payments, emails, events] = await Promise.all([
-      db
-        .selectFrom('sammel.order_item')
-        .selectAll()
-        .where('order_id', 'in', ids())
-        .orderBy('order_id')
-        .orderBy('position')
-        .execute(),
-      db.selectFrom('sammel.payment').selectAll().where('order_id', 'in', ids()).execute(),
-      db
-        .selectFrom('sammel.payment_email')
-        .selectAll()
-        .where('order_id', 'in', ids())
-        .orderBy('order_id')
-        .orderBy('position')
-        .execute(),
-      db
-        .selectFrom('sammel.payment_event')
-        .selectAll()
-        .where('order_id', 'in', ids())
-        .orderBy('order_id')
-        .orderBy('id')
-        .execute(),
-    ]);
-    const current = new Map(
-      (
-        await db
-          .selectFrom('sammel.member_order')
-          .select(['id', 'version'])
-          .where('id', 'in', ids())
-          .execute()
-      ).map((row) => [row.id, toVersion(row.version)])
-    );
-    if (orders.some((row) => current.get(row.id) !== toVersion(row.version))) {
-      if (attempt >= 5) throw new VersionConflictError();
-      continue;
-    }
-    const itemsByOrder = groupBy(items, 'order_id');
-    const paymentByOrder = new Map(payments.map((row) => [row.order_id, row]));
-    const emailsByOrder = groupBy(emails, 'order_id');
-    const eventsByOrder = groupBy(events, 'order_id');
-    return orders.map((row) =>
-      order(
-        row,
-        itemsByOrder.get(row.id) ?? [],
-        paymentByOrder.get(row.id),
-        (emailsByOrder.get(row.id) ?? []).map((entry) => entry.email),
-        eventsByOrder.get(row.id) ?? []
-      )
-    );
-  }
-}
-
-function orderIds(db: Db, filter: OrderFilter) {
-  let query = db.selectFrom('sammel.member_order').select('id');
-  if ('id' in filter) return query.where('id', '=', filter.id);
-  query = query.where('campaign_id', '=', filter.campaignId);
-  return filter.email === undefined ? query : query.where('email', '=', filter.email);
+  const { orders, items, payments, emails, events } = await loadOrderRows(db, filter);
+  const itemsByOrder = groupBy(items, 'order_id');
+  const paymentByOrder = new Map(payments.map((row) => [row.order_id, row]));
+  const emailsByOrder = groupBy(emails, 'order_id');
+  const eventsByOrder = groupBy(events, 'order_id');
+  return orders.map((row) =>
+    order(
+      row,
+      itemsByOrder.get(row.id) ?? [],
+      paymentByOrder.get(row.id),
+      (emailsByOrder.get(row.id) ?? []).map((entry) => entry.email),
+      eventsByOrder.get(row.id) ?? []
+    )
+  );
 }
 
 /** Maps an order with validated items, payment record and audit history. */
