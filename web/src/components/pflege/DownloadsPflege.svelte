@@ -7,6 +7,7 @@
   import LoadState from '../ui/LoadState.svelte';
   import { onMount } from 'svelte';
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
+  import { createActionRunner } from '../../lib/actionRunner.svelte';
   import { confirmAction } from '../../lib/confirm';
   import { makeDownloadPreview } from '../../lib/downloadPreview';
   import { downloadCategories, DEFAULT_DOWNLOAD_CATEGORY } from '../../lib/downloadsFilter';
@@ -36,11 +37,9 @@
 
   let uploads = $state<Upload[]>([]);
   let dragging = $state(false);
-  let message = $state<string | null>(null);
-  let messageKind = $state<'success' | 'error'>('success');
   let renaming = $state<{ file: StaffDownload; name: string; category: string } | null>(null);
   let renameError = $state<string | null>(null);
-  let busy = $state(false);
+  const actions = createActionRunner();
 
   const files = $derived(
     [...(store.data ?? [])].sort((a, b) => b.lastModifiedAt.localeCompare(a.lastModifiedAt))
@@ -100,8 +99,7 @@
       }
       entry.status = 'done';
       entry.progress = 100;
-      message = replace ? `${entry.file.name} ersetzt.` : `${entry.file.name} hochgeladen.`;
-      messageKind = 'success';
+      actions.show(replace ? `${entry.file.name} ersetzt.` : `${entry.file.name} hochgeladen.`);
       await downloadsPflege.load({ force: true });
     } catch (error: unknown) {
       if (error instanceof ApiError && error.code === 'EXISTS') {
@@ -151,32 +149,30 @@
       renaming = null;
       return;
     }
-    busy = true;
     renameError = null;
-    try {
-      await sendApi('PATCH', `/intern/pflege/downloads/${encodeURIComponent(renaming.file.id)}`, {
-        ...(nameNew ? { fileName: name } : {}),
-        category,
-        etag: renaming.file.etag,
-      });
-      message = nameNew ? `Umbenannt in ${name}.` : `Thema von ${name} geändert.`;
-      messageKind = 'success';
-      renaming = null;
-      await downloadsPflege.load({ force: true });
-    } catch (error: unknown) {
-      if (error instanceof ApiError && error.code === 'CONFLICT') {
-        await refreshRenaming();
-        renameError =
-          'Jemand anderes hat die Datei inzwischen geändert, deine Änderung wurde nicht gespeichert. Deine Eingabe ist noch da. Tippe noch einmal auf „Speichern“.';
-        return;
+    const target = renaming.file;
+    await actions.run(
+      async () => {
+        await sendApi('PATCH', `/intern/pflege/downloads/${encodeURIComponent(target.id)}`, {
+          ...(nameNew ? { fileName: name } : {}),
+          category,
+          etag: target.etag,
+        });
+        renaming = null;
+      },
+      {
+        fallback:
+          'Die Änderung wurde nicht gespeichert. Deine Eingabe ist noch da. Tippe noch einmal auf „Speichern“.',
+        success: nameNew ? `Umbenannt in ${name}.` : `Thema von ${name} geändert.`,
+        reload: downloadsPflege,
+        failure: async (error) => {
+          if (!(error instanceof ApiError && error.code === 'CONFLICT')) return null;
+          await refreshRenaming();
+          return 'Jemand anderes hat die Datei inzwischen geändert, deine Änderung wurde nicht gespeichert. Deine Eingabe ist noch da. Tippe noch einmal auf „Speichern“.';
+        },
+        fail: (text) => (renameError = text),
       }
-      renameError = errorMessage(
-        error,
-        'Die Änderung wurde nicht gespeichert. Deine Eingabe ist noch da. Tippe noch einmal auf „Speichern“.'
-      );
-    } finally {
-      busy = false;
-    }
+    );
   }
 
   /**
@@ -193,33 +189,22 @@
   }
 
   async function remove(file: StaffDownload): Promise<void> {
-    busy = true;
-    try {
-      await sendApi(
-        'DELETE',
-        `/intern/pflege/downloads/${encodeURIComponent(file.id)}`,
-        undefined,
-        {
+    await actions.run(
+      () =>
+        sendApi('DELETE', `/intern/pflege/downloads/${encodeURIComponent(file.id)}`, undefined, {
           etag: file.etag,
-        }
-      );
-      message = `${file.fileName} gelöscht.`;
-      messageKind = 'success';
-      await downloadsPflege.load({ force: true });
-    } catch (error: unknown) {
-      messageKind = 'error';
-      if (error instanceof ApiError && error.code === 'CONFLICT') {
-        message = `Jemand anderes hat „${file.fileName}“ inzwischen geändert, sie wurde nicht gelöscht. Die Liste zeigt jetzt den neuen Stand. Prüfe die Datei und tippe noch einmal auf „Löschen“.`;
-        await downloadsPflege.load({ force: true });
-        return;
+        }),
+      {
+        fallback: `Die Datei „${file.fileName}“ wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.`,
+        success: `${file.fileName} gelöscht.`,
+        reload: downloadsPflege,
+        failure: async (error) => {
+          if (!(error instanceof ApiError && error.code === 'CONFLICT')) return null;
+          await downloadsPflege.load({ force: true });
+          return `Jemand anderes hat „${file.fileName}“ inzwischen geändert, sie wurde nicht gelöscht. Die Liste zeigt jetzt den neuen Stand. Prüfe die Datei und tippe noch einmal auf „Löschen“.`;
+        },
       }
-      message = errorMessage(
-        error,
-        `Die Datei „${file.fileName}“ wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.`
-      );
-    } finally {
-      busy = false;
-    }
+    );
   }
 </script>
 
@@ -305,7 +290,7 @@
   </section>
 
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <StatusNotice {message} kind={messageKind} class="min-w-0 flex-1" popup />
+    <StatusNotice message={actions.message} kind={actions.kind} class="min-w-0 flex-1" popup />
     <ReloadButton resource={downloadsPflege} />
   </div>
 
@@ -362,7 +347,7 @@
             <ActionButton
               variant="danger"
               type="button"
-              disabled={busy}
+              disabled={actions.busy}
               onclick={async () => {
                 if (
                   await confirmAction({
@@ -385,11 +370,11 @@
 <EditDialog
   open={renaming !== null}
   title="Datei bearbeiten"
-  {busy}
+  busy={actions.busy}
   error={renameError}
   onsubmit={saveRename}
   onclose={() => {
-    if (!busy) renaming = null;
+    if (!actions.busy) renaming = null;
   }}
 >
   {#if renaming}

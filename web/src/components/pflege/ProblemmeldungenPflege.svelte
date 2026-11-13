@@ -9,6 +9,7 @@
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { onMount } from 'svelte';
   import { ApiError, sendApi } from '../../lib/api';
+  import { createActionRunner } from '../../lib/actionRunner.svelte';
   import { confirmAction } from '../../lib/confirm';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { formatDateTime } from '../../lib/format';
@@ -21,7 +22,11 @@
     PROBLEM_MAX_LENGTH,
   } from '../../lib/problemMelden';
   import type { ProblemLabel, StaffProblemMeldung } from '../../lib/problemMelden';
-  import type { StatusTone } from '../../lib/status';
+  import {
+    assessment,
+    assessmentFailure,
+    PROBLEM_STATUS as STATUS,
+  } from '../../lib/problemAnzeige';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import StatusNotice from './StatusNotice.svelte';
@@ -37,6 +42,7 @@
   const TECHNIK = 'admin@stamm-phoenix.de';
   const store = problemmeldungenPflege.state;
   const dialog = createDialogForm();
+  const actions = createActionRunner();
   const busy = $derived(dialog.state.busy);
 
   let view = $state<View>('offen');
@@ -44,7 +50,6 @@
   let draft = $state<Draft>({ title: '', body: '', label: 'bug' });
   /** The draft as it was loaded into the fields: what the leader started from. */
   let baseDraft = $state<Draft | null>(null);
-  let message = $state<string | null>(null);
   let discarding = $state(false);
   let discardReason = $state('');
   let sending = $state(false);
@@ -78,39 +83,6 @@
   onMount(() => {
     void problemmeldungenPflege.load({ force: true });
   });
-
-  const STATUS: Record<StaffProblemMeldung['status'], { label: string; tone: StatusTone }> = {
-    neu: { label: 'Neu', tone: 'warning' },
-    in_pruefung: { label: 'In Prüfung', tone: 'neutral' },
-    verworfen: { label: 'Verworfen', tone: 'neutral' },
-    uebermittelt: { label: 'An GitHub gesendet', tone: 'success' },
-  };
-
-  /** The automatic assessment as a short label, or `null` while there is none. */
-  function assessment(item: StaffProblemMeldung): { label: string; tone: StatusTone } | null {
-    const { status, verdict } = item.ai;
-    if (status === 'fertig' && verdict === 'plausibel')
-      return { label: 'Einschätzung: plausibel', tone: 'success' };
-    if (status === 'fertig' && verdict === 'unklar')
-      return { label: 'Einschätzung: unklar', tone: 'warning' };
-    if (status === 'fertig' && verdict === 'spam')
-      return { label: 'Einschätzung: Spam', tone: 'danger' };
-    if (status === 'fehler') return { label: 'Einschätzung fehlgeschlagen', tone: 'danger' };
-    if (status === 'nicht_eingerichtet')
-      return { label: 'Keine Einschätzung eingerichtet', tone: 'neutral' };
-    return { label: 'Einschätzung ausstehend', tone: 'neutral' };
-  }
-
-  /** What went wrong with the assessment, in words; the stored text is a technical one. */
-  function assessmentFailure(error: string): string {
-    if (/timed out/i.test(error)) return 'Die Antwort kam nicht rechtzeitig';
-    if (/unreachable/i.test(error)) return 'Der Dienst war nicht erreichbar';
-    if (/Tageslimit/i.test(error)) return 'Das Tageslimit für Einschätzungen ist erreicht';
-    const status = /\b(\d{3})\b/.exec(error)?.[1];
-    if (status === '429') return 'Gerade sind zu viele Anfragen unterwegs';
-    if (status) return `Der Dienst antwortete mit Fehler ${status}`;
-    return 'Die Antwort war nicht brauchbar';
-  }
 
   function title(item: StaffProblemMeldung): string {
     const text = item.draft.title || item.description;
@@ -152,7 +124,7 @@
       const fresh = store.data?.items.find((item) => item.id === id);
       if (!fresh) {
         selectedId = null;
-        message = 'Die Meldung gibt es nicht mehr.';
+        actions.show('Die Meldung gibt es nicht mehr.');
         return false;
       }
       fillDraft(fresh);
@@ -185,7 +157,7 @@
     const { id, etag } = selected;
     const saved = await dialog.run(async () => {
       await sendApi('PATCH', `/intern/pflege/problemmeldungen/${id}`, { ...draft, etag });
-      if (announce) message = 'Entwurf gespeichert.';
+      if (announce) actions.show('Entwurf gespeichert.');
       await reload();
       const fresh = store.data?.items.find((item) => item.id === id);
       // A failed reload leaves the old data: it must not replace what was just saved
@@ -213,7 +185,7 @@
       const fresh = await refresh(id);
       // The assessment only fills a draft nobody started
       if (fresh && !typed) fillDraft(fresh);
-      if (fresh?.ai.status === 'fertig') message = 'Einschätzung erstellt.';
+      if (fresh?.ai.status === 'fertig') actions.show('Einschätzung erstellt.');
       else
         dialog.fail(
           new Error('Einschätzung fehlgeschlagen'),
@@ -225,17 +197,23 @@
   async function discard(): Promise<void> {
     if (!selected || busy || selected.github.pending) return;
     const { id, etag } = selected;
-    const ok = await dialog.run(async () => {
-      await sendApi('POST', `/intern/pflege/problemmeldungen/${id}/verwerfen`, {
-        reason: discardReason,
-        etag,
-      });
-      message = 'Meldung verworfen.';
-      discardReason = '';
-      discarding = false;
-      selectedId = null;
-      await reload();
-    }, 'Die Meldung wurde nicht verworfen. Tippe noch einmal auf „Verwerfen“.');
+    const { ok } = await actions.run(
+      async () => {
+        await sendApi('POST', `/intern/pflege/problemmeldungen/${id}/verwerfen`, {
+          reason: discardReason,
+          etag,
+        });
+        discardReason = '';
+        discarding = false;
+        selectedId = null;
+      },
+      {
+        form: dialog,
+        fallback: 'Die Meldung wurde nicht verworfen. Tippe noch einmal auf „Verwerfen“.',
+        success: 'Meldung verworfen.',
+        reload: problemmeldungenPflege,
+      }
+    );
     if (!ok) {
       discarding = false;
       // The request may have changed the version; the retry needs the current one
@@ -279,19 +257,28 @@
   async function sendToGithub(): Promise<void> {
     if (!selected || busy) return;
     const { id, etag } = selected;
-    const ok = await dialog.run(async () => {
-      const result = await sendApi<{ found: boolean }>(
-        'POST',
-        `/intern/pflege/problemmeldungen/${id}/github`,
-        { etag }
-      );
-      message = result.found
-        ? 'Der Eintrag war schon auf GitHub. Die Meldung ist jetzt als gesendet markiert.'
-        : 'An GitHub gesendet.';
-      sending = false;
-      selectedId = null;
-      await reload();
-    }, 'Die Meldung wurde nicht an GitHub gesendet. Meldung und Entwurf sind unverändert. Tippe später noch einmal auf „An GitHub senden“.');
+    const { ok } = await actions.run(
+      async () => {
+        const result = await sendApi<{ found: boolean }>(
+          'POST',
+          `/intern/pflege/problemmeldungen/${id}/github`,
+          { etag }
+        );
+        sending = false;
+        selectedId = null;
+        return result;
+      },
+      {
+        form: dialog,
+        fallback:
+          'Die Meldung wurde nicht an GitHub gesendet. Meldung und Entwurf sind unverändert. Tippe später noch einmal auf „An GitHub senden“.',
+        success: (result) =>
+          result.found
+            ? 'Der Eintrag war schon auf GitHub. Die Meldung ist jetzt als gesendet markiert.'
+            : 'An GitHub gesendet.',
+        reload: problemmeldungenPflege,
+      }
+    );
     if (!ok) {
       sending = false;
       // Reserving the hand-over changes the version; the retry needs the current one
@@ -373,7 +360,7 @@
     >
   </div>
 
-  <StatusNotice {message} popup />
+  <StatusNotice message={actions.message} kind={actions.kind} popup />
 
   <LoadState
     data={store.data}

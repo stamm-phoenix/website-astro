@@ -1,13 +1,14 @@
 <script lang="ts">
   import LeitendeNameField from './LeitendeNameField.svelte';
   import LeaderAvatar from '../LeaderAvatar.svelte';
-  import { canvasToJpeg } from '../../lib/image';
+  import { toSquareJpeg } from '../../lib/image';
   import ReloadButton from './ReloadButton.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import { onMount } from 'svelte';
   import { sendApi } from '../../lib/api';
+  import { createActionRunner } from '../../lib/actionRunner.svelte';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import { leitendePflege } from '../../lib/pflegeStore.svelte';
   import type { StaffLeitende } from '../../../../api/lib/leitende-model';
@@ -32,7 +33,6 @@
   const ALL = 'alle';
   /** Phone and address are only used (and kept) for members of this team. */
   const VORSTAND = 'Vorstand';
-  const PHOTO_SIZE = 600;
   const store = leitendePflege.state;
 
   let filter = $state(ALL);
@@ -42,13 +42,13 @@
   let search = $state('');
   let form = $state<Form | null>(null);
   const dialog = createDialogForm();
+  const actions = createActionRunner();
   const errors = $derived(dialog.state.fields);
   const busy = $derived(dialog.state.busy);
   let photoBusy = $state(false);
   let dialogNotice = $state<string | null>(null);
   let photoInput = $state<HTMLInputElement | null>(null);
   let editDialog = $state<EditDialog | null>(null);
-  let message = $state<string | null>(null);
   /** Changes after a photo upload so the browser loads the new image. */
   let photoVersion = $state(Date.now());
   /** Whether the person had contact details when the dialog was opened. */
@@ -100,7 +100,7 @@
     const fresh = store.data?.items.find((p) => p.id === id);
     if (!fresh) {
       form = null;
-      message = 'Die Person wurde inzwischen gelöscht.';
+      actions.show('Die Person wurde inzwischen gelöscht.');
       return false;
     }
     edit(fresh);
@@ -144,7 +144,7 @@
     await dialog.run(async () => {
       if (id) {
         await sendApi('PATCH', `/intern/pflege/leitende/${id}`, body);
-        message = `${name} gespeichert.`;
+        actions.show(`${name} gespeichert.`);
         form = null;
         await leitendePflege.load({ force: true });
       } else {
@@ -157,7 +157,7 @@
           edit(person);
           dialogNotice = text;
         } else {
-          message = text;
+          actions.show(text);
           form = null;
         }
       }
@@ -168,39 +168,20 @@
     // Never delete while a photo is being uploaded or removed
     const current = form;
     if (!current?.id || photoBusy) return;
-    await dialog.run(async () => {
-      await sendApi('DELETE', `/intern/pflege/leitende/${current.id}`, undefined, {
-        etag: current.etag,
-      });
-      message = `${current.name} gelöscht.`;
-      form = null;
-      await leitendePflege.load({ force: true });
-    }, 'Die Person wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
-  }
-
-  /** Crops the image to a centered square and scales it to a JPEG of PHOTO_SIZE px. */
-  async function toSquareJpeg(file: File): Promise<Blob> {
-    const bitmap = await createImageBitmap(file);
-    const side = Math.min(bitmap.width, bitmap.height);
-    const size = Math.min(PHOTO_SIZE, side);
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Canvas not available');
-    context.drawImage(
-      bitmap,
-      (bitmap.width - side) / 2,
-      (bitmap.height - side) / 2,
-      side,
-      side,
-      0,
-      0,
-      size,
-      size
+    await actions.run(
+      async () => {
+        await sendApi('DELETE', `/intern/pflege/leitende/${current.id}`, undefined, {
+          etag: current.etag,
+        });
+        form = null;
+      },
+      {
+        form: dialog,
+        fallback: 'Die Person wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.',
+        success: `${current.name} gelöscht.`,
+        reload: leitendePflege,
+      }
     );
-    bitmap.close();
-    return canvasToJpeg(canvas);
   }
 
   async function uploadPhoto(event: Event): Promise<void> {
@@ -315,7 +296,7 @@
     />
   </form>
 
-  <StatusNotice {message} popup />
+  <StatusNotice message={actions.message} kind={actions.kind} popup />
 
   <LoadState
     data={store.data}
