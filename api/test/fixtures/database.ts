@@ -6,6 +6,7 @@ import { sql } from 'kysely';
 import { createDatabase, getDb, useDatabase } from '../../lib/db';
 import type { DatabaseTarget } from '../../lib/db';
 import { migrate, readMigrations } from '../../lib/db-migrations';
+import { invalidateNikolausSettingsCache } from '../../lib/nikolaus-settings-cache';
 
 /**
  * Tests that use the database run against a real SQL Server, e.g. the container
@@ -157,6 +158,7 @@ export async function resetDatabase(): Promise<void> {
       ('2026-12-05', '17:00', '21:00', 2),
       ('2026-12-06', '17:00', '21:00', 3);
   `.execute(getDb());
+  invalidateNikolausSettingsCache();
 }
 
 /** A test that needs the database; it starts with empty tables. */

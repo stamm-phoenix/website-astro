@@ -18,12 +18,14 @@ import {
   getNikolausSlots,
   getNikolausTeams,
 } from './nikolaus-config';
+import { invalidateNikolausSettingsCache } from './nikolaus-settings-cache';
 import { NikolausStateConflictError } from './nikolaus-state';
 
 /**
  * The settings of the Nikolausdienst (module „Steuerung“ in the Leitendenbereich): days and
  * times, switches and the service area. They live in `nikolaus.settings` and `nikolaus.day`
- * and are read on every request, so a change takes effect at once.
+ * and are read fresh by writes and the booking flow; the checks of staff reads reuse them for a
+ * few seconds (`nikolaus-settings-cache.ts`), and saving drops that memory at once.
  */
 
 /** Taken by every write that changes how many bookings a slot holds. */
@@ -248,6 +250,20 @@ export async function saveNikolausSettings(
   etag: string,
   actor: string,
   now: Date = new Date()
+): Promise<SaveSettingsResult> {
+  try {
+    return await saveInTransaction(next, etag, actor, now);
+  } finally {
+    // After the commit, so the next read of the staff gate loads the saved settings at once
+    invalidateNikolausSettingsCache();
+  }
+}
+
+async function saveInTransaction(
+  next: NikolausSettings,
+  etag: string,
+  actor: string,
+  now: Date
 ): Promise<SaveSettingsResult> {
   const version = requireVersion(etag);
   return inTransaction(async (trx) => {

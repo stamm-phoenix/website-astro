@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import type { ExpressionBuilder, Selectable, Updateable } from 'kysely';
 import type { BookingTable, Database, GeoResult } from './db-schema';
 import {
@@ -22,6 +22,7 @@ import {
   slotKeyToDate,
 } from './nikolaus-config';
 import { CAPACITY_LOCK, EXPIRY_GRACE_MS, loadNikolausDays } from './nikolaus-settings';
+import { hashToken, sameTokenHash } from './nikolaus-token';
 import type { NikolausBookingDetails } from './nikolaus-validation';
 import type { GeocodeResult } from './geocoding';
 import { geocodeAddress } from './geocoding';
@@ -278,18 +279,6 @@ export function isBeforeChangeDeadline(
   return getChangeDeadline(booking.slotKey, config).getTime() > now.getTime();
 }
 
-export function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
-
-/** Constant-time comparison of a plain token against the stored hash. */
-export function verifyToken(booking: NikolausBooking, token: string): boolean {
-  if (!booking.tokenHash || !token) return false;
-  const expected = Buffer.from(booking.tokenHash, 'hex');
-  const actual = Buffer.from(hashToken(token), 'hex');
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
-}
-
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -335,7 +324,9 @@ export async function findBookingByToken(
   loadBookings?: () => Promise<NikolausBooking[]>
 ): Promise<NikolausBooking | undefined> {
   if (loadBookings) {
-    return (await loadBookings()).find((booking) => verifyToken(booking, token));
+    // Hash once instead of once per booking
+    const tokenHash = token ? hashToken(token) : '';
+    return (await loadBookings()).find((booking) => sameTokenHash(booking.tokenHash, tokenHash));
   }
   const row = await getDb()
     .selectFrom('nikolaus.booking')

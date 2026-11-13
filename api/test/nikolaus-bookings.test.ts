@@ -17,7 +17,6 @@ import {
   findBookingByToken,
   getBooking,
   getSlotAvailability,
-  hashToken,
   isBlocking,
   rescheduleBooking,
   restorePreviousToken,
@@ -26,6 +25,7 @@ import {
   updateBookingDetails,
 } from '../lib/nikolaus-bookings';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
+import { hashToken } from '../lib/nikolaus-token';
 import { getDispoRows } from '../lib/nikolaus-dispo-list';
 import { canChangeBooking, getPublicStatus } from '../lib/nikolaus-api';
 import { getChangeDeadline, getNikolausSlots, localDateTimeToDate } from '../lib/nikolaus-config';

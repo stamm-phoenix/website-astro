@@ -4,7 +4,8 @@ import type { BookingTable } from '../../lib/db-schema';
 import { getDb } from '../../lib/db';
 import { createHelper } from '../../lib/nikolaus-helfende-list';
 import type { NikolausBooking } from '../../lib/nikolaus-bookings';
-import { getBooking, hashToken, slotColumns } from '../../lib/nikolaus-bookings';
+import { getBooking, slotColumns } from '../../lib/nikolaus-bookings';
+import { hashToken } from '../../lib/nikolaus-token';
 import type { HelperInput } from '../../lib/validation/nikolaus-helfende';
 
 export const FAMILY = {

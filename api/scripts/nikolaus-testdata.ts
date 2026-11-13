@@ -37,10 +37,10 @@ import {
   deleteBooking,
   detailColumns,
   getAllBookings,
-  hashToken,
   isBlocking,
   slotColumns,
 } from '../lib/nikolaus-bookings';
+import { hashToken } from '../lib/nikolaus-token';
 import { getNikolausSlots } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
 import type { HelperRole } from '../lib/nikolaus-einteilung';
