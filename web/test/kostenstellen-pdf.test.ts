@@ -5,7 +5,7 @@ import type {
   KategorieStatistik,
   KostenstelleStatistik,
   KostenstellenSummen,
-} from '../src/lib/types';
+} from '../../api/lib/kostenstellen';
 
 /** The report with plain spaces, as Intl puts a no-break space before the €. */
 function plain<T>(value: T): T {

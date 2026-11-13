@@ -1,4 +1,4 @@
-import type { BlogPostSummary } from './types';
+import type { BlogPostSummary } from './types/oeffentlich';
 import { createResource } from './resource.svelte';
 import { loadStateOf } from './storeView';
 

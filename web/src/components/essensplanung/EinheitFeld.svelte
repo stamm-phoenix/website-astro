@@ -3,7 +3,8 @@
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import { einheitText, normalisiereEinheit } from '../../../../api/lib/essen-gerichte-model';
   import { einheitenVorschlaege } from '../../lib/essensplanungEinheiten';
-  import type { EssenEinheitenart, GerichtEinheit } from '../../lib/types';
+  import type { EssenEinheitenart } from '../../../../api/lib/essen-schema';
+  import type { GerichtEinheit } from '../../../../api/lib/essen-gerichte-model';
 
   /**
    * The unit of an amount: a field with suggestions (the ingredient's units first, then all

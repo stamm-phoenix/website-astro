@@ -1,5 +1,5 @@
 import { fetchApi } from './api';
-import type { StaffBlogPost } from './types';
+import type { StaffBlogPost } from './blogTypes';
 
 /**
  * The post the editor page opens, requested by a small script of the page before the editor's

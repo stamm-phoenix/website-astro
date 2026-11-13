@@ -77,7 +77,7 @@
     ProtokollRevision,
     ProtokollSaveResponse,
     ProtokollSperre,
-  } from '../../lib/types';
+  } from '../../../../api/lib/protokoll-editor-model';
 
   /** Quiet time after the last keystroke before saving, and the longest wait while typing. */
   const SAVE_DELAY_MS = 1000;

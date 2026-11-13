@@ -1,6 +1,7 @@
 import { ApiError, errorMessage, fetchApi } from './api';
 import { createResource } from './resource.svelte';
-import type { Task, TasksOverview, StaffProtokolleData } from './types';
+import type { Task, TasksOverview } from '../../../api/lib/aufgaben-model';
+import type { StaffProtokolleData } from './types/protokolle';
 import type { TaskUser } from '../../../api/lib/aufgaben-model';
 import { etagNewer } from '../../../api/lib/etag-version';
 

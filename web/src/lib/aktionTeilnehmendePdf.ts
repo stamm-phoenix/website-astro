@@ -6,7 +6,7 @@ import { pdfFileName } from './pdfBasis';
 import { downloadReportPdf } from './pdfTabelle';
 import type { PdfReport } from './pdfTabelle';
 import { pdfText } from './pdfText';
-import type { CampflowPerson } from './types';
+import type { CampflowPerson } from '../../../api/lib/campflow';
 
 export interface TeilnehmendePdf {
   title: string;

@@ -1,5 +1,6 @@
 /** Protokolle: the list, files, preview, Termin and sending. */
-import type { ProtokollTermin, StaffProtokoll } from '../src/lib/types';
+import type { ProtokollTermin } from '../../api/lib/protokoll-termin';
+import type { StaffProtokoll } from '../../api/lib/protokolle';
 import { mockMitEigenerAdresse } from './mock-data/personen';
 import { minimalPdf } from './mock-data/content';
 import { MOCK_VERSAND_LIST, mockVersandCount } from './mock-data/protokollEditor';

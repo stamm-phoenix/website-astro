@@ -16,7 +16,7 @@ import type {
   RechnungsTeilnehmende,
   ZeileFuer,
 } from '../src/lib/essensplanungRechnung.ts';
-import type { Ernaehrung } from '../src/lib/types.ts';
+import type { Ernaehrung } from '../../api/lib/essen-teilnehmende-model.ts';
 
 // ---------------------------------------------------------------------------------------------
 // The Bezirkslager 2026 from the sheet (test/fixtures/essensplanung-bezirkslager/README.md)

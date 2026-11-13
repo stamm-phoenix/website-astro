@@ -10,7 +10,7 @@
     type InstagramConsentRequest,
   } from '../lib/instagramStore.svelte';
   import type { NewsItem } from '../lib/newsFeed';
-  import type { BlogPost } from '../lib/types';
+  import type { BlogPost } from '../lib/types/oeffentlich';
   import { bakedUrl } from '../lib/bakedImages';
 
   interface Props {

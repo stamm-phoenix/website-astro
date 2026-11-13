@@ -1,6 +1,6 @@
 <script lang="ts">
   import StatusLabel from '../ui/StatusLabel.svelte';
-  import type { BelegStatus } from '../../lib/types';
+  import type { BelegStatus } from '../../../../api/lib/validation/beleg';
   interface Props {
     status: BelegStatus;
   }

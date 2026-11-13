@@ -6,7 +6,8 @@
   import { GROUP_EMOJIS, GROUP_LABELS, stufeToFilterKeys, type GroupKey } from '../lib/events';
   import { localDate } from '../lib/dateUtils';
   import { berlinDay, formatDay } from '../lib/format';
-  import type { Aktion, CalendarItem } from '../lib/types';
+  import type { Aktion } from '../lib/types/oeffentlich';
+  import type { CalendarItem } from '../lib/types/aktionen';
   import { withBaked } from '../lib/storeView';
   import MonthGrid from './MonthGrid.svelte';
 

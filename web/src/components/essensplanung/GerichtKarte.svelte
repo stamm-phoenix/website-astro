@@ -16,7 +16,11 @@
     gerichtStand,
     gerichtWarnungen,
   } from '../../../../api/lib/essen-gerichte-model';
-  import type { EssenKatalog, Gericht, GerichtLink } from '../../lib/types';
+  import type {
+    EssenKatalog,
+    Gericht,
+    GerichtLink,
+  } from '../../../../api/lib/essen-gerichte-model';
   import GerichtPlaetze from './GerichtPlaetze.svelte';
   import { angefangen, leereZeile } from './NeueZutatZeile.svelte';
   import GerichtZutatenListe from './GerichtZutatenListe.svelte';

@@ -1,7 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import RezeptImportDialog from './RezeptImportDialog.svelte';
-  import type { EssenKatalog, Gericht } from '../../lib/types';
+  import type { EssenKatalog, Gericht } from '../../../../api/lib/essen-gerichte-model';
   import type { PlanKontext } from './planKontext';
 
   /**

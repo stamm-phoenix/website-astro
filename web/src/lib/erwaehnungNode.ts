@@ -10,7 +10,7 @@ import type { EditorView } from '@tiptap/pm/view';
 import { ERWAEHNUNG_SCHEMA } from '../../../api/lib/protokoll-markdown';
 import { erwaehnungMarkdown, erwaehnungSuche } from './protokollErwaehnung';
 import type { ErwaehnungSuche } from './protokollErwaehnung';
-import type { PersonOption } from './types';
+import type { PersonOption } from '../../../api/lib/protokoll-editor-model';
 
 /** `[@Name](person:login)`; the name may hold escaped characters. */
 const MARKDOWN = new RegExp(

@@ -8,7 +8,7 @@ import {
   loadTasks,
   taskProblem,
 } from './aufgabenStore.svelte';
-import type { Task } from './types';
+import type { Task } from '../../../api/lib/aufgaben-model';
 interface TaskActionState {
   busy: boolean;
   error: string | null;

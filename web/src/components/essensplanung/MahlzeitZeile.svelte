@@ -4,7 +4,7 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type { Auftrag } from '../../lib/essensplanungEinplanung';
   import { mahlzeitStand } from '../../../../api/lib/essen-planung-model';
-  import type { PlanungMahlzeit } from '../../lib/types';
+  import type { PlanungMahlzeit } from '../../../../api/lib/essen-planung-model';
   import type { esserRechner } from '../../lib/essensplanungRechnung';
   import type { PlanKontext } from './planKontext';
   import EinplanungKarte from './EinplanungKarte.svelte';

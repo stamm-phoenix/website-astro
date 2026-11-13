@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import FormField from '../pflege/FormField.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
-  import type { PlanungZutat } from '../../lib/types';
+  import type { PlanungZutat } from '../../../../api/lib/essen-gerichte-model';
   import {
     geschaeftAnlegen,
     geschaeftSetzen,

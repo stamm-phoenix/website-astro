@@ -2,7 +2,7 @@
   import { errorMessage } from '../lib/api';
   import { keineAktionHinweis } from '../lib/aktionArt';
   import { saveKeineAktion } from '../lib/aktionZuschuss';
-  import type { CampflowEvent } from '../lib/types';
+  import type { CampflowEvent } from '../lib/types/aktionen';
   import StatusNotice from './pflege/StatusNotice.svelte';
   import InfoHint from './ui/InfoHint.svelte';
 

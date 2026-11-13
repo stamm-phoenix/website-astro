@@ -19,7 +19,7 @@
   }
   import { tick } from 'svelte';
   import { sendApi } from '../lib/api';
-  import type { TaskProject } from '../lib/types';
+  import type { TaskProject } from '../../../api/lib/aufgaben-model';
   import { fetchCampflowEvents } from '../lib/campflowStore.svelte';
   import AufgabenProjectDialog from './AufgabenProjectDialog.svelte';
   import ConfirmDialog from './ui/ConfirmDialog.svelte';

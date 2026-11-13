@@ -3,7 +3,8 @@
   import { NIKOLAUS_NOTABLE_DELAY_MINUTES } from '../lib/nikolausConfig';
   import { postApi } from '../lib/api';
   import { dateToLocalParts } from '../lib/nikolausConfig';
-  import type { NikolausDayContact, NikolausVisitProgress } from '../lib/types';
+  import type { NikolausDayContact } from '../../../api/lib/nikolaus-config';
+  import type { NikolausVisitProgress } from '../lib/types/nikolaus';
 
   interface Props {
     /** Management token of the booking. */

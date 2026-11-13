@@ -15,7 +15,7 @@
     ProtokollAnwesenheit,
     ProtokollKopf,
     ProtokollPerson,
-  } from '../../lib/types';
+  } from '../../../../api/lib/protokoll-editor-model';
 
   interface Props {
     kopf: ProtokollKopf;

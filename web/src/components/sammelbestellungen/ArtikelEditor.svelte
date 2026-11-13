@@ -11,8 +11,11 @@
   import { getSammelStammProdukt, getSammelProductImage } from '../../lib/sammelKatalog';
   import { postApi } from '../../lib/api';
   import { formatEuro } from '../../lib/format';
-  import type { SammelProductInfo } from '../../lib/types';
-  import type { SammelArtikel, SammelKatalogArtikel } from '../../lib/types';
+  import type { SammelProductInfo } from '../../../../api/lib/sammelbestellung-model';
+  import type {
+    SammelArtikel,
+    SammelKatalogArtikel,
+  } from '../../../../api/lib/sammelbestellung-model';
 
   interface Props {
     items: SammelArtikel[];

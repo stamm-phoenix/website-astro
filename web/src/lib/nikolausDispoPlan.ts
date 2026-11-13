@@ -8,7 +8,8 @@ import {
   minutesToTime,
 } from './nikolausDispo';
 import type { DispoProblem, DispoAssignment, DispoDone } from './nikolausDispo';
-import type { StaffNikolausBooking, StaffNikolausDispoData } from './types';
+import type { StaffNikolausBooking } from './types/nikolaus';
+import type { StaffNikolausDispoData } from './types/nikolausStaff';
 
 /** Negative tags of a team's helpers that match a family's tags. */
 export function tagConflicts(

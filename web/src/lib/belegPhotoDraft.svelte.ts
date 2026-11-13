@@ -25,7 +25,8 @@ import {
   ganzesBild,
 } from './belegBild';
 import type { Ausrichtung, FotoFarben } from './belegBild';
-import type { BelegCheck, StaffBeleg } from './types';
+import type { BelegCheck } from '../../../api/lib/beleg-check';
+import type { StaffBeleg } from '../../../api/lib/beleg-list';
 import type { BelegForm } from './belegForm';
 import type { createDialogForm } from './dialogForm.svelte';
 /** Share of the receipt's long edge left around a found receipt, so no letter at its edge is cut. */

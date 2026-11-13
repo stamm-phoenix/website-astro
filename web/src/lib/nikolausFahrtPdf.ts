@@ -5,7 +5,7 @@ import { drawDispoTeamPage } from './nikolausDispoPdf';
 import type { DispoPdfStop, DispoPdfTeam } from './nikolausDispoPdf';
 import { slotLabel } from './nikolausMaps';
 import { drawPageFooters, loadPdf } from './pdfBasis';
-import type { StaffNikolausFahrtData, StaffNikolausFahrtStop } from './types';
+import type { StaffNikolausFahrtData, StaffNikolausFahrtStop } from './types/nikolausStaff';
 
 function count(value: number, one: string, many: string): string {
   return `${value} ${value === 1 ? one : many}`;

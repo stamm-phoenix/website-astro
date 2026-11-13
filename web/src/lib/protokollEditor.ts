@@ -4,7 +4,7 @@ import type {
   ProtokollInhalt,
   ProtokollPerson,
   ProtokollPunkt,
-} from './types';
+} from '../../../api/lib/protokoll-editor-model';
 
 import type { TextEditorFeatures } from './textEditor';
 import { loginUrl, reloginOnlyHere } from './api';

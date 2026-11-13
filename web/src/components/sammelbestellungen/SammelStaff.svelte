@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  import type { SammelStaffView } from '../../lib/types';
+  import type { SammelStaffView } from '../../../../api/lib/sammelbestellung-model';
 
   /**
    * The last loaded view per Sammelbestellung, kept across pages: a revisit shows it at once
@@ -36,7 +36,10 @@
   import { fetchApi, sendApi, errorMessage } from '../../lib/api';
 
   import { sammelReceipt } from '../../lib/sammelExport';
-  import type { SammelBestellung, SammelProductInfo } from '../../lib/types';
+  import type {
+    SammelBestellung,
+    SammelProductInfo,
+  } from '../../../../api/lib/sammelbestellung-model';
 
   const BASE = '/intern/pflege/sammelbestellungen';
   let selected = $state('');

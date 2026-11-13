@@ -1,5 +1,6 @@
 import { ApiError } from '../../lib/api';
-import type { Geschaeft, PlanungZutat } from '../../lib/types';
+import type { Geschaeft } from '../../../../api/lib/essen-einkauf-model';
+import type { PlanungZutat } from '../../../../api/lib/essen-gerichte-model';
 import type { Vorschlag } from '../../lib/vorschlaege';
 import type { PlanKontext } from './planKontext';
 

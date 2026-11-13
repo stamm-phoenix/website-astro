@@ -7,7 +7,7 @@
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { errorMessage } from '../../lib/api';
   import type { Notice } from '../../lib/status';
-  import type { SammelBestellung } from '../../lib/types';
+  import type { SammelBestellung } from '../../../../api/lib/sammelbestellung-model';
   interface Props {
     campaignTitle: string;
     exportShop: SammelShop | 'all';

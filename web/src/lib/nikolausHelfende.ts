@@ -1,6 +1,6 @@
 import { HELPER_ROLES } from './nikolausEinteilung';
 import type { HelperRole } from './nikolausEinteilung';
-import type { StaffNikolausHelfendeData } from './types';
+import type { StaffNikolausHelfendeData } from './types/nikolausStaff';
 
 export interface HelperCoverage {
   date: string;

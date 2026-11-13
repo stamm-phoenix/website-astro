@@ -10,8 +10,8 @@ import {
   erwaehnungTreffer,
 } from '../src/lib/protokollErwaehnung.ts';
 import { freigabeErwaehnte, freigabeMeldung } from '../src/lib/protokollFreigabe.ts';
-import type { ProtokollInhalt, ProtokollPunkt } from '../src/lib/types.ts';
-import type { PersonOption } from '../src/lib/types.ts';
+import type { ProtokollInhalt, ProtokollPunkt } from '../../api/lib/protokoll-editor-model.ts';
+import type { PersonOption } from '../../api/lib/protokoll-editor-model.ts';
 
 setServerHtmlParser(new DOMParser() as unknown as Parameters<typeof setServerHtmlParser>[0]);
 

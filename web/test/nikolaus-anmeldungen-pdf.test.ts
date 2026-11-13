@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { anmeldungenPdfReport } from '../src/lib/nikolausAnmeldungenPdf';
-import type { StaffNikolausBooking } from '../src/lib/types';
+import type { StaffNikolausBooking } from '../src/lib/types/nikolaus';
 
 function booking(id: string, extra: Partial<StaffNikolausBooking> = {}): StaffNikolausBooking {
   return {

@@ -8,7 +8,8 @@ import {
   toEinstellungenForm,
   toZutatForm,
 } from '../src/lib/essensplanungSteuerung.ts';
-import type { EssenEinstellungen, EssenZutat } from '../src/lib/types.ts';
+import type { EssenEinstellungen } from '../../api/lib/essen-schema.ts';
+import type { EssenZutat } from '../../api/lib/essen-validation.ts';
 
 const EINSTELLUNGEN: EssenEinstellungen = {
   anlegenExtern: true,

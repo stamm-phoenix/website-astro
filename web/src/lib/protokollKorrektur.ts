@@ -2,7 +2,7 @@
  * Correction proposals of the Protokoll-Editor (#553): the shared rules of the API and how the
  * page shows a proposal.
  */
-import type { ProtokollInhalt } from './types';
+import type { ProtokollInhalt } from '../../../api/lib/protokoll-editor-model';
 import type { KorrekturFeld, KorrekturVorschlag } from '../../../api/lib/protokoll-korrektur-model';
 import {
   KORREKTUR_ART_LABELS,

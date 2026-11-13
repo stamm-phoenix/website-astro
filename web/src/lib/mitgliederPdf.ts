@@ -1,7 +1,7 @@
 // PDF of the member list as shown: the tab and the search, with birthday and contacts, e.g. for
 // the group folder or a camp.
 import { ageAt, formatDate, formatName, formatValue } from './campflowFields';
-import type { CampflowColumn, CampflowPerson } from './types';
+import type { CampflowColumn, CampflowPerson } from '../../../api/lib/campflow';
 import { mitgliedStatus, personGroups, type MitgliederAnsicht } from './mitglieder';
 import { pdfFileName } from './pdfBasis';
 import { downloadReportPdf, type PdfReport } from './pdfTabelle';

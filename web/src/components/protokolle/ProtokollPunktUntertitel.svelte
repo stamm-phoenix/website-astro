@@ -1,6 +1,6 @@
 <script lang="ts">
   import { aktionZeitraum } from '../../lib/protokollEditor';
-  import type { ProtokollPunkt } from '../../lib/types';
+  import type { ProtokollPunkt } from '../../../../api/lib/protokoll-editor-model';
 
   /** The lines below the title of an agenda item as it reads: Aktion, date and project. */
   interface Props {

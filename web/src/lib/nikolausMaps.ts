@@ -1,6 +1,6 @@
 import { NIKOLAUS_SLOT_MINUTES } from './nikolausConfig';
 import { minutesToTime, timeToMinutes } from './nikolausDispo';
-import type { StaffNikolausBooking } from './types';
+import type { StaffNikolausBooking } from './types/nikolaus';
 const MAPS_MAX_WAYPOINTS = 9;
 
 export function mapsPoint(

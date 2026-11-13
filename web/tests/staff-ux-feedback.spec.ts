@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import type { CampflowEvent } from '../src/lib/types';
+import type { CampflowEvent } from '../src/lib/types/aktionen';
 
 test('an invalid receipt announces errors and takes the user to the first correction', async ({
   page,

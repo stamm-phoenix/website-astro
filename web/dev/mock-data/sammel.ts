@@ -6,7 +6,7 @@ import type {
   SammelKatalogArtikel,
   SammelProductInfo,
   SammelStatus,
-} from '../../src/lib/types';
+} from '../../../api/lib/sammelbestellung-model';
 import { SAMMEL_KATALOG, getSammelProductImage } from '../../src/lib/sammelKatalog';
 import { hashString } from './svg';
 import { isoFromNow, newEtag, newId } from './util';

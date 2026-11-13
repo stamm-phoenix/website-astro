@@ -2,7 +2,10 @@
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { sendApi, ApiError, errorMessage } from '../../lib/api';
-  import type { SammelBestellung, SammelSaveResult } from '../../lib/types';
+  import type {
+    SammelBestellung,
+    SammelSaveResult,
+  } from '../../../../api/lib/sammelbestellung-model';
   const BASE = '/intern/pflege/sammelbestellungen';
   import { untrack } from 'svelte';
   interface Props {

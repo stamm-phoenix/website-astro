@@ -6,7 +6,7 @@ import type { KostenstellenAnsicht, KostenstellenSortierung } from './kostenstel
 import { pdfFileName } from './pdfBasis';
 import { downloadReportPdf } from './pdfTabelle';
 import type { PdfReport, PdfSection } from './pdfTabelle';
-import type { KostenstelleStatistik, KostenstellenSummen } from './types';
+import type { KostenstelleStatistik, KostenstellenSummen } from '../../../api/lib/kostenstellen';
 
 const ANSICHT: Record<KostenstellenAnsicht, string> = {
   aktuell: 'Aktuelle Kostenstellen',

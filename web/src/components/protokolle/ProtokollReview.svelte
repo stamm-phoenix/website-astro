@@ -12,7 +12,10 @@
   import { ApiError, errorMessage, fetchFile, saveFile, sendApi } from '../../lib/api';
   import { HELP_CONTACTS } from '../../lib/helpContacts';
   import { aufgabenAnzahl, formatDateTime, freigabeAufgaben } from '../../lib/protokollEditor';
-  import type { ProtokollEditorDetail, ProtokollFreigabeResponse } from '../../lib/types';
+  import type {
+    ProtokollEditorDetail,
+    ProtokollFreigabeResponse,
+  } from '../../../../api/lib/protokoll-editor-model';
 
   /**
    * The actions of minutes in the editor (#277, step 2): who gave them to the review, the note

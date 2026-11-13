@@ -19,7 +19,8 @@
     type MitgliederAnsicht,
   } from '../../lib/mitglieder';
   import { mitgliederStore } from '../../lib/pflegeStore.svelte';
-  import type { CampflowPerson, MitgliederData } from '../../lib/types';
+  import type { CampflowPerson } from '../../../../api/lib/campflow';
+  import type { MitgliederData } from '../../lib/types/aktionen';
 
   const CAMPFLOW_URL = 'https://my.campflow.de/dpsg-stamm-phoenix-5629/members';
   /** Rows shown at first and added per click, so a phone stays quick with long lists. */

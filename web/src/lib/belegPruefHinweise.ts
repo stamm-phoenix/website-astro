@@ -1,5 +1,5 @@
 import { MIN_BELEG_PHOTO_EDGE } from './belege';
-import type { BelegCheck } from './types';
+import type { BelegCheck } from '../../../api/lib/beleg-check';
 
 /**
  * What the check of a receipt's photo warns about, one sentence each: what the photo itself

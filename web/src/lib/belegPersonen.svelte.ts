@@ -1,5 +1,5 @@
 import { fetchApi } from './api';
-import type { ProtokollEditorPersonen } from './types';
+import type { ProtokollEditorPersonen } from '../../../api/lib/protokoll-editor-model';
 
 /**
  * The names to suggest for an Auslage of someone else: the leaders and the active people of the

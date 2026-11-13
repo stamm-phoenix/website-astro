@@ -1,7 +1,7 @@
 import { errorMessage } from './api';
 import { EINHEITEN_JE_ART, einheitText, mengeText } from '../../../api/lib/essen-gerichte-model';
 import type { EssenEinheitenart } from '../../../api/lib/essen-validation';
-import type { GerichtEinheit, PlanungZutat } from './types';
+import type { GerichtEinheit, PlanungZutat } from '../../../api/lib/essen-gerichte-model';
 import { leseMenge, mengeFeld } from './essensplanungGerichte';
 import type { KiAenderung, KiZutatWahl } from '../../../api/lib/essen-ki-model';
 

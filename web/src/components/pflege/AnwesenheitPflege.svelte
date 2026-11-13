@@ -6,7 +6,10 @@
   import { todayIso } from '../../lib/format';
   import { suggestedDate } from '../../lib/anwesenheit';
   import { anwesenheitOverview } from '../../lib/pflegeStore.svelte';
-  import type { AnwesenheitMeeting, AnwesenheitOverview } from '../../lib/types';
+  import type {
+    AnwesenheitMeeting,
+    AnwesenheitOverview,
+  } from '../../../../api/lib/anwesenheit-model';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import AnwesenheitTermin from './AnwesenheitTermin.svelte';

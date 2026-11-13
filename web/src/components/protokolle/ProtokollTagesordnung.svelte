@@ -14,7 +14,7 @@
   import type { Griff, Verschiebung } from '../../lib/protokollReihenfolge';
   import { MAX_PUNKTE, MAX_UNTERPUNKTE } from '../../lib/protokollEditor';
   import type { TextModus } from '../../lib/protokollEditor';
-  import type { PersonOption, ProtokollPunkt } from '../../lib/types';
+  import type { PersonOption, ProtokollPunkt } from '../../../../api/lib/protokoll-editor-model';
 
   interface Props {
     punkte: ProtokollPunkt[];

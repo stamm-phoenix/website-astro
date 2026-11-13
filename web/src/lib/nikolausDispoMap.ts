@@ -1,6 +1,6 @@
 import { minutesToTime } from './nikolausDispo';
 import type { DispoRoute } from './nikolausDispo';
-import type { StaffNikolausBooking } from './types';
+import type { StaffNikolausBooking } from './types/nikolaus';
 
 export type LatLon = [number, number];
 

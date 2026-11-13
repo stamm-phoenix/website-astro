@@ -1,12 +1,8 @@
 <script lang="ts">
   import { ApiError, sendApi } from '../lib/api';
   import { formatShortDate, formatSlotKey, getFreeSlots } from '../lib/nikolausAdmin';
-  import type {
-    NikolausMoveRequest,
-    NikolausMoveResult,
-    StaffNikolausBooking,
-    StaffNikolausSlot,
-  } from '../lib/types';
+  import type { NikolausMoveRequest, NikolausMoveResult } from '../lib/types/nikolausStaff';
+  import type { StaffNikolausBooking, StaffNikolausSlot } from '../lib/types/nikolaus';
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
   import LazyTextEditor from './ui/LazyTextEditor.svelte';

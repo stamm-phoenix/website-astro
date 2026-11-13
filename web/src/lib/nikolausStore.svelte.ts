@@ -1,4 +1,4 @@
-import type { NikolausSlot } from './types';
+import type { NikolausSlot } from './types/nikolaus';
 import { createResource } from './resource.svelte';
 import { loadStateOf } from './storeView';
 

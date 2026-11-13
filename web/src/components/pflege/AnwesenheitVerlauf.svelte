@@ -4,7 +4,10 @@
   import { averageMembers, monthlyStats } from '../../lib/anwesenheit';
   import { ApiError, fetchApi, errorMessage, sendApi } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
-  import type { AnwesenheitMeeting, AnwesenheitTermin } from '../../lib/types';
+  import type {
+    AnwesenheitMeeting,
+    AnwesenheitTermin,
+  } from '../../../../api/lib/anwesenheit-model';
   import ActionButton from '../ui/ActionButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import PdfDownloadButton from '../ui/PdfDownloadButton.svelte';

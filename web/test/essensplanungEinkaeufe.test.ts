@@ -9,7 +9,7 @@ import {
 } from '../src/lib/essensplanungEinkaeufe.ts';
 import { einkaufsliste } from '../src/lib/essensplanungEinkauf.ts';
 import { lager, lagerZeilen } from '../src/lib/essensplanungLager.ts';
-import type { PlanungZutat } from '../src/lib/types.ts';
+import type { PlanungZutat } from '../../api/lib/essen-gerichte-model.ts';
 
 const zutat = (
   id: number,

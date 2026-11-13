@@ -6,7 +6,7 @@ import { formatDateTime, formatEuro } from './format';
 import { pdfFileName } from './pdfBasis';
 import { downloadReportPdf } from './pdfTabelle';
 import type { PdfReport } from './pdfTabelle';
-import type { Beitrag, BeitragSammlung } from './types';
+import type { Beitrag, BeitragSammlung } from '../../../api/lib/beitraege';
 
 const FILTER_LABEL: Record<Exclude<BeitragFilter, 'alle'>, string> = {
   offen: 'Noch offen',

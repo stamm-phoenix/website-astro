@@ -1,5 +1,6 @@
 import { formatIsoDate } from './belege';
-import type { PlanungBeleg, PlanungMitglied } from './types';
+import type { PlanungBeleg } from '../../../api/lib/essen-belege-model';
+import type { PlanungMitglied } from '../../../api/lib/essen-planung-model';
 
 /**
  * The receipts of a Planung (`docs/essensplanung.md`, Belege) as the page and the PDF show them:

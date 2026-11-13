@@ -19,7 +19,7 @@ import {
 } from './kurzbeschreibungZeitplan';
 import type { PlacedItem, ZeitplanItem } from './kurzbeschreibungZeitplan';
 import { BRAND, GREY, MARGIN, PAGE_HEIGHT, PAGE_WIDTH, loadPdf } from './pdfBasis';
-import type { Vorstand } from './types';
+import type { Vorstand } from './types/oeffentlich';
 
 /** The Kurzbeschreibung for the KJR, with dates and times already formatted. */
 export interface PdfKurzbeschreibung {

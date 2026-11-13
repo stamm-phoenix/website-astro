@@ -6,7 +6,8 @@ import { forgetFotoFolder } from './fotoOrdnerStore.svelte';
 export { selectFotoFiles, type FotoSelection } from './fotoAuswahl';
 import { uploadName } from './fotoAuswahl';
 import { fotoNameCandidates, numberedName } from './fotoPfade';
-import type { FotoTarget, FotoUploadSession } from './types';
+import type { FotoTarget } from './types/staff';
+import type { FotoUploadSession } from '../../../api/lib/fotos';
 
 /**
  * Upload of many photos and videos into the photo library. The API creates the folder and an

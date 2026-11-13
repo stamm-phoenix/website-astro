@@ -16,7 +16,7 @@
     toEinstellungenForm,
     type EinstellungenForm,
   } from '../../lib/essensplanungSteuerung';
-  import type { StaffEssenSteuerung } from '../../lib/types';
+  import type { StaffEssenSteuerung } from '../../lib/types/essen';
 
   interface Props {
     data: StaffEssenSteuerung;

@@ -2,7 +2,7 @@
   import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import { formatDateTime } from '../../lib/format';
   import { aenderungText } from '../../lib/essensplanung';
-  import type { PlanungAenderung } from '../../lib/types';
+  import type { PlanungAenderung } from '../../../../api/lib/essen-planung-model';
 
   interface Props {
     aenderungen: PlanungAenderung[];

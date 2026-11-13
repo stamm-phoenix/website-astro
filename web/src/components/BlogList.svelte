@@ -8,7 +8,7 @@
   import StaffLink from './StaffLink.svelte';
   import { bakedUrl, registerBakedImages, type BakedImages } from '../lib/bakedImages';
   import { withBaked } from '../lib/storeView';
-  import type { BlogPostSummary, InstagramPost } from '../lib/types';
+  import type { BlogPostSummary, InstagramPost } from '../lib/types/oeffentlich';
   import ProblemMeldenLink from './ui/ProblemMeldenLink.svelte';
 
   interface Props {

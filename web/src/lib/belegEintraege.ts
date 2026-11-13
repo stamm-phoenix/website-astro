@@ -2,7 +2,9 @@ import { formatIsoDate } from './belege';
 import { matchingKostenstelle, SPARBUCH } from './belegForm';
 import { findKostenstelle, sameName } from './belegZuordnung';
 import type { StatusTone } from './status';
-import type { CampflowBeleg, CampflowBelegeData, StaffBeleg } from './types';
+import type { CampflowBeleg } from '../../../api/lib/campflow-belege';
+import type { CampflowBelegeData } from './types/abrechnung';
+import type { StaffBeleg } from '../../../api/lib/beleg-list';
 
 /** Where a receipt lives: submitted here and not yet transferred, or in CampFlow. */
 export type BelegQuelle = 'website' | 'campflow';

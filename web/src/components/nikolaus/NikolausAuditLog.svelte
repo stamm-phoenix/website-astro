@@ -1,6 +1,6 @@
 <script lang="ts">
   import { formatDateTime } from '../../lib/format';
-  import type { NikolausAuditEntry } from '../../lib/types';
+  import type { NikolausAuditEntry } from '../../lib/types/nikolaus';
   interface Props {
     entries: NikolausAuditEntry[];
   }

@@ -22,7 +22,11 @@
   } from '../../../../api/lib/essen-gerichte-model';
   import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
   import EinheitFeld from './EinheitFeld.svelte';
-  import type { GerichtEinheit, GerichtZutat, PlanungZutat } from '../../lib/types';
+  import type {
+    GerichtEinheit,
+    GerichtZutat,
+    PlanungZutat,
+  } from '../../../../api/lib/essen-gerichte-model';
   import { meldeVerloren, merkeSpeichern, type PlanKontext } from './planKontext';
 
   /**

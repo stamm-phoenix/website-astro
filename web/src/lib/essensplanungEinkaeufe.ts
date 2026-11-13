@@ -17,7 +17,8 @@ import type { BasisEinheit, RechnungsMahlzeit, RechnungsStand } from './essenspl
 import { lager, nurOffene } from './essensplanungLager';
 import { erledigtOhneMenge, postenMenge } from './essensplanungEinkauf';
 import type { LagerEinplanung, LagerStand } from './essensplanungLager';
-import type { EinkaufPosten, Geschaeft, GerichtEinheit, PlanungZutat, ZusatzPosten } from './types';
+import type { EinkaufPosten, Geschaeft, ZusatzPosten } from '../../../api/lib/essen-einkauf-model';
+import type { GerichtEinheit, PlanungZutat } from '../../../api/lib/essen-gerichte-model';
 
 /**
  * The lists of the shopping trips of a Planung (`docs/essensplanung.md`, Einkäufe). Trips go in

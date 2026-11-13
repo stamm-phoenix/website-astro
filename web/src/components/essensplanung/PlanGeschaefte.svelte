@@ -1,7 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import { confirmAction } from '../../lib/confirm';
-  import type { Geschaeft } from '../../lib/types';
+  import type { Geschaeft } from '../../../../api/lib/essen-einkauf-model';
   import { KNOPF } from './einkaufHerkunft.svelte';
   import type { PlanKontext } from './planKontext';
 

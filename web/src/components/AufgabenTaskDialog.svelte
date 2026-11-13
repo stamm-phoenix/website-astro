@@ -6,7 +6,7 @@
   import EditDialog from './pflege/EditDialog.svelte';
   import FormField from './pflege/FormField.svelte';
   import { onMount } from 'svelte';
-  import type { Task, TaskInput, TaskAssignment } from '../lib/types';
+  import type { Task, TaskInput, TaskAssignment } from '../../../api/lib/aufgaben-model';
   import { taskPeople, taskAssigneeNames } from '../../../api/lib/aufgaben-zuordnung';
   import TaskAssigneeField from './TaskAssigneeField.svelte';
   import GermanDateInput from './ui/GermanDateInput.svelte';

@@ -8,7 +8,7 @@ import {
   offeneKjrFristen,
   tageBis,
 } from '../src/lib/kjrFristen';
-import type { CampflowEvent } from '../src/lib/types';
+import type { CampflowEvent } from '../src/lib/types/aktionen';
 
 function event(id: string, title: string, end: string, patch: Partial<CampflowEvent> = {}) {
   return {

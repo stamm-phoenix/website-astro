@@ -22,7 +22,7 @@
   import type { DispoAssignment } from '../lib/nikolausDispo';
   import { fetchNikolausDispo, nikolausDispoStore } from '../lib/nikolausDispoStore.svelte';
   import { formatShortDate } from '../lib/nikolausAdmin';
-  import type { StaffNikolausDispoData, StaffNikolausDispoSaved } from '../lib/types';
+  import type { StaffNikolausDispoData, StaffNikolausDispoSaved } from '../lib/types/nikolausStaff';
   import { toProblem, restoreDispoDraft, tagConflicts } from '../lib/nikolausDispoPlan';
 
   import NikolausDispoMap from './NikolausDispoMap.svelte';

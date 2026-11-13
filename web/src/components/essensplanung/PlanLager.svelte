@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { errorMessage } from '../../lib/api';
-  import type { EssenKatalog } from '../../lib/types';
+  import type { EssenKatalog } from '../../../../api/lib/essen-gerichte-model';
   import PostenDialog from './PostenDialog.svelte';
   import PostenListe from './PostenListe.svelte';
   import { lagerZeilen } from '../../lib/essensplanungLager';

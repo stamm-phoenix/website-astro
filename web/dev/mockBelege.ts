@@ -1,6 +1,6 @@
 /** Belege: photos, CampFlow booking and the receipt list. */
 import { registerBelegPruefungRoutes } from './mockBelegPruefung';
-import type { StaffBeleg } from '../src/lib/types';
+import type { StaffBeleg } from '../../api/lib/beleg-list';
 import { knowBelege, kostenstellen } from './mock-data/abrechnung';
 import { documentPreviewSvg } from './mock-data/svg';
 import { MOCK_NOW, newEtag, newId } from './mock-data/util';

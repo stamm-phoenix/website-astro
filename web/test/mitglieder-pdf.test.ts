@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { mitgliederReport } from '../src/lib/mitgliederPdf';
-import type { CampflowColumn, CampflowPerson } from '../src/lib/types';
+import type { CampflowColumn, CampflowPerson } from '../../api/lib/campflow';
 
 const TODAY = '2026-10-29';
 

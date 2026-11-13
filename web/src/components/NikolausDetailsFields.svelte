@@ -1,7 +1,7 @@
 <script lang="ts">
   import { NIKOLAUS_CHILDREN_RANGE, NIKOLAUS_MAX_LENGTH } from '../lib/nikolausConfig';
   import type { NikolausAreaConfig, NikolausDetailsField } from '../lib/nikolausConfig';
-  import type { NikolausDetailsForm } from '../lib/types';
+  import type { NikolausDetailsForm } from '../lib/types/nikolaus';
   import NikolausAddressMap from './NikolausAddressMap.svelte';
 
   interface Props {

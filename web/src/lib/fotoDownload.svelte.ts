@@ -1,7 +1,7 @@
 import { HELP_CONTACTS } from './helpContacts';
 import { MAX_ZIP_BYTES, MAX_ZIP_FILES, buildZip, downloadForZip, type ZipFile } from './fotoZip';
 import { ApiError, errorMessage, fetchApi } from './api';
-import type { FotoFile, FotoFileDetail } from './types';
+import type { FotoFile, FotoFileDetail } from '../../../api/lib/fotos';
 
 /** Download of several photos as one ZIP archive, built in the browser. */
 

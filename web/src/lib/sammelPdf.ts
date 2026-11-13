@@ -9,7 +9,7 @@ import { SAMMEL_SHOPS, getSammelShop } from './sammelShops';
 import type { SammelShop } from './sammelShops';
 import { ORDER_FILTERS } from './sammelStaffView';
 import type { SammelOrderFilters } from './sammelStaffView';
-import type { SammelArtikel, SammelBestellung } from './types';
+import type { SammelArtikel, SammelBestellung } from '../../../api/lib/sammelbestellung-model';
 
 export interface BestelllisteInput {
   campaignTitle: string;

@@ -17,7 +17,8 @@
     isKjrBetreuerAge,
     toKjrPerson,
   } from '../../lib/kjrZuschuss';
-  import type { Abrechnung, AbrechnungPerson } from '../../lib/types';
+  import type { Abrechnung } from '../../lib/types/abrechnung';
+  import type { AbrechnungPerson } from '../../../../api/lib/abrechnung';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import Toast from '../ui/Toast.svelte';
   import { tick } from 'svelte';

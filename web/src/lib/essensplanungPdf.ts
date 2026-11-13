@@ -32,7 +32,8 @@ import {
   drawTitle,
   loadPdf,
 } from './pdfBasis';
-import type { Gericht, PlanungAnsicht } from './types';
+import type { Gericht } from '../../../api/lib/essen-gerichte-model';
+import type { PlanungAnsicht } from '../../../api/lib/essen-planung-model';
 
 type AutoTable = typeof AutoTableFn;
 

@@ -9,7 +9,7 @@
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { beitrittUrl, planungUrl } from '../../lib/essensplanung';
-  import type { PlanungAnsicht, PlanungMitglied } from '../../lib/types';
+  import type { PlanungAnsicht, PlanungMitglied } from '../../../../api/lib/essen-planung-model';
   import type { PlanKontext } from './planKontext';
 
   /** Members, invitations and the shared links of a Planung. */

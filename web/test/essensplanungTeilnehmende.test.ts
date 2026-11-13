@@ -12,7 +12,7 @@ import {
   gruppenFaktorGueltig,
   leseGruppenFaktor,
 } from '../../api/lib/essen-teilnehmende-model.ts';
-import type { PlanungAnsicht } from '../src/lib/types.ts';
+import type { PlanungAnsicht } from '../../api/lib/essen-planung-model.ts';
 
 const mahlzeit = (id: number, kennung: string, name: string, ohneGruppen: number[] = []) => ({
   id,

@@ -15,7 +15,7 @@ import {
   ohneMenge,
   zeilenMenge,
 } from '../src/lib/essensplanungRechnung.ts';
-import type { PlanungMahlzeit, PlanungTag } from '../src/lib/types.ts';
+import type { PlanungMahlzeit, PlanungTag } from '../../api/lib/essen-planung-model.ts';
 
 const mahlzeit = (id: number, name: string, einplanungen: number[] = []): PlanungMahlzeit => ({
   id,

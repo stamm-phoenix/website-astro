@@ -1,4 +1,5 @@
-import type { CampflowColumn, CampflowPerson, MitgliederData } from '../../src/lib/types';
+import type { CampflowColumn, CampflowPerson } from '../../../api/lib/campflow';
+import type { MitgliederData } from '../../src/lib/types/aktionen';
 import { dayFromToday, isoFromNow } from './util';
 
 /**

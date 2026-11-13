@@ -1,7 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import { navigationLink, mapsPoint, slotLabel } from '../../lib/nikolausMaps';
-  import type { StaffNikolausFahrtStop } from '../../lib/types';
+  import type { StaffNikolausFahrtStop } from '../../lib/types/nikolausStaff';
   interface Props {
     stop: StaffNikolausFahrtStop;
     index: number;

@@ -13,7 +13,7 @@ import {
   type EinheitenStand,
   type EinheitenStelle,
 } from '../../../api/lib/essen-einheiten-model';
-import type { GerichtEinheit } from './types';
+import type { GerichtEinheit } from '../../../api/lib/essen-gerichte-model';
 import type { Vorschlag } from './vorschlaege';
 
 /**

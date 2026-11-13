@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { test, expect, answerConfirm } from './fixtures';
 import type { Page } from '@playwright/test';
 import { formatName, personStatus } from '../src/lib/campflowFields';
-import type { CampflowEventDetail } from '../src/lib/types';
+import type { CampflowEventDetail } from '../src/lib/types/aktionen';
 
 const EVENT = 'evt_HikeMangfall';
 

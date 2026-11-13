@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 
-import type { StaffNikolausOverview } from '../src/lib/types';
+import type { StaffNikolausOverview } from '../src/lib/types/nikolausStaff';
 
 test('family characteristics are explained, removable by touch and kept after a failed save', async ({
   page,

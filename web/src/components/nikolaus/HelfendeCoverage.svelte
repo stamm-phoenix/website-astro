@@ -2,7 +2,7 @@
   import { formatShortDate } from '../../lib/nikolausAdmin';
   import { HELPER_ROLES, KITCHEN } from '../../lib/nikolausEinteilung';
   import { helperCoverage } from '../../lib/nikolausHelfende';
-  import type { StaffNikolausHelfendeData } from '../../lib/types';
+  import type { StaffNikolausHelfendeData } from '../../lib/types/nikolausStaff';
   import InfoHint from '../ui/InfoHint.svelte';
 
   interface Props {

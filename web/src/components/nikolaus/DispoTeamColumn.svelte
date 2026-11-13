@@ -4,7 +4,7 @@
   import type { DispoPlan } from '../../lib/nikolausDispo';
   import { tagConflicts } from '../../lib/nikolausDispoPlan';
   import { mapsLinks } from '../../lib/nikolausMaps';
-  import type { StaffNikolausDispoData } from '../../lib/types';
+  import type { StaffNikolausDispoData } from '../../lib/types/nikolausStaff';
   interface Props {
     route: DispoPlan['routes'][number];
     ids: string[];

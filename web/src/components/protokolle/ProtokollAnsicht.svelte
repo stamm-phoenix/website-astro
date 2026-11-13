@@ -15,7 +15,7 @@
     ProtokollPerson,
     ProtokollPunkt,
     PunktTermin,
-  } from '../../lib/types';
+  } from '../../../../api/lib/protokoll-editor-model';
 
   /**
    * The minutes as they read: in the editor's preview, while reading along, in the

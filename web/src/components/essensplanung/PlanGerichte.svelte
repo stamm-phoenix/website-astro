@@ -8,7 +8,8 @@
   import { zustaendigAus } from '../../lib/essensplanungPlan';
   import { ApiError, errorMessage } from '../../lib/api';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import type { EssenKatalog, Gericht, PlanungAnsicht } from '../../lib/types';
+  import type { EssenKatalog, Gericht } from '../../../../api/lib/essen-gerichte-model';
+  import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
   import GerichtKarte from './GerichtKarte.svelte';
   import PdfKnopf from './PdfKnopf.svelte';
   import PlanZutaten from './PlanZutaten.svelte';

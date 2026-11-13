@@ -3,10 +3,10 @@ import type {
   JahresSummen,
   KategorieStatistik,
   KostenstelleStatistik,
-  KostenstellenData,
   KostenstellenSphaere,
   KostenstellenSummen,
-} from '../../src/lib/types';
+} from '../../../api/lib/kostenstellen';
+import type { KostenstellenData } from '../../src/lib/types/abrechnung';
 
 type KategorieOhneJahre = Omit<KategorieStatistik, 'yearTotals'>;
 

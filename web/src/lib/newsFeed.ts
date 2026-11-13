@@ -1,4 +1,4 @@
-import type { BlogPostSummary, InstagramPost } from './types';
+import type { BlogPostSummary, InstagramPost } from './types/oeffentlich';
 
 /** Blog posts and Instagram posts in one list, e.g. for „Neues aus dem Stamm“. */
 export interface BlogNewsItem {

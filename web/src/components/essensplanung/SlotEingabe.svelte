@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
-  import type { PlanungMahlzeit } from '../../lib/types';
+  import type { PlanungMahlzeit } from '../../../../api/lib/essen-planung-model';
   import { tippeEin } from './planAktionen';
   import { setzeEntwurf, slotEntwuerfe } from './slotEntwuerfe.svelte';
   import type { PlanKontext } from './planKontext';

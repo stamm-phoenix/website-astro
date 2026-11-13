@@ -4,7 +4,8 @@ import {
   type PackAuswahl,
   type PackZeile,
 } from '../../lib/essensplanungPackliste';
-import type { PackZuteilung, PlanungAnsicht } from '../../lib/types';
+import type { PackZuteilung } from '../../../../api/lib/essen-packliste-model';
+import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
 import { merkeSpeichern, type PlanKontext } from './planKontext';
 
 /**

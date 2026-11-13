@@ -5,7 +5,8 @@
   import { getippteZutat, zutatWahl } from '../../lib/essensplanungGerichte';
   import { mengeFuerZutat, vorschauText } from '../../lib/essensplanungKi';
   import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
-  import type { EssenKatalog, PlanungAnsicht } from '../../lib/types';
+  import type { EssenKatalog } from '../../../../api/lib/essen-gerichte-model';
+  import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
   import type { Vorschlag } from '../../lib/vorschlaege';
   import { zutatVon, type VorschauZeile } from './rezeptVorschau';
 

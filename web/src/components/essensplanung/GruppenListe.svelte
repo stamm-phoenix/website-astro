@@ -9,7 +9,7 @@
     jeErnaehrung,
     zahlText,
   } from '../../lib/essensplanungTeilnehmende';
-  import type { PlanungGruppe } from '../../lib/types';
+  import type { PlanungGruppe } from '../../../../api/lib/essen-teilnehmende-model';
   import { DARSTELLUNGEN, darstellungMerken } from './darstellungMerken.svelte';
   import { KNOPF } from './einkaufHerkunft.svelte';
   import type { PlanKontext } from './planKontext';

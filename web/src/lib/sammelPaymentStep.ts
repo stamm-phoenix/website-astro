@@ -1,4 +1,4 @@
-import type { SammelPaymentView } from './types';
+import type { SammelPaymentView } from '../../../api/lib/sammelbestellung-payment-model';
 export type PaymentMode = 'inspect' | 'assign' | 'review' | 'adopt' | 'dispatch';
 interface PaymentStep {
   currentArchived: boolean;

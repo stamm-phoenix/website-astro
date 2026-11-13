@@ -1,7 +1,12 @@
 <script lang="ts">
   import { confirmAction } from '../../lib/confirm';
   import { zeileBody } from '../../lib/essensplanungGerichte';
-  import type { EssenKatalog, Gericht, GerichtZutat, PlanungZutat } from '../../lib/types';
+  import type {
+    EssenKatalog,
+    Gericht,
+    GerichtZutat,
+    PlanungZutat,
+  } from '../../../../api/lib/essen-gerichte-model';
   import NeueZutatZeile, { type NeueZeile } from './NeueZutatZeile.svelte';
   import ZutatZeileInline from './ZutatZeileInline.svelte';
   import GerichtZeileDialog, { type ZeilenVorgabe } from './GerichtZeileDialog.svelte';

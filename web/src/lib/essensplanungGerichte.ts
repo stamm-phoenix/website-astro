@@ -1,4 +1,8 @@
-import type { EssenKatalog, GerichtZutat, PlanungZutat } from './types';
+import type {
+  EssenKatalog,
+  GerichtZutat,
+  PlanungZutat,
+} from '../../../api/lib/essen-gerichte-model';
 import type { Vorschlag } from './vorschlaege';
 
 /** Helpers of the area „Gerichte“ of a Planung (`docs/essensplanung.md`). */

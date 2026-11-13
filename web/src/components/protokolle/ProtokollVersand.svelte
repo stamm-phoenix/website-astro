@@ -3,7 +3,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import ProtokollEmpfaenger from './ProtokollEmpfaenger.svelte';
   import { sendApi } from '../../lib/api';
-  import type { ProtokollEditorDetail } from '../../lib/types';
+  import type { ProtokollEditorDetail } from '../../../../api/lib/protokoll-editor-model';
   import type { ProtokollVersandAuswahl, ProtokollVersandPreview } from '../../lib/protokolleView';
   import {
     LIST_RELOADED,

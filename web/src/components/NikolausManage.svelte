@@ -18,7 +18,7 @@
   } from '../lib/nikolausForm';
   import type { NikolausDetailsField } from '../lib/nikolausConfig';
   import { nikolausStore, fetchNikolausSlots } from '../lib/nikolausStore.svelte';
-  import type { NikolausBookingInfo } from '../lib/types';
+  import type { NikolausBookingInfo } from '../lib/types/nikolaus';
   import NikolausSlotPicker from './NikolausSlotPicker.svelte';
   import NikolausDetailsFields from './NikolausDetailsFields.svelte';
   import NikolausAddressMap from './NikolausAddressMap.svelte';

@@ -1,6 +1,6 @@
 import { erwaehnungTreffer } from './protokollErwaehnung';
 import type { ErwaehnungSuche } from './protokollErwaehnung';
-import type { PersonOption } from './types';
+import type { PersonOption } from '../../../api/lib/protokoll-editor-model';
 
 let nextId = 0;
 

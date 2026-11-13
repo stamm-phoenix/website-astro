@@ -12,7 +12,7 @@ import {
 } from '../src/lib/protokollDokument.ts';
 import { neuerInhalt } from '../../api/lib/protokoll-editor-model.ts';
 import { parseProtokollMarkdown } from '../src/lib/protokollMarkdown.ts';
-import type { ProtokollPunkt } from '../src/lib/types.ts';
+import type { ProtokollPunkt } from '../../api/lib/protokoll-editor-model.ts';
 
 setServerHtmlParser(new DOMParser() as unknown as Parameters<typeof setServerHtmlParser>[0]);
 

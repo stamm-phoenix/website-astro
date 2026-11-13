@@ -2,27 +2,24 @@ import { createResource } from './resource.svelte';
 import type { LeitungPlanung } from '../../../api/lib/essen-leitung-model';
 import type { NamiAbgleichData } from '../../../api/lib/nami-abgleich-model';
 import type { StaffProblemMeldungenData } from './problemMelden';
+import type { AnwesenheitOverview } from '../../../api/lib/anwesenheit-model';
 import type {
-  AnwesenheitOverview,
   BeitraegeData,
-  KostenstellenData,
   OffeneBeitraegeData,
-  CampflowBelegeData,
   MitgliederData,
-  ProtokollEditorOverview,
-  SammelAktion,
   StaffAktionenData,
-  StaffBeleg,
-  StaffBlogListItem,
-  StaffDownload,
-  StaffGruppenstundenData,
-  StaffLeitendeData,
-  StaffNikolausSteuerung,
-  StaffEssenSteuerung,
-  StaffProtokolleData,
-  StaffQuestionsData,
-  PersonenUebersicht,
-} from './types';
+} from './types/aktionen';
+import type { KostenstellenData, CampflowBelegeData } from './types/abrechnung';
+import type { ProtokollEditorOverview } from '../../../api/lib/protokoll-editor-model';
+import type { SammelAktion } from '../../../api/lib/sammelbestellung-model';
+import type { StaffBeleg } from '../../../api/lib/beleg-list';
+import type { StaffBlogListItem } from './blogTypes';
+import type { StaffDownload, StaffGruppenstundenData, StaffLeitendeData } from './types/staff';
+import type { StaffNikolausSteuerung } from './types/nikolaus';
+import type { StaffEssenSteuerung } from './types/essen';
+import type { StaffProtokolleData } from './types/protokolle';
+import type { StaffQuestionsData } from './types/oeffentlich';
+import type { PersonenUebersicht } from '../../../api/lib/personen-model';
 
 export const gruppenstundenPflege = createResource<StaffGruppenstundenData>(
   '/intern/pflege/gruppenstunden'

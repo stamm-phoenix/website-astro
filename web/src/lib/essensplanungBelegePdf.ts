@@ -21,7 +21,8 @@ import {
   loadPdf,
 } from './pdfBasis';
 import { pdfText } from './pdfText';
-import type { PlanungAnsicht, PlanungBeleg } from './types';
+import type { PlanungAnsicht } from '../../../api/lib/essen-planung-model';
+import type { PlanungBeleg } from '../../../api/lib/essen-belege-model';
 
 const TABLE_STYLES = {
   styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.5, overflow: 'linebreak' as const },

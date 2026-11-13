@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  import type { GerichtEinheit as Einheit } from '../../lib/types';
+  import type { GerichtEinheit as Einheit } from '../../../../api/lib/essen-gerichte-model';
 
   /** What was typed in the row of a new line, taken over into the dialog. */
   export interface ZeilenVorgabe {
@@ -41,14 +41,14 @@
     type EigeneZutat,
   } from './EigeneZutatFelder.svelte';
   import ZeileGeschaeftFeld from './ZeileGeschaeftFeld.svelte';
+  import type { EssenEinheitenart } from '../../../../api/lib/essen-schema';
   import type {
-    EssenEinheitenart,
     EssenKatalog,
     Gericht,
     GerichtEinheit,
     GerichtZutat,
-    PlanungAnsicht,
-  } from '../../lib/types';
+  } from '../../../../api/lib/essen-gerichte-model';
+  import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
   import type { Vorschlag } from '../../lib/vorschlaege';
   import type { PlanKontext } from './planKontext';
 

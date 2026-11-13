@@ -1,5 +1,6 @@
 import { createResource } from './resource.svelte';
-import type { StaffNikolausBooking, StaffNikolausOverview } from './types';
+import type { StaffNikolausBooking } from './types/nikolaus';
+import type { StaffNikolausOverview } from './types/nikolausStaff';
 
 const overview = createResource<StaffNikolausOverview>('/intern/nikolaus/bookings');
 

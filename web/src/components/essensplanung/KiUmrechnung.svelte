@@ -4,7 +4,11 @@
   import InfoHint from '../ui/InfoHint.svelte';
   import { leseMenge, mengeFeld } from '../../lib/essensplanungGerichte';
   import { kiFehlerText, type KiMass, type KiUmrechnung } from '../../lib/essensplanungKi';
-  import type { EssenKatalog, KatalogZutat, PlanungZutat } from '../../lib/types';
+  import type {
+    EssenKatalog,
+    KatalogZutat,
+    PlanungZutat,
+  } from '../../../../api/lib/essen-gerichte-model';
   import type { PlanKontext } from './planKontext';
 
   /**

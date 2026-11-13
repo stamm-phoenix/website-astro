@@ -7,7 +7,7 @@ import { sortGruppenstunden } from '../src/lib/gruppenstundenStore.svelte';
 import { fetchNikolausSlots, nikolausStore } from '../src/lib/nikolausStore.svelte';
 import { fetchVorstand, vorstandStore } from '../src/lib/vorstandStore.svelte';
 import { loadStateOf, withBaked } from '../src/lib/storeView';
-import type { Aktion, DownloadFile, Gruppenstunde } from '../src/lib/types';
+import type { Aktion, DownloadFile, Gruppenstunde } from '../src/lib/types/oeffentlich';
 import { gate, json, stubFetch } from './fixtures/fetch-stub';
 
 /** The public stores keep their `{ data, loading, error }` shape on top of `createResource`. */

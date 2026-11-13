@@ -1,5 +1,6 @@
 import { personKey, type PackZeile } from './essensplanungPackliste';
-import type { PackZuteilung, PlanungMitglied } from './types';
+import type { PackZuteilung } from '../../../api/lib/essen-packliste-model';
+import type { PlanungMitglied } from '../../../api/lib/essen-planung-model';
 
 /**
  * The columns of the packing list as a matrix (`docs/essensplanung.md`, Packliste): the persons

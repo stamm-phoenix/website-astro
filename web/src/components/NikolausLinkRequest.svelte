@@ -3,7 +3,7 @@
   import AltchaWidget from './AltchaWidget.svelte';
   import { ApiError, postApi } from '../lib/api';
   import { NIKOLAUS_MAX_LENGTH, isValidNikolausEmail } from '../lib/nikolausConfig';
-  import type { NikolausLinkRequested } from '../lib/types';
+  import type { NikolausLinkRequested } from '../lib/types/nikolaus';
 
   interface Props {
     /** Prefix for element IDs, so the component can appear several times. */

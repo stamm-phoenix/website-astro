@@ -16,7 +16,7 @@
     toCanonicalBlogHtml,
     toEditorHtml,
   } from '../../lib/blog';
-  import type { BlogImage } from '../../lib/types';
+  import type { BlogImage } from '../../lib/blogTypes';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import FormField from './FormField.svelte';
   import TextEditor from '../ui/TextEditor.svelte';

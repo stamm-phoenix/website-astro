@@ -2,7 +2,7 @@
   import type { esserRechner } from '../../lib/essensplanungRechnung';
   import { zahlText } from '../../lib/essensplanungTeilnehmende';
   import { einplanungZeilen } from '../../lib/essensplanungDruck';
-  import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
+  import type { Einplanung, PlanungMahlzeit } from '../../../../api/lib/essen-planung-model';
   import type { PlanKontext } from './planKontext';
 
   /**

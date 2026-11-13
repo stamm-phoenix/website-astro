@@ -1,4 +1,4 @@
-import type { SammelPaymentSummary, SammelStatus } from './types';
+import type { SammelPaymentSummary, SammelStatus } from '../../../api/lib/sammelbestellung-model';
 import type { StatusTone } from './status';
 
 interface PaymentLabel {

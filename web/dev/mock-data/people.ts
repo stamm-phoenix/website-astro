@@ -3,10 +3,10 @@ import type {
   Gruppenstunde,
   GruppenstundeLeitende,
   Leitende,
-  StaffGruppenstunde,
-  StaffLeitende,
   Vorstand,
-} from '../../src/lib/types';
+} from '../../src/lib/types/oeffentlich';
+import type { StaffGruppenstunde } from '../../src/lib/types/staff';
+import type { StaffLeitende } from '../../../api/lib/leitende-list';
 import { newEtag } from './util';
 
 export const STUFEN = ['Wölflinge', 'Jungpfadfinder', 'Pfadfinder', 'Rover'];

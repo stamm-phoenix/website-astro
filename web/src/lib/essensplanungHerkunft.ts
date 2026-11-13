@@ -4,7 +4,8 @@ import { nurOffene } from './essensplanungLager';
 import type { LagerEinplanung } from './essensplanungLager';
 import { bedarf, kochMenge, ohneMengeZeilen, summiere } from './essensplanungRechnung';
 import type { RechnungsGericht, RechnungsMahlzeit, RechnungsStand } from './essensplanungRechnung';
-import type { PlanungZutat, ZusatzPosten } from './types';
+import type { PlanungZutat } from '../../../api/lib/essen-gerichte-model';
+import type { ZusatzPosten } from '../../../api/lib/essen-einkauf-model';
 
 /**
  * Where a thing on a shopping list comes from (`docs/essensplanung.md`, „Für welche Gerichte“):

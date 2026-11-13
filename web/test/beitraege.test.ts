@@ -11,7 +11,7 @@ import {
   summen,
 } from '../src/lib/beitraege';
 import { formatEuro } from '../src/lib/format';
-import type { Beitrag, BeitragSammlung } from '../src/lib/types';
+import type { Beitrag, BeitragSammlung } from '../../api/lib/beitraege';
 
 function beitrag(status: Beitrag['status'], dueCent: number, paidCent: number): Beitrag {
   return {

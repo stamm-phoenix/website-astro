@@ -1,4 +1,4 @@
-import type { AnwesenheitMeeting } from './types';
+import type { AnwesenheitMeeting } from '../../../api/lib/anwesenheit-model';
 
 /** Weekday of a Gruppenstunde as written in the list („Freitags“), Monday = 1 … Sunday = 7. */
 const WEEKDAY_NUMBERS: Record<string, number> = {

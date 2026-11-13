@@ -1,7 +1,7 @@
 <script lang="ts">
   import { SAMMEL_SHOPS, getSammelShop } from '../../lib/sammelShops';
   import { getSammelProductImage } from '../../lib/sammelKatalog';
-  import type { SammelArtikel } from '../../lib/types';
+  import type { SammelArtikel } from '../../../../api/lib/sammelbestellung-model';
 
   interface Props {
     name: string;

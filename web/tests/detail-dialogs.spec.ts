@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { formatName } from '../src/lib/campflowFields';
-import type { CampflowEventDetail } from '../src/lib/types';
+import type { CampflowEventDetail } from '../src/lib/types/aktionen';
 
 const EVENT = 'evt_HikeMangfall';
 

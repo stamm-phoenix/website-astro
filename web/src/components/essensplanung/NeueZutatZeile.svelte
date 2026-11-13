@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  import type { GerichtEinheit as Einheit } from '../../lib/types';
+  import type { GerichtEinheit as Einheit } from '../../../../api/lib/essen-gerichte-model';
 
   /**
    * What is typed in the new row. Kept by the card, so it outlives the row while the page is
@@ -36,7 +36,11 @@
   import { EINHEITEN_JE_ART } from '../../../../api/lib/essen-gerichte-model';
   import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
   import EinheitFeld from './EinheitFeld.svelte';
-  import type { EssenKatalog, Gericht, GerichtEinheit } from '../../lib/types';
+  import type {
+    EssenKatalog,
+    Gericht,
+    GerichtEinheit,
+  } from '../../../../api/lib/essen-gerichte-model';
   import type { Vorschlag } from '../../lib/vorschlaege';
   import type { PlanKontext } from './planKontext';
   import type { ZeilenVorgabe } from './GerichtZeileDialog.svelte';

@@ -1,4 +1,4 @@
-import type { StaffNikolausFahrtStop } from './types';
+import type { StaffNikolausFahrtStop } from './types/nikolausStaff';
 export function mergeStops(
   stops: StaffNikolausFahrtStop[],
   pending: Record<string, boolean>,

@@ -8,7 +8,8 @@
   import { confirmAction } from '../../lib/confirm';
   import { euro } from '../../lib/essensplanungBelege';
   import { todayIso } from '../../lib/format';
-  import type { PlanungAnsicht, PlanungBeleg } from '../../lib/types';
+  import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
+  import type { PlanungBeleg } from '../../../../api/lib/essen-belege-model';
   import {
     entwurfLeer,
     neuerEntwurf,

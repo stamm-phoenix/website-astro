@@ -1,5 +1,5 @@
 /** The demo login: the principal, the logged-out cookie and the login check of `intern` routes. */
-import type { ClientPrincipal } from '../src/lib/types';
+import type { ClientPrincipal } from '../../api/lib/staff-auth';
 import { error } from './mockCore';
 import type { MockRequest, MockResult } from './mockCore';
 

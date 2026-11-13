@@ -1,5 +1,8 @@
 /** Nikolausdienst in the Leitendenbereich: bookings, Dispo, Fahrt, helpers, Einteilung. */
-import type { StaffNikolausDispoRow, StaffNikolausEinteilungRow } from '../src/lib/types';
+import type {
+  StaffNikolausDispoRow,
+  StaffNikolausEinteilungRow,
+} from '../src/lib/types/nikolausStaff';
 import {
   bookings,
   deleteHelper,

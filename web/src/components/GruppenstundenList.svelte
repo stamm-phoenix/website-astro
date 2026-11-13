@@ -2,9 +2,10 @@
   import { untrack } from 'svelte';
   import { gruppenstundenStore, fetchGruppenstunden } from '../lib/gruppenstundenStore.svelte';
   import { sanitizeDescription } from '../lib/api';
-  import { STUFE_TO_KEY, GROUP_CONFIG } from '../lib/types';
+  import { STUFE_TO_KEY, GROUP_CONFIG } from '../lib/types/stufen';
   import { stufeToFilterKey } from '../lib/events';
-  import type { GroupKey, Gruppenstunde } from '../lib/types';
+  import type { GroupKey } from '../lib/types/stufen';
+  import type { Gruppenstunde } from '../lib/types/oeffentlich';
   import type { GruppenstundenException } from '../../../api/lib/gruppenstunden-exception-model';
   import LeaderAvatar from './LeaderAvatar.svelte';
   import { registerBakedImages, type BakedImages } from '../lib/bakedImages';

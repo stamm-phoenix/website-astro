@@ -6,7 +6,7 @@
   import BeitraegeSammlungen from './BeitraegeSammlungen.svelte';
   import { beitraegeStore, offeneBeitraegeStore } from '../../lib/pflegeStore.svelte';
   import { formatDateTime } from '../../lib/format';
-  import type { BeitraegeData } from '../../lib/types';
+  import type { BeitraegeData } from '../../lib/types/aktionen';
 
   const CAMPFLOW_URL = 'https://my.campflow.de/dpsg-stamm-phoenix-5629/fees';
 

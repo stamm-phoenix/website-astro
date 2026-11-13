@@ -1,13 +1,11 @@
 /** CampFlow events and participants of the mock API (Leitendenbereich → Aktionen). */
+import type { AktionBeitrag, BeitragStatus } from '../../../api/lib/beitraege';
 import type {
-  AktionBeitrag,
   AktionBeitraegeData,
-  BeitragStatus,
-  CampflowColumn,
   CampflowEvent,
   CampflowEventDetail,
-  CampflowPerson,
-} from '../../src/lib/types';
+} from '../../src/lib/types/aktionen';
+import type { CampflowColumn, CampflowPerson } from '../../../api/lib/campflow';
 import { hashString } from './svg';
 import { AKTION_DATES, dayFromToday, isoFromNow, plusDays } from './util';
 import { MOCK_ICH_EMAIL } from './personen';

@@ -9,7 +9,8 @@ import {
 import type { RechnungsStand } from './essensplanungRechnung';
 import { nurOffene, vorraetig } from './essensplanungLager';
 import type { LagerStand } from './essensplanungLager';
-import type { EinkaufPosten, Geschaeft, GerichtEinheit, PlanungZutat, ZusatzPosten } from './types';
+import type { EinkaufPosten, Geschaeft, ZusatzPosten } from '../../../api/lib/essen-einkauf-model';
+import type { GerichtEinheit, PlanungZutat } from '../../../api/lib/essen-gerichte-model';
 
 /**
  * The shopping list of a Planung (`docs/essensplanung.md`, Einkaufsliste): what the planned dishes

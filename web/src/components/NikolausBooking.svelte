@@ -14,7 +14,11 @@
   import { withBaked } from '../lib/storeView';
   import { emptyDetailsForm, validateDetailsForm } from '../lib/nikolausForm';
   import type { NikolausDetailsField } from '../lib/nikolausConfig';
-  import type { NikolausBookingCreated, NikolausBookingRequest, NikolausSlot } from '../lib/types';
+  import type {
+    NikolausBookingCreated,
+    NikolausBookingRequest,
+    NikolausSlot,
+  } from '../lib/types/nikolaus';
   import NikolausSlotPicker from './NikolausSlotPicker.svelte';
   import NikolausDetailsFields from './NikolausDetailsFields.svelte';
   import NikolausLinkRequest from './NikolausLinkRequest.svelte';

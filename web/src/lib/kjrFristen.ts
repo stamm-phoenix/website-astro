@@ -1,6 +1,6 @@
 // Deadlines for the KJR's grant: the Abrechnung of an Aktion has to be handed in within three
 // months after its last day (Leitendenbereich start page and Abrechnung).
-import type { CampflowEvent } from './types';
+import type { CampflowEvent } from './types/aktionen';
 
 /** Months after the end of an Aktion until its Abrechnung has to be at the KJR. */
 export const KJR_ABGABE_MONATE = 3;

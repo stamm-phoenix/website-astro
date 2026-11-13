@@ -7,7 +7,9 @@ import {
   beitraegeOf,
   kenntAlle,
 } from '../src/lib/aktionBeitraege';
-import type { AktionBeitrag, AktionBeitraegeData, CampflowPerson } from '../src/lib/types';
+import type { AktionBeitrag } from '../../api/lib/beitraege';
+import type { AktionBeitraegeData } from '../src/lib/types/aktionen';
+import type { CampflowPerson } from '../../api/lib/campflow';
 
 function fee(status: AktionBeitrag['status'], dueCent: number, paidCent: number): AktionBeitrag {
   return {

@@ -19,7 +19,7 @@
     ProtokollProjekt,
     ProtokollZeitraum,
     PunktTermin,
-  } from '../../lib/types';
+  } from '../../../../api/lib/protokoll-editor-model';
 
   /**
    * The date (range), tasks and dates of an agenda item with the buttons to add them (and a

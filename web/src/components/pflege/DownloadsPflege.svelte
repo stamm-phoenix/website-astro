@@ -12,7 +12,7 @@
   import { downloadCategories, DEFAULT_DOWNLOAD_CATEGORY } from '../../lib/downloadsFilter';
   import { downloadsPflege } from '../../lib/pflegeStore.svelte';
   import { formatFileSize, getDownloadPreviewUrl } from '../../lib/downloadsStore.svelte';
-  import type { StaffDownload } from '../../lib/types';
+  import type { StaffDownload } from '../../lib/types/staff';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';

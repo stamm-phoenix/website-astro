@@ -1,7 +1,7 @@
 <script lang="ts">
   import { einkaufsliste, postenMenge } from '../../lib/essensplanungEinkauf';
   import { herkunft } from '../../lib/essensplanungHerkunft';
-  import type { EssenKatalog } from '../../lib/types';
+  import type { EssenKatalog } from '../../../../api/lib/essen-gerichte-model';
   import HerkunftUmschalter from './HerkunftUmschalter.svelte';
   import NeuerZusatz from './NeuerZusatz.svelte';
   import PdfKnopf from './PdfKnopf.svelte';

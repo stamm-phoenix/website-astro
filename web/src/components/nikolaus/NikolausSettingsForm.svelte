@@ -13,7 +13,7 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { NIKOLAUS_SLOT_MINUTES, NIKOLAUS_TEAMS } from '../../lib/nikolausConfig';
 
-  import type { StaffNikolausSteuerung } from '../../lib/types';
+  import type { StaffNikolausSteuerung } from '../../lib/types/nikolaus';
 
   import {
     canonical,

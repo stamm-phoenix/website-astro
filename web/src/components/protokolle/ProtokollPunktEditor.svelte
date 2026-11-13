@@ -13,7 +13,7 @@
   } from '../../lib/protokollEditor';
   import { continueList } from '../../lib/protokollMarkdown';
   import type { Griff } from '../../lib/protokollReihenfolge';
-  import type { PersonOption, ProtokollPunkt } from '../../lib/types';
+  import type { PersonOption, ProtokollPunkt } from '../../../../api/lib/protokoll-editor-model';
 
   interface Props {
     punkt: ProtokollPunkt;

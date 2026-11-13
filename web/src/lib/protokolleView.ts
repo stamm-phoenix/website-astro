@@ -1,5 +1,5 @@
 import { ApiError, errorMessage } from './api';
-import type { StaffProtokoll } from './types';
+import type { StaffProtokoll } from '../../../api/lib/protokolle';
 
 /** Same limit as `MAX_PROTOKOLL_EXTRA_RECIPIENTS` in the API. */
 export const MAX_EXTRA_RECIPIENTS = 20;

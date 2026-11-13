@@ -8,7 +8,7 @@
     forgetNikolausRoute,
     discardNikolausVisit,
   } from '../../lib/nikolausFahrtStore.svelte';
-  import type { StaffNikolausFahrtData } from '../../lib/types';
+  import type { StaffNikolausFahrtData } from '../../lib/types/nikolausStaff';
   interface Props {
     teamInfo: StaffNikolausFahrtData['teams'][number] | null;
     savedHere: boolean | undefined;

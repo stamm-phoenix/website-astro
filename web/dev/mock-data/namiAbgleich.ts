@@ -1,7 +1,7 @@
 import { gleicheAb } from '../../../api/lib/nami-abgleich';
 import type { NamiAbgleichData } from '../../../api/lib/nami-abgleich-model';
 import type { NamiMitglied } from '../../../api/lib/nami-schema';
-import type { CampflowPerson } from '../../src/lib/types';
+import type { CampflowPerson } from '../../../api/lib/campflow';
 import { dayFromToday } from './util';
 import { mitgliederData } from './mitglieder';
 

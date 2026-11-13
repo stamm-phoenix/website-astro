@@ -1,7 +1,7 @@
-import type { Gruppenstunde } from './types';
+import type { Gruppenstunde } from './types/oeffentlich';
 import { createResource } from './resource.svelte';
 import { loadStateOf } from './storeView';
-import { STUFE_ORDER } from './types';
+import { STUFE_ORDER } from './types/stufen';
 
 /** In the order of the Stufen; also applied to the data baked at build time. */
 export function sortGruppenstunden(data: Gruppenstunde[]): Gruppenstunde[] {

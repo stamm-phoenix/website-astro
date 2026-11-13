@@ -50,7 +50,9 @@
   import BelegLadehinweise from './BelegLadehinweise.svelte';
   import BelegQuellenFilter from './BelegQuellenFilter.svelte';
   import Toast from '../ui/Toast.svelte';
-  import type { BelegStatus, CampflowBeleg, StaffBeleg } from '../../lib/types';
+  import type { BelegStatus } from '../../../../api/lib/validation/beleg';
+  import type { CampflowBeleg } from '../../../../api/lib/campflow-belege';
+  import type { StaffBeleg } from '../../../../api/lib/beleg-list';
 
   import EditDialog from './EditDialog.svelte';
 

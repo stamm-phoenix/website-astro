@@ -2,7 +2,7 @@
 // CampFlow, e.g. an order of jumpers (#337). Lists and choices of Aktionen use `isAktion` and
 // `nurAktionen`, so they all leave such events out the same way. The mark is switched by hand
 // at the Aktion (`saveKeineAktion` in `aktionZuschuss.ts`).
-import type { CampflowEvent } from './types';
+import type { CampflowEvent } from './types/aktionen';
 
 /** Events running longer than this are likely orders or registrations, not an Aktion. */
 const LANG_TAGE = 60;

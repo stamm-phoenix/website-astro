@@ -1,5 +1,5 @@
 import { getSammelStammProdukt } from './sammelKatalog';
-import type { SammelProductInfo } from './types';
+import type { SammelProductInfo } from '../../../api/lib/sammelbestellung-model';
 interface PriceState {
   prices: Record<string, number | null>;
   availability: Record<string, string | undefined>;

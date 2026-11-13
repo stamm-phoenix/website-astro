@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { beitraegeListePdf, sammlungenPdf } from '../src/lib/beitraegePdf';
-import type { Beitrag, BeitragSammlung } from '../src/lib/types';
+import type { Beitrag, BeitragSammlung } from '../../api/lib/beitraege';
 
 /** The report with plain spaces, as Intl puts a no-break space before the €. */
 function plain<T>(value: T): T {

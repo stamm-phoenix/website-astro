@@ -17,7 +17,9 @@
     toZutatForm,
     type ZutatForm,
   } from '../../lib/essensplanungSteuerung';
-  import type { EssenEinheitenart, EssenZutat, StaffEssenSteuerung } from '../../lib/types';
+  import type { EssenEinheitenart } from '../../../../api/lib/essen-schema';
+  import type { EssenZutat } from '../../../../api/lib/essen-validation';
+  import type { StaffEssenSteuerung } from '../../lib/types/essen';
 
   interface Props {
     data: StaffEssenSteuerung;

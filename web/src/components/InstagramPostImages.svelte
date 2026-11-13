@@ -18,7 +18,7 @@
     startTrack,
     type SwipeTrack,
   } from '../lib/swipe';
-  import type { InstagramPost } from '../lib/types';
+  import type { InstagramPost } from '../lib/types/oeffentlich';
 
   interface Props {
     post: InstagramPost;

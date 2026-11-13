@@ -12,7 +12,8 @@
   import { todayIso } from '../../lib/format';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { confirmAction } from '../../lib/confirm';
-  import type { PlanungAnsicht, PlanungBeleg } from '../../lib/types';
+  import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
+  import type { PlanungBeleg } from '../../../../api/lib/essen-belege-model';
   import type { PlanKontext } from './planKontext';
 
   /**

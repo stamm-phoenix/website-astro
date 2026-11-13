@@ -1,7 +1,7 @@
 <script lang="ts">
   import TagInput from '../pflege/TagInput.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
-  import type { Gericht } from '../../lib/types';
+  import type { Gericht } from '../../../../api/lib/essen-gerichte-model';
 
   /**
    * Instructions and tools of a dish the AI wrote, to check before they are taken over with the

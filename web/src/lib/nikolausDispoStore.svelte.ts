@@ -1,5 +1,5 @@
 import { createResource } from './resource.svelte';
-import type { StaffNikolausDispoData } from './types';
+import type { StaffNikolausDispoData } from './types/nikolausStaff';
 
 const dispo = createResource<StaffNikolausDispoData, string>(
   (date) => `/intern/nikolaus/dispo?date=${encodeURIComponent(date)}`

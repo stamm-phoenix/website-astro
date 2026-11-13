@@ -1,4 +1,4 @@
-import type { BelegStatus } from './types';
+import type { BelegStatus } from '../../../api/lib/validation/beleg';
 
 /** Review states in the order of the workflow; mirrors `BELEG_STATUSES` in the API. */
 export const BELEG_STATUSES: BelegStatus[] = ['Eingereicht', 'Angenommen', 'Abgelehnt'];

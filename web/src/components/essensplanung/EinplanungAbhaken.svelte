@@ -10,7 +10,7 @@
   import type { esserRechner } from '../../lib/essensplanungRechnung';
   import { einheitText } from '../../../../api/lib/essen-gerichte-model';
   import type { EinplanungStatus, Verbrauch } from '../../../../api/lib/essen-kochen-model';
-  import type { Einplanung, PlanungMahlzeit } from '../../lib/types';
+  import type { Einplanung, PlanungMahlzeit } from '../../../../api/lib/essen-planung-model';
   import {
     abhakenEmpfaenger as empfaenger,
     abhakenUebergabe as uebergabe,

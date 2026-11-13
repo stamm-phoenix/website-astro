@@ -1,5 +1,5 @@
 import { berlinDay, formatDay } from './format';
-import type { Aktion } from './types';
+import type { Aktion } from './types/oeffentlich';
 
 /** The calendar day in Berlin as YYYY-MM-DD, shared with the staff forms. */
 export function localDate(date: Date = new Date()): string {

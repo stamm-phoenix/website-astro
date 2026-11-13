@@ -1,7 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
   import AufklappPfeil from '../ui/AufklappPfeil.svelte';
-  import type { EssenKatalog } from '../../lib/types';
+  import type { EssenKatalog } from '../../../../api/lib/essen-gerichte-model';
 
   /**
    * For whom a line of a dish is, per intolerance: for all, not for them, or only for them (a

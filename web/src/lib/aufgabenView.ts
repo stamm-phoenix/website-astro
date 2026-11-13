@@ -1,4 +1,4 @@
-import type { Task } from './types';
+import type { Task } from '../../../api/lib/aufgaben-model';
 import { taskHasAssignee } from '../../../api/lib/aufgaben-zuordnung';
 export { berlinDay as taskToday } from '../../../api/lib/calendar-day';
 import { berlinDay as taskToday } from '../../../api/lib/calendar-day';

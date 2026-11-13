@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import { ausgabelistePdf, bestelllistePdf } from '../src/lib/sammelPdf';
 import type { SammelOrderFilters } from '../src/lib/sammelStaffView';
-import type { SammelArtikel, SammelBestellung } from '../src/lib/types';
+import type { SammelArtikel, SammelBestellung } from '../../api/lib/sammelbestellung-model';
 
 /** The report with plain spaces, as Intl puts a no-break space before the €. */
 function plain<T>(value: T): T {

@@ -9,7 +9,7 @@
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { datumKurz } from '../../lib/essensplanung';
-  import type { PlanungTag } from '../../lib/types';
+  import type { PlanungTag } from '../../../../api/lib/essen-planung-model';
   import MahlzeitZeile from './MahlzeitZeile.svelte';
   import EinplanungDialog from './EinplanungDialog.svelte';
   import MahlzeitGruppenDialog from './MahlzeitGruppenDialog.svelte';

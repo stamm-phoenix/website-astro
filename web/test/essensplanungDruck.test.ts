@@ -9,7 +9,8 @@ import {
   rezeptZeilen,
   teilnehmendeZeilen,
 } from '../src/lib/essensplanungDruck.ts';
-import type { Gericht, PlanungAnsicht, PlanungZutat } from '../src/lib/types.ts';
+import type { Gericht, PlanungZutat } from '../../api/lib/essen-gerichte-model.ts';
+import type { PlanungAnsicht } from '../../api/lib/essen-planung-model.ts';
 
 const zutat = (id: number, name: string, extra: Partial<PlanungZutat> = {}): PlanungZutat => ({
   id,

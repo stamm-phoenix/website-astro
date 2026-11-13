@@ -1,7 +1,7 @@
 <script lang="ts">
   import InstagramPostImages from './InstagramPostImages.svelte';
   import NewsTypeBadge from './NewsTypeBadge.svelte';
-  import type { InstagramPost } from '../lib/types';
+  import type { InstagramPost } from '../lib/types/oeffentlich';
 
   interface Props {
     post: InstagramPost;

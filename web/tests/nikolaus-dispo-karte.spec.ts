@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { StaffNikolausFahrtData } from '../src/lib/types';
+import type { StaffNikolausFahrtData } from '../src/lib/types/nikolausStaff';
 import { readFile } from 'node:fs/promises';
 import { test, expect, answerConfirm, expectNoHorizontalOverflow } from './fixtures';
 import { waitUntilStill } from './settle';

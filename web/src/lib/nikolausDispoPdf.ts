@@ -19,7 +19,7 @@ import {
   loadPdf,
 } from './pdfBasis';
 import { pdfText } from './pdfText';
-import type { StaffNikolausDispoData } from './types';
+import type { StaffNikolausDispoData } from './types/nikolausStaff';
 
 /** Minutes after the start of the slot from which the PDF mentions the delay, as the page does. */
 const NOTABLE_LATE_IN_SLOT = 10;

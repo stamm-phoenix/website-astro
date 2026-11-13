@@ -9,7 +9,9 @@ import {
   packlisteDruck,
   personenText,
 } from '../src/lib/essensplanungPackliste.ts';
-import type { Gericht, PackZuteilung, PacklisteEintrag, PlanungAnsicht } from '../src/lib/types.ts';
+import type { Gericht } from '../../api/lib/essen-gerichte-model.ts';
+import type { PackZuteilung, PacklisteEintrag } from '../../api/lib/essen-packliste-model.ts';
+import type { PlanungAnsicht } from '../../api/lib/essen-planung-model.ts';
 
 const gericht = (id: number, name: string, werkzeuge: string[]): Gericht => ({
   id,

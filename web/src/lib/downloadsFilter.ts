@@ -1,4 +1,4 @@
-import type { DownloadFile } from './types';
+import type { DownloadFile } from './types/oeffentlich';
 
 /** Topic of a file without an own one. */
 export const DEFAULT_DOWNLOAD_CATEGORY = 'Allgemein';

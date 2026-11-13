@@ -8,7 +8,7 @@ import {
 } from '../../../api/lib/abrechnung-session';
 import type { PdfKurzbeschreibung } from './kurzbeschreibungPdf';
 import { berlinDay } from './format';
-import type { Vorstand } from './types';
+import type { Vorstand } from './types/oeffentlich';
 
 export type { Kurzbeschreibung, ZeitBlock, ZeitplanTag };
 export { MAX_ZEITBLOCK_TEXT, MAX_ZEITBLOECKE_PRO_TAG, MAX_ZEITPLAN_TAGE };

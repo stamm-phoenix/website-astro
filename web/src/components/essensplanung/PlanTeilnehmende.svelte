@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { errorMessage } from '../../lib/api';
   import { esserJeMahlzeit } from '../../../../api/lib/essen-teilnehmende-model';
-  import type { EssenKatalog } from '../../lib/types';
+  import type { EssenKatalog } from '../../../../api/lib/essen-gerichte-model';
   import GruppeDialog from './GruppeDialog.svelte';
   import GruppenListe from './GruppenListe.svelte';
   import PdfKnopf from './PdfKnopf.svelte';

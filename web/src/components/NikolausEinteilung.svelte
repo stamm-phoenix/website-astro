@@ -29,8 +29,8 @@
     StaffNikolausEinteilungData,
     StaffNikolausEinteilungRow,
     StaffNikolausHelper,
-    StaffNikolausSteuerung,
-  } from '../lib/types';
+  } from '../lib/types/nikolausStaff';
+  import type { StaffNikolausSteuerung } from '../lib/types/nikolaus';
   import EinteilungEinsaetze from './nikolaus/EinteilungEinsaetze.svelte';
   import {
     applyParked,

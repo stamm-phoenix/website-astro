@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createSammelPrices } from '../src/lib/sammelPrices.svelte';
-import type { SammelProductInfo } from '../src/lib/types';
+import type { SammelProductInfo } from '../../api/lib/sammelbestellung-model';
 
 const lieferbar = async (): Promise<SammelProductInfo> => ({
   name: 'Ersatzartikel',

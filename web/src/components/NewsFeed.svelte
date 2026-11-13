@@ -11,7 +11,7 @@
   import { mergeNews } from '../lib/newsFeed';
   import { registerBakedImages, type BakedImages } from '../lib/bakedImages';
   import { withBaked } from '../lib/storeView';
-  import type { BlogPostSummary, InstagramPost } from '../lib/types';
+  import type { BlogPostSummary, InstagramPost } from '../lib/types/oeffentlich';
 
   interface Props {
     /** Baked at build time; refreshed from the API in the browser */

@@ -7,7 +7,7 @@ import {
   forgetAbrechnungen,
   kostenstellenStore,
 } from '../src/lib/abrechnungStore.svelte';
-import type { Abrechnung } from '../src/lib/types';
+import type { Abrechnung } from '../src/lib/types/abrechnung';
 import { gate, json, stubFetch } from './fixtures/fetch-stub';
 
 /** Reloads of the Abrechnung overview (`fetchAbrechnung`) must never join an older request. */

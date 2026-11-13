@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 import { applyTask, aufgabenStore, loadTasks } from '../src/lib/aufgabenStore.svelte';
-import type { Task, TasksOverview } from '../src/lib/types';
+import type { Task, TasksOverview } from '../../api/lib/aufgaben-model';
 import { gate, json, stubFetch } from './fixtures/fetch-stub';
 
 /** Tasks changed while the overview loads must survive when they are newer than its answer. */

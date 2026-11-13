@@ -1,5 +1,5 @@
 import { FAHRT_STORAGE_KEY } from './staffStorageKeys';
-import type { StaffNikolausFahrtData } from './types';
+import type { StaffNikolausFahrtData } from './types/nikolausStaff';
 
 export const FAHRT_TTL_MS = 12 * 60 * 60 * 1000;
 

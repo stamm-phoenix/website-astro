@@ -9,7 +9,9 @@ import {
 } from '../src/lib/belegEintraege';
 import { applyZahlung, zahlungOf, type BelegForm } from '../src/lib/belegForm';
 import { MEINE_BELEGE_ERSTATTET_TAGE, meineBelege } from '../src/lib/campflowBelege';
-import type { CampflowBeleg, CampflowBelegeData, StaffBeleg } from '../src/lib/types';
+import type { CampflowBeleg } from '../../api/lib/campflow-belege';
+import type { CampflowBelegeData } from '../src/lib/types/abrechnung';
+import type { StaffBeleg } from '../../api/lib/beleg-list';
 
 function beleg(values: Partial<CampflowBeleg> & Pick<CampflowBeleg, 'id'>): CampflowBeleg {
   return {

@@ -7,7 +7,7 @@
     unvertraeglichkeitenNamen,
     zeitraumText,
   } from '../../lib/essensplanungTeilnehmende';
-  import type { Teilnehmende } from '../../lib/types';
+  import type { Teilnehmende } from '../../../../api/lib/essen-teilnehmende-model';
   import { DARSTELLUNGEN, darstellungMerken } from './darstellungMerken.svelte';
   import { KNOPF } from './einkaufHerkunft.svelte';
   import TeilnehmendeMatrix from './TeilnehmendeMatrix.svelte';

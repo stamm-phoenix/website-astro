@@ -1,5 +1,5 @@
 import { MAX_PUNKTE, MAX_UNTERPUNKTE, punktNummer } from './protokollEditor';
-import type { ProtokollPunkt } from './types';
+import type { ProtokollPunkt } from '../../../api/lib/protokoll-editor-model';
 
 /**
  * The agenda as one list with indentation, as the outline shows it: a sub-item belongs to the
