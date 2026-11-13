@@ -7,17 +7,13 @@
     type InstagramConsentRequest,
   } from '../lib/instagramStore.svelte';
   import {
-    SWIPE_START,
     commits,
-    moveTrack,
     panelDuration,
-    releaseVelocity,
     settleDuration,
     settleEasing,
     settleTransition,
-    startTrack,
-    type SwipeTrack,
   } from '../lib/swipe';
+  import { swipeX } from '../lib/swipeAction';
   import type { InstagramPost } from '../lib/types/oeffentlich';
 
   interface Props {
@@ -198,140 +194,70 @@
     span = { low: position - 1, high: position + 1 };
   }
 
-  /** The touch being followed, and whether it moves sideways (`x`) or is left to the browser. */
-  let swipe: { track: SwipeTrack; axis: 'x' | null; width: number; base: number } | null = null;
   /** A finger rests on the images; a tile does not advance meanwhile. Not reactive on purpose. */
   let fingerDown = false;
-  /** Within a link (the card), a click this late after a swipe belongs to the swipe. */
-  const SWIPE_CLICK_MS = 400;
+  /** Where the strip was when the swipe began, so a running movement goes on without a jump. */
+  let swipeBase = 0;
+
+  /** Where the strip is drawn right now, relative to the current place (also mid-movement). */
+  function shownOffset(area: HTMLElement, width: number): number {
+    if (!strip) return offset;
+    const shift = strip.getBoundingClientRect().left - area.getBoundingClientRect().left;
+    return shift + position * width;
+  }
+
+  function settle(distance: number, velocity: number): void {
+    settleMs = settleDuration(distance, velocity, panelDuration());
+    settleCurve = settleEasing(distance, velocity, settleMs);
+    offset = 0;
+  }
 
   /**
    * A sideways swipe browses like the arrows of the dialog, in the dialog and on a tile. The
    * strip follows the finger, so the neighbouring image slides in from the edge; on release it
    * continues to that image or returns. Vertical movement and pinching stay with the browser.
+   * The click some browsers (Safari) still send after a swipe would otherwise open the post from
+   * a card, so it is swallowed.
    */
-  function swipeArea(area: HTMLElement): () => void {
-    /**
-     * Set when a swipe ends: the click some browsers (Safari) still send for the touch would
-     * otherwise open the post from a card. Cleared after a moment or by the next touch.
-     */
-    let swallowClick = false;
-    let clickTimer: ReturnType<typeof setTimeout> | undefined;
-
-    function guardClick(event: MouseEvent): void {
-      if (!swallowClick) return;
-      swallowClick = false;
-      event.preventDefault();
-      event.stopPropagation();
-    }
-
-    function holdClick(): void {
-      swallowClick = true;
-      clearTimeout(clickTimer);
-      clickTimer = setTimeout(() => (swallowClick = false), SWIPE_CLICK_MS);
-    }
-
-    /** Where the strip is drawn right now, relative to the current place (also mid-movement). */
-    function shownOffset(width: number): number {
-      if (!strip) return offset;
-      const shift = strip.getBoundingClientRect().left - area.getBoundingClientRect().left;
-      return shift + position * width;
-    }
-
-    function settle(distance: number, velocity: number): void {
-      settleMs = settleDuration(distance, velocity, panelDuration());
-      settleCurve = settleEasing(distance, velocity, settleMs);
-      offset = 0;
-    }
-
-    function start(event: TouchEvent): void {
-      swallowClick = false;
+  const swipeImages = swipeX({
+    swallowClick: true,
+    ontouchstart() {
       fingerDown = true;
-      if (event.touches.length !== 1) {
-        cancel();
-        return;
-      }
-      const touch = event.touches[0];
-      swipe = {
-        track: startTrack(touch.clientX, touch.clientY, event.timeStamp),
-        axis: null,
-        width: area.clientWidth,
-        base: 0,
-      };
+    },
+    ontouchend(event) {
+      fingerDown = event.touches.length > 0;
+    },
+    ontouchcancel() {
+      fingerDown = false;
+    },
+    onbegin() {
       // A tile loads its images one after another; the neighbours a swipe reveals come first
       if (!isModal) for (const step of [1, -1]) void preload(wrap(index + step));
-    }
-
-    function move(event: TouchEvent): void {
-      if (!swipe) return;
-      if (event.touches.length !== 1) {
-        cancel();
-        return;
-      }
-      const touch = event.touches[0];
-      const dx = touch.clientX - swipe.track.startX;
-      const dy = touch.clientY - swipe.track.startY;
-      if (swipe.axis === null) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_START) return;
-        if (Math.abs(dx) <= Math.abs(dy)) {
-          swipe = null;
-          return;
-        }
-        swipe.axis = 'x';
-        enterStrip();
-        // Continues from where a running movement has got to, without a jump
-        swipe.base = shownOffset(swipe.width) - dx;
-      }
-      if (event.cancelable) event.preventDefault();
-      moveTrack(swipe.track, touch.clientX, touch.clientY, event.timeStamp);
+    },
+    onstart({ dx, width, area }) {
+      enterStrip();
+      // Continues from where a running movement has got to, without a jump
+      swipeBase = shownOffset(area, width) - dx;
+    },
+    onmove({ dx, width }) {
       settleMs = 0;
       // At most one image to each side, so no empty place comes into view
-      offset = Math.max(-swipe.width, Math.min(swipe.width, swipe.base + dx));
-    }
-
-    function end(event: TouchEvent): void {
-      const ended = swipe;
-      swipe = null;
-      fingerDown = event.touches.length > 0;
-      if (!ended || ended.axis !== 'x') return;
-      holdClick();
-      const velocity = releaseVelocity(ended.track, 'x', event.timeStamp);
+      offset = Math.max(-width, Math.min(width, swipeBase + dx));
+    },
+    onrelease({ velocity, width }) {
       const dragged = offset;
       const step = dragged < 0 || (dragged === 0 && velocity < 0) ? 1 : -1;
-      if (commits(-step * dragged, -step * velocity, ended.width / 4)) {
+      if (commits(-step * dragged, -step * velocity, width / 4)) {
         // Index and counter change now; the strip continues from where the finger left it
-        const remaining = ended.width - Math.abs(dragged);
+        const remaining = width - Math.abs(dragged);
         const duration = settleDuration(remaining, -step * velocity, panelDuration());
         slide(step, duration, settleEasing(remaining, -step * velocity, duration));
       } else {
         settle(dragged, step * velocity);
       }
-    }
-
-    function cancel(): void {
-      if (swipe?.axis === 'x') settle(offset, 0);
-      swipe = null;
-    }
-
-    function touchCancel(): void {
-      fingerDown = false;
-      cancel();
-    }
-
-    area.addEventListener('touchstart', start, { passive: true });
-    area.addEventListener('touchmove', move, { passive: false });
-    area.addEventListener('touchend', end);
-    area.addEventListener('touchcancel', touchCancel);
-    area.addEventListener('click', guardClick, true);
-    return () => {
-      clearTimeout(clickTimer);
-      area.removeEventListener('touchstart', start);
-      area.removeEventListener('touchmove', move);
-      area.removeEventListener('touchend', end);
-      area.removeEventListener('touchcancel', touchCancel);
-      area.removeEventListener('click', guardClick, true);
-    };
-  }
+    },
+    oncancel: () => settle(offset, 0),
+  });
 
   $effect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -406,7 +332,7 @@
   class:skeleton-element={!loaded.has(0) && !stripMode}
   class:swipe-area={isCarousel}
   style:--ratio={isModal ? ratio : undefined}
-  {@attach isCarousel ? swipeArea : undefined}
+  {@attach isCarousel ? swipeImages : undefined}
 >
   {#if stripMode}
     <!-- The images side by side; the strip moves, the controls stay in place -->
