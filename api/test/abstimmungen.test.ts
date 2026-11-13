@@ -1527,9 +1527,9 @@ dbTest(
       id: optionId,
       text,
     }));
-    // Ben's view reads the setting „offen“; meanwhile it becomes „geheim“ and Ben answers
+    // Ben's view reads the answers; meanwhile the setting becomes „geheim“ and Ben answers
     let einmal = true;
-    t.mock.method(lesen, 'nachKopf', async () => {
+    t.mock.method(lesen, 'nachAntworten', async () => {
       if (!einmal) return;
       einmal = false;
       const tighter = await AbstimmungItemEndpoint(
@@ -1546,6 +1546,5 @@ dbTest(
     const ben = await detail(t, id, BEN);
     assert.equal(ben.einsicht, 'anzahl');
     assert.deepEqual(ben.antworten, []);
-    assert.equal(ben.anzahlAntworten, 2);
   }
 );

@@ -45,7 +45,7 @@ dbTest(
     await seedSammel([sammelCampaign()], []);
     const campaign = (await getSammelCampaign('1'))!;
     t.mock.method(env, 'getEnvironment', () => 'test-secret-longer-than-thirty-two-characters');
-    const contacts = t.mock.method(campflow, 'campflowGetAll', async () => [
+    const contacts = t.mock.method(campflow, 'getCampflowMembers', async () => [
       { id: '1', primary_email: 'one@example.test' },
       { id: '2', primary_email: 'two@example.test' },
     ]);
@@ -90,7 +90,7 @@ dbTest('concurrent invitation steps cannot reserve the same recipient twice', as
   const campaign = (await getSammelCampaign('1'))!;
   t.mock.method(env, 'getEnvironment', () => 'test-secret-longer-than-thirty-two-characters');
   const addresses = ['one@example.test', 'two@example.test', 'three@example.test'];
-  t.mock.method(campflow, 'campflowGetAll', async () =>
+  t.mock.method(campflow, 'getCampflowMembers', async () =>
     addresses.map((address, index) => ({ id: String(index), primary_email: address }))
   );
   const send = t.mock.method(mail, 'sendMail', async () => undefined);
@@ -109,7 +109,7 @@ dbTest('invitations keep addresses apart that only the database collation equate
   await seedSammel([sammelCampaign()], []);
   const campaign = (await getSammelCampaign('1'))!;
   t.mock.method(env, 'getEnvironment', () => 'test-secret-longer-than-thirty-two-characters');
-  t.mock.method(campflow, 'campflowGetAll', async () => [
+  t.mock.method(campflow, 'getCampflowMembers', async () => [
     { id: '1', primary_email: 'familie@straße.de' },
     { id: '2', primary_email: 'familie@strasse.de' },
   ]);
