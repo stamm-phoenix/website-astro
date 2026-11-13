@@ -4,6 +4,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { isBuiltin } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { parse } from 'svelte/compiler';
 import ts from 'typescript';
 
 /**
@@ -29,8 +30,10 @@ function files(dir: string): string[] {
 function specifiers(path: string): string[] {
   let text = readFileSync(path, 'utf8');
   if (path.endsWith('.svelte')) {
-    text = [...text.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)]
-      .map((hit) => hit[1])
+    // The compiler finds the script blocks, so no hand-written tag matching is needed
+    const ast = parse(text, { modern: true });
+    text = [ast.module, ast.instance]
+      .flatMap((script) => (script ? [text.slice(script.content.start, script.content.end)] : []))
       .join('\n');
   }
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
@@ -86,16 +89,20 @@ function missingPackage(path: string, seen: Set<string>, chain: string[]): strin
   return undefined;
 }
 
-test('a file of web/ imports no API module that reaches a package only api/ installs', () => {
-  const offenders: string[] = [];
-  for (const file of ROOTS.flatMap(files)) {
-    for (const specifier of specifiers(file)) {
-      const target = resolveImport(file, specifier);
-      if (!target?.startsWith(`${API}/`)) continue;
-      const chain = missingPackage(target, new Set(), [relative(API, target)]);
-      if (chain) offenders.push(`${relative(WEB, file)} imports api/${chain}`);
+// Parses every file of web/ and follows its API imports; CI runners need more than the default 5 s
+test(
+  'a file of web/ imports no API module that reaches a package only api/ installs',
+  { timeout: 30_000 },
+  () => {
+    const offenders: string[] = [];
+    for (const file of ROOTS.flatMap(files)) {
+      for (const specifier of specifiers(file)) {
+        const target = resolveImport(file, specifier);
+        if (!target?.startsWith(`${API}/`)) continue;
+        const chain = missingPackage(target, new Set(), [relative(API, target)]);
+        if (chain) offenders.push(`${relative(WEB, file)} imports api/${chain}`);
+      }
     }
+    assert.deepEqual(offenders.sort(), []);
   }
-  assert.deepEqual(offenders.sort(), []);
-  // Parses every file of web/ and follows its API imports; CI runners need more than the default 5 s
-}, 30_000);
+);
