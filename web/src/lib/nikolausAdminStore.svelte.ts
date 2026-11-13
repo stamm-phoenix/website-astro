@@ -1,4 +1,4 @@
-import { createResource } from './pflegeStore.svelte';
+import { createResource } from './resource.svelte';
 import type { StaffNikolausBooking, StaffNikolausOverview } from './types';
 
 const overview = createResource<StaffNikolausOverview>('/intern/nikolaus/bookings');

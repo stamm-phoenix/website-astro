@@ -1,38 +1,14 @@
 import type { Leitende } from './types';
-import { fetchApi } from './api';
+import { createResource } from './resource.svelte';
+import { loadStateOf } from './storeView';
 
-interface LeitendeStoreState {
-  data: Leitende[] | null;
-  loading: boolean;
-  error: boolean;
-}
+const leitende = createResource<Leitende[]>('/leitende');
 
-export const leitendeStore = $state<LeitendeStoreState>({
-  data: null,
-  loading: true,
-  error: false,
-});
+export const leitendeStore = loadStateOf(leitende.state);
 
-let fetchPromise: Promise<void> | null = null;
-
+/** Asks again on every call, unless a request is already running, which is joined. */
 export function fetchLeitende(): Promise<void> {
-  if (fetchPromise) return fetchPromise;
-
-  leitendeStore.loading = true;
-  leitendeStore.error = false;
-
-  fetchPromise = (async () => {
-    try {
-      leitendeStore.data = await fetchApi<Leitende[]>('/leitende');
-    } catch {
-      leitendeStore.error = true;
-    } finally {
-      fetchPromise = null;
-      leitendeStore.loading = false;
-    }
-  })();
-
-  return fetchPromise;
+  return leitende.load({ maxAge: 0 });
 }
 
 export function getLeadersForGroup(groupKey: string): string[] {

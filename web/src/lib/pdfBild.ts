@@ -9,7 +9,11 @@ export interface PdfImage {
 }
 
 /** An image as data URL, scaled down to `maxPixels` on its long edge. */
-export async function toImage(blob: Blob, format: 'png' | 'jpeg', maxPixels: number): Promise<PdfImage> {
+export async function toImage(
+  blob: Blob,
+  format: 'png' | 'jpeg',
+  maxPixels: number
+): Promise<PdfImage> {
   const bitmap = await createImageBitmap(blob);
   const scale = Math.min(1, maxPixels / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');

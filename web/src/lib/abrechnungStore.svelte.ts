@@ -14,7 +14,9 @@ import {
 } from './abrechnungEingaben';
 import type { AbrechnungAblage, EingabenIo, EingabenRegistry } from './abrechnungEingaben';
 import { localDate } from './dateUtils';
-import { ApiError, errorMessage, fetchApi, sendApi } from './api';
+import { fetchApi, sendApi } from './api';
+import { createResource } from './resource.svelte';
+import { createResourceMap } from './resourceMap.svelte';
 import { emptySession } from '../../../api/lib/abrechnung-session';
 import type { AbrechnungEingabe } from '../../../api/lib/abrechnung-session';
 import type { AbrechnungSession } from '../../../api/lib/abrechnung-session';
@@ -23,50 +25,38 @@ import { isKjrBetreuer, kjrHerkunft } from './kjrZuschuss';
 import { ortFuerPlz } from './plzOrte.svelte';
 import type { Abrechnung, AbrechnungPerson, Kostenstelle } from './types';
 
-interface StoreError {
-  message: string;
-  code?: string;
-}
-
-interface AbrechnungState {
-  /** Per `<event id>|<Kostenstelle>`; an empty Kostenstelle means the one derived from the event. */
-  data: Record<string, Abrechnung>;
-  /** Keys currently loading. */
-  loading: Record<string, boolean>;
-  errors: Record<string, StoreError>;
-}
-
-interface KostenstellenState {
-  data: Kostenstelle[] | null;
-  loading: boolean;
-  error: string | null;
-}
-
-export const abrechnungStore = $state<AbrechnungState>({ data: {}, loading: {}, errors: {} });
-
-export const kostenstellenStore = $state<KostenstellenState>({
-  data: null,
-  loading: false,
-  error: null,
-});
-
-function toStoreError(error: unknown): StoreError {
-  return {
-    message: errorMessage(
-      error,
-      'Die Daten konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.'
-    ),
-    code: error instanceof ApiError ? error.code : undefined,
-  };
-}
+const LOAD_ERROR =
+  'Die Daten konnten nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.';
 
 export function abrechnungKey(id: string, kostenstelle = ''): string {
   return `${id}|${kostenstelle}`;
 }
 
-const pending: Record<string, Promise<void>> = {};
-/** Counts the loads per key; only the latest sets the store, so a late answer cannot undo a newer one. */
-const requestOf: Record<string, number> = {};
+interface AbrechnungRequest {
+  id: string;
+  kostenstelle: string;
+}
+
+/** Per `<event id>|<Kostenstelle>`; an empty Kostenstelle means the one derived from the event. */
+export const abrechnungen = createResourceMap<Abrechnung, AbrechnungRequest>(
+  ({ id, kostenstelle }) =>
+    `/intern/abrechnung/${encodeURIComponent(id)}${
+      kostenstelle ? `?kostenstelle=${encodeURIComponent(kostenstelle)}` : ''
+    }`,
+  {
+    refreshable: true,
+    loadError: LOAD_ERROR,
+    keyOf: ({ id, kostenstelle }) => abrechnungKey(id, kostenstelle),
+  }
+);
+
+/** The shown state of each Abrechnung under its `abrechnungKey`; an Abrechnung not asked for has none. */
+export const abrechnungStore = abrechnungen.state;
+
+/** The Abrechnungen loaded so far, to update the Aktion they show when it changes elsewhere. */
+export function loadedAbrechnungen(): Abrechnung[] {
+  return Object.values(abrechnungStore).flatMap((state) => (state.data ? [state.data] : []));
+}
 
 /**
  * Loads the overview of an Aktion; cached per Aktion and Kostenstelle unless `force` is set.
@@ -74,54 +64,24 @@ const requestOf: Record<string, number> = {};
  * A call with `force` or `refresh` never joins a running load, which may have read older data;
  * it starts its own, and only the newest load of a key sets the store.
  */
-export function fetchAbrechnung(
+export async function fetchAbrechnung(
   id: string,
   kostenstelle = '',
   { force = false, refresh = false }: { force?: boolean; refresh?: boolean } = {}
 ): Promise<void> {
-  const key = abrechnungKey(id, kostenstelle);
-  if (abrechnungStore.data[key] && !force && !refresh) return Promise.resolve();
-  const running = pending[key];
-  if (running && !force && !refresh) return running;
-
-  abrechnungStore.loading[key] = true;
-  delete abrechnungStore.errors[key];
-
-  const params = [
-    ...(kostenstelle ? [`kostenstelle=${encodeURIComponent(kostenstelle)}`] : []),
-    ...(refresh ? ['refresh=true'] : []),
-  ];
-  const query = params.length > 0 ? `?${params.join('&')}` : '';
-  const request = (requestOf[key] ?? 0) + 1;
-  requestOf[key] = request;
-  const latest = (): boolean => requestOf[key] === request;
-  const promise = (async () => {
-    try {
-      const data = await fetchApi<Abrechnung>(
-        `/intern/abrechnung/${encodeURIComponent(id)}${query}`
-      );
-      if (latest()) abrechnungStore.data[key] = data;
-    } catch (error: unknown) {
-      if (latest()) {
-        abrechnungStore.errors[key] = toStoreError(error);
-        if (error instanceof ApiError && error.code === 'KOSTENSTELLE_NOT_FOUND') {
-          void fetchKostenstellen();
-        }
-      }
-    } finally {
-      if (latest()) {
-        delete pending[key];
-        delete abrechnungStore.loading[key];
-      }
-    }
-  })();
-  pending[key] = promise;
-  return promise;
+  const request = { id, kostenstelle };
+  await (refresh ? abrechnungen.refresh(request) : abrechnungen.load(request, { force }));
+  const state = abrechnungStore[abrechnungKey(id, kostenstelle)];
+  if (state?.errorCode === 'KOSTENSTELLE_NOT_FOUND') void fetchKostenstellen();
 }
 
-let kostenstellenPromise: Promise<void> | null = null;
-/** Counts the loads; only the latest sets the store, so a late answer cannot undo a newer one. */
-let kostenstellenRequest = 0;
+/** All Kostenstellen from CampFlow, to pick one when the Aktion's title matches none. */
+const kostenstellenResource = createResource<Kostenstelle[]>('/intern/kostenstellen', {
+  idle: true,
+  refreshable: true,
+  loadError: LOAD_ERROR,
+});
+export const kostenstellenStore = kostenstellenResource.state;
 
 /**
  * Loads all Kostenstellen from CampFlow, to pick one when the Aktion's title matches none. The
@@ -131,29 +91,7 @@ export function fetchKostenstellen({
   force = false,
   refresh = false,
 }: { force?: boolean; refresh?: boolean } = {}): Promise<void> {
-  if (kostenstellenStore.data && !force && !refresh) return Promise.resolve();
-  if (kostenstellenPromise && !refresh) return kostenstellenPromise;
-
-  kostenstellenStore.loading = true;
-  kostenstellenStore.error = null;
-
-  const request = ++kostenstellenRequest;
-  kostenstellenPromise = (async () => {
-    try {
-      const data = await fetchApi<Kostenstelle[]>(
-        refresh ? '/intern/kostenstellen?refresh=true' : '/intern/kostenstellen'
-      );
-      if (request === kostenstellenRequest) kostenstellenStore.data = data;
-    } catch (error: unknown) {
-      if (request === kostenstellenRequest) kostenstellenStore.error = toStoreError(error).message;
-    } finally {
-      if (request === kostenstellenRequest) {
-        kostenstellenPromise = null;
-        kostenstellenStore.loading = false;
-      }
-    }
-  })();
-  return kostenstellenPromise;
+  return refresh ? kostenstellenResource.refresh() : kostenstellenResource.load({ force });
 }
 
 /**
@@ -334,5 +272,5 @@ export function restoreAbrechnungRescue(eventId: string, userId: string): boolea
  * (`ich`). Entries made on the page are kept apart and stay.
  */
 export function forgetAbrechnungen(): void {
-  for (const key of Object.keys(abrechnungStore.data)) delete abrechnungStore.data[key];
+  abrechnungen.forget();
 }

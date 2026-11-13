@@ -184,7 +184,7 @@
       clearTimeout(timeout);
       void fetchCampflowEvents();
       void belegePflege.load();
-      void campflowBelegeStore.load({ param: false });
+      void campflowBelegeStore.load();
       void offeneBeitraegeStore.load();
       void essensplanungMeine.load({ force: true });
       void postfachStart.load({ force: true });
@@ -316,8 +316,7 @@
       <button
         type="button"
         class="text-link min-h-11 underline underline-offset-4"
-        onclick={() => campflowBelegeStore.load({ force: true, param: false })}
-        >Erneut versuchen</button
+        onclick={() => campflowBelegeStore.load({ force: true })}>Erneut versuchen</button
       >
     </p>
   {/if}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { createResource } from '../../lib/pflegeStore.svelte';
+  import { createResource } from '../../lib/resource.svelte';
   import type { DownloadFile } from '../../lib/types';
   import FormField from './FormField.svelte';
   import LoadState from '../ui/LoadState.svelte';

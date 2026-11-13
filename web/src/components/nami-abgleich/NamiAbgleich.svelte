@@ -35,14 +35,14 @@
 
   async function refresh(): Promise<void> {
     refreshed = '';
-    await namiAbgleichStore.load({ force: true, param: true });
+    await namiAbgleichStore.refresh();
     if (!store.error) refreshed = 'NaMi und CampFlow neu geladen.';
   }
 
   onMount(() => {
     // The store outlives a change of page; a result older than a minute is asked for again and
     // stays shown until the answer is there
-    void namiAbgleichStore.load({ param: false, maxAge: 60_000 });
+    void namiAbgleichStore.load({ maxAge: 60_000 });
   });
 
   function tabs(data: NamiAbgleichData) {
@@ -102,7 +102,7 @@
     loading={store.loading}
     error={store.error}
     loadingText="NaMi und CampFlow werden gelesen. Das kann bis zu 30 Sekunden dauern …"
-    onretry={() => namiAbgleichStore.load({ force: true, param: false })}
+    onretry={() => namiAbgleichStore.load({ force: true })}
   >
     {#snippet children(data: NamiAbgleichData)}
       {@const options = tabs(data)}

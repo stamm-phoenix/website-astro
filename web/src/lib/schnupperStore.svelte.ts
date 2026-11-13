@@ -1,4 +1,4 @@
-import { createResource } from './pflegeStore.svelte';
+import { createResource } from './resource.svelte';
 import type { StaffSchnupperAnfrage } from './schnupper';
 
 /** The Schnupperstunden-Anfragen (`/intern/pflege/schnupperanfragen`). */

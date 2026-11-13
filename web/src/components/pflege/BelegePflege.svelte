@@ -197,7 +197,7 @@
     reloadNotice = null;
     await Promise.all([
       belegePflege.load({ force: true }),
-      campflowBelegeStore.load({ force: true, param: true }),
+      campflowBelegeStore.refresh(),
       kostenstellenStore.data ? fetchKostenstellen({ refresh: true }) : undefined,
     ]);
     if (!store.error && !campflowStore.error && !kostenstellenStore.error) {
@@ -210,7 +210,7 @@
       // Only suggestions; the form works without CampFlow. They follow the list, so it comes
       // first, and are there by the time a receipt is opened (which also asks for them)
       void belegePflege.load().finally(() => fetchKostenstellen());
-      void campflowBelegeStore.load({ param: false });
+      void campflowBelegeStore.load();
       readAnsicht();
       filtersOpen = window.matchMedia('(min-width: 640px)').matches;
       fetchPrincipal();
@@ -575,7 +575,7 @@
       // Kostenstelle or Kategorie
       await Promise.all([
         belegePflege.load({ force: true }),
-        campflowBelegeStore.load({ force: true, param: false }),
+        campflowBelegeStore.load({ force: true }),
         fetchKostenstellen({ force: true }),
       ]);
     }, 'Der Beleg wurde nicht übertragen. Prüfe deine Internetverbindung und versuche es noch einmal.');
@@ -591,7 +591,7 @@
         // Gone: transferred with a lost answer, or deleted by someone else meanwhile
         form = null;
         message = `Beleg von ${shop} ist hier nicht mehr vorhanden. Ob er nach CampFlow übertragen oder nur gelöscht wurde, siehst du unter „In CampFlow“.`;
-        void campflowBelegeStore.load({ force: true, param: false });
+        void campflowBelegeStore.load({ force: true });
       }
     }
   }
@@ -726,7 +726,7 @@
     campflowError={campflowStore.error}
     campflowStale={campflowStore.data !== null}
     websiteError={store.error && !store.data && campflowStore.data ? store.error : null}
-    onreloadCampflow={() => void campflowBelegeStore.load({ force: true, param: false })}
+    onreloadCampflow={() => void campflowBelegeStore.load({ force: true })}
     onreloadWebsite={() => void belegePflege.load({ force: true })}
   />
 

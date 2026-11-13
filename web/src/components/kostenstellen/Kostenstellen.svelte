@@ -42,7 +42,7 @@
   async function refresh(): Promise<void> {
     refreshed = '';
     refreshing = true;
-    await kostenstellenStore.load({ force: true, param: true });
+    await kostenstellenStore.refresh();
     if (store.error || !store.data) return;
     // A year without bookings any more is no longer offered, so it must not keep filtering
     if (jahr !== null && !jahre(store.data.costUnits).includes(jahr)) jahr = null;
@@ -50,7 +50,7 @@
   }
 
   onMount(() => {
-    void kostenstellenStore.load({ param: false });
+    void kostenstellenStore.load();
   });
 
   function sichtbar(data: KostenstellenData): KostenstelleStatistik[] {
@@ -129,8 +129,7 @@
     loading={store.loading}
     error={store.error}
     loadingText="Kostenstellen werden aus CampFlow geladen …"
-    onretry={() =>
-      refreshing ? refresh() : kostenstellenStore.load({ force: true, param: false })}
+    onretry={() => (refreshing ? refresh() : kostenstellenStore.load({ force: true }))}
   >
     {#snippet skeleton()}
       <p class="mb-4 text-sm text-neutral-700">

@@ -1,20 +1,7 @@
-import { fetchApi } from './api';
 import { parseQuestionsAndAnswers } from './types';
 import type { QuestionAndAnswer } from './types';
-
-interface QAStoreState {
-  data: QuestionAndAnswer[] | null;
-  loading: boolean;
-  error: boolean;
-}
-
-export const QA_STORE = $state<QAStoreState>({
-  data: null,
-  loading: true,
-  error: false,
-});
-
-let fetchPromise: Promise<void> | null = null;
+import { createResource } from './resource.svelte';
+import { loadStateOf } from './storeView';
 
 /** Checks and sorts the API response; also applied to the data baked at build time. */
 export function toSortedQuestions(value: unknown): QuestionAndAnswer[] {
@@ -24,25 +11,13 @@ export function toSortedQuestions(value: unknown): QuestionAndAnswer[] {
   );
 }
 
-/**
- * Fetches and stores the sorted Q&A collection, reusing any active request.
- */
+const questions = createResource<QuestionAndAnswer[], void, unknown>('/qa', {
+  transform: toSortedQuestions,
+});
+
+export const QA_STORE = loadStateOf(questions.state);
+
+/** Fetches and stores the sorted Q&A collection, joining a running request. */
 export function fetchQuestionsAndAnswers(): Promise<void> {
-  if (fetchPromise) return fetchPromise;
-
-  QA_STORE.loading = true;
-  QA_STORE.error = false;
-
-  fetchPromise = (async () => {
-    try {
-      QA_STORE.data = toSortedQuestions(await fetchApi<unknown>('/qa'));
-    } catch {
-      QA_STORE.error = true;
-    } finally {
-      fetchPromise = null;
-      QA_STORE.loading = false;
-    }
-  })();
-
-  return fetchPromise;
+  return questions.load({ maxAge: 0 });
 }

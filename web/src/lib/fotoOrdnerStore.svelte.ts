@@ -1,89 +1,48 @@
-import { errorMessage, fetchApi } from './api';
+import { emptyState } from './resource.svelte';
+import type { ResourceState } from './resource.svelte';
+import { createResourceMap } from './resourceMap.svelte';
 import type { FotoFolderContent } from './types';
 
 /** Links and previews of SharePoint expire after about an hour; reload well before. */
 const MAX_AGE_MS = 30 * 60_000;
 
-interface FolderEntry {
-  data: FotoFolderContent | null;
-  loading: boolean;
-  error: string | null;
-  loadedAt: number | null;
-  revision: number;
-}
+const folders = createResourceMap<FotoFolderContent, string>(
+  (path) => `/intern/fotos/ordner?pfad=${encodeURIComponent(path)}`,
+  {
+    // `/` plus the path, so that a folder named like an object property (`constructor`,
+    // `__proto__`) is an entry too
+    keyOf: (path) => `/${path}`,
+    loadError:
+      'Der Ordner konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.',
+  }
+);
 
-/**
- * Folders of the photo library, kept while the page is open. The key is `/` plus the path, so
- * that a folder named like an object property (`constructor`, `__proto__`) is an entry too.
- */
-export const fotoOrdner = $state<Record<string, FolderEntry>>({});
+/** Folders of the photo library, kept while the page is open, under `/` plus the path. */
+export const fotoOrdner = folders.state;
 
-function key(path: string): string {
-  return `/${path}`;
-}
-
-// eslint-disable-next-line svelte/prefer-svelte-reactivity -- running requests, never rendered
-const pending = new Map<string, Promise<void>>();
-
-export function folderEntry(path: string): FolderEntry {
-  return (
-    fotoOrdner[key(path)] ?? { data: null, loading: true, error: null, loadedAt: null, revision: 0 }
-  );
+export function folderEntry(path: string): ResourceState<FotoFolderContent> {
+  return fotoOrdner[`/${path}`] ?? emptyState<FotoFolderContent>(true);
 }
 
 /** Whether the links of a loaded folder are still fresh enough to use. */
 export function isFresh(path: string): boolean {
-  const loadedAt = fotoOrdner[key(path)]?.loadedAt;
-  return loadedAt != null && Date.now() - loadedAt < MAX_AGE_MS;
+  return folders.isCurrent(path, MAX_AGE_MS);
 }
 
 /** Loads a folder; without `force` a fresh copy is kept and a running request joined. */
 export function loadFotoFolder(path: string, { force = false } = {}): Promise<void> {
-  if (!force && isFresh(path)) return Promise.resolve();
-  const running = pending.get(path);
-  if (running) return running;
-
-  fotoOrdner[key(path)] ??= { data: null, loading: true, error: null, loadedAt: null, revision: 0 };
-  // The proxy of the store, not the object assigned above
-  const entry = fotoOrdner[key(path)];
-  const revision = entry.revision;
-  entry.loading = true;
-  entry.error = null;
-  const promise = (async () => {
-    try {
-      const data = await fetchApi<FotoFolderContent>(
-        `/intern/fotos/ordner?pfad=${encodeURIComponent(path)}`
-      );
-      if (entry.revision !== revision) return;
-      entry.data = data;
-      entry.loadedAt = Date.now();
-    } catch (error: unknown) {
-      if (entry.revision !== revision) return;
-      entry.error = errorMessage(
-        error,
-        'Der Ordner konnte nicht geladen werden. Prüfe deine Internetverbindung und tippe auf „Erneut versuchen“.'
-      );
-    } finally {
-      pending.delete(path);
-      if (entry.revision !== revision) {
-        await loadFotoFolder(path, { force: true });
-      } else {
-        entry.loading = false;
-      }
-    }
-  })();
-  pending.set(path, promise);
-  return promise;
+  return folders.load(path, { force, maxAge: MAX_AGE_MS });
 }
 
-/** Drops the cached copy of a folder and the folders above it, e.g. after an upload into it. */
+/**
+ * Drops the cached copy of a folder and the folders above it, e.g. after an upload into it. A
+ * folder that is loading right now asked before the change, so it is asked again.
+ */
 export function forgetFotoFolder(path: string): void {
   const segments = path ? path.split('/') : [];
   for (let depth = 0; depth <= segments.length; depth++) {
-    const entry = fotoOrdner[key(segments.slice(0, depth).join('/'))];
-    if (entry) {
-      entry.loadedAt = null;
-      entry.revision++;
-    }
+    const folder = segments.slice(0, depth).join('/');
+    folders.invalidate(folder);
+    if (fotoOrdner[`/${folder}`]?.loading) void loadFotoFolder(folder);
   }
 }

@@ -1,5 +1,5 @@
 import { errorMessage, fetchApi } from './api';
-import { createResource } from './pflegeStore.svelte';
+import { createResource } from './resource.svelte';
 import type { AktionBeitraegeData, CampflowEvent, CampflowEventDetail } from './types';
 
 interface CampflowEventsState {
@@ -90,13 +90,9 @@ export function fetchCampflowEvent(
  * The Beiträge of the participants of one Aktion, read from CampFlow by the Playwright API. It
  * keeps the last read; `refresh` reads CampFlow again (a few seconds).
  */
-export const aktionBeitraegeStore = createResource<
-  AktionBeitraegeData,
-  { id: string; refresh: boolean }
->(
-  ({ id, refresh }) =>
-    `/intern/aktionen/${encodeURIComponent(id)}/beitraege${refresh ? '?refresh=true' : ''}`,
-  { idle: true }
+export const aktionBeitraegeStore = createResource<AktionBeitraegeData, string>(
+  (id) => `/intern/aktionen/${encodeURIComponent(id)}/beitraege`,
+  { idle: true, refreshable: true }
 );
 
 /**

@@ -34,7 +34,11 @@ export function rolesOn(person: EinteilungPerson | undefined, date: string): Hel
   return HELPER_ROLES.filter((role) => roles.includes(role));
 }
 
-export function canTake(person: EinteilungPerson | undefined, date: string, role: TeamRole): boolean {
+export function canTake(
+  person: EinteilungPerson | undefined,
+  date: string,
+  role: TeamRole
+): boolean {
   return rolesOn(person, date).includes(role);
 }
 

@@ -35,6 +35,12 @@ export interface TasksOverview {
   login: string;
   extractionConfigured: boolean;
 }
+/** A person of the Leitende group a task can be assigned to. */
+export interface TaskUser {
+  name: string;
+  /** Membership claim UPN, matching the Entra staff login. */
+  login: string;
+}
 export interface TaskAssignment {
   assignee: string | null;
   unavailable: boolean;

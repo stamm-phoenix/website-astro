@@ -1,41 +1,17 @@
 import type { InstagramPost } from './types';
-import { fetchApi } from './api';
 import { bakedUrl } from './bakedImages';
+import { createResource } from './resource.svelte';
+import { loadStateOf } from './storeView';
 
 export const INSTAGRAM_PROFILE_URL = 'https://www.instagram.com/dpsg_stammphoenix/';
 
-interface InstagramStoreState {
-  data: InstagramPost[] | null;
-  loading: boolean;
-  error: boolean;
-}
+const instagram = createResource<InstagramPost[]>('/instagram');
 
-export const instagramStore = $state<InstagramStoreState>({
-  data: null,
-  loading: true,
-  error: false,
-});
+export const instagramStore = loadStateOf(instagram.state);
 
-let fetchPromise: Promise<void> | null = null;
-
+/** Asks again on every call, unless a request is already running, which is joined. */
 export function fetchInstagram(): Promise<void> {
-  if (fetchPromise) return fetchPromise;
-
-  instagramStore.loading = true;
-  instagramStore.error = false;
-
-  fetchPromise = (async () => {
-    try {
-      instagramStore.data = await fetchApi<InstagramPost[]>('/instagram');
-    } catch {
-      instagramStore.error = true;
-    } finally {
-      fetchPromise = null;
-      instagramStore.loading = false;
-    }
-  })();
-
-  return fetchPromise;
+  return instagram.load({ maxAge: 0 });
 }
 
 /** Images are proxied by the API, so the browser never contacts Instagram. */

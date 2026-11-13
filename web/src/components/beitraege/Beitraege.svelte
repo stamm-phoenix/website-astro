@@ -46,7 +46,7 @@
   async function refresh(): Promise<void> {
     refreshed = '';
     refreshing = true;
-    await beitraegeStore.load({ force: true, param: true });
+    await beitraegeStore.refresh();
     if (store.error) return;
     refreshed = 'Beiträge neu aus CampFlow geladen.';
     // „Meine Beiträge“ on the start page loads the new state on its next visit
@@ -56,7 +56,7 @@
   onMount(() => {
     readUrl();
     window.addEventListener('popstate', readUrl);
-    void beitraegeStore.load({ param: false });
+    void beitraegeStore.load();
     return () => window.removeEventListener('popstate', readUrl);
   });
 
@@ -95,7 +95,7 @@
     loading={store.loading}
     error={store.error}
     loadingText="Beiträge werden aus CampFlow geladen …"
-    onretry={() => (refreshing ? refresh() : beitraegeStore.load({ force: true, param: false }))}
+    onretry={() => (refreshing ? refresh() : beitraegeStore.load({ force: true }))}
   >
     {#snippet skeleton()}
       <p class="mb-4 text-sm text-neutral-700">

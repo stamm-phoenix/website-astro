@@ -1,7 +1,7 @@
 <script lang="ts" generics="T">
   import ReloadAction from '../ui/ReloadAction.svelte';
   import Toast from '../ui/Toast.svelte';
-  import type { Resource } from '../../lib/pflegeStore.svelte';
+  import type { Resource } from '../../lib/resource.svelte';
 
   interface Props {
     resource: Resource<T>;

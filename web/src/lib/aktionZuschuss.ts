@@ -2,7 +2,7 @@
 // Abrechnung, and whether an event is no real Aktion (`aktionArt.ts`), switched in the Aktion.
 // Every loaded copy of the Aktion is updated, so lists and pages agree at once.
 import { sendApi } from './api';
-import { abrechnungStore } from './abrechnungStore.svelte';
+import { loadedAbrechnungen } from './abrechnungStore.svelte';
 import { campflowDetailStore, campflowEventsStore } from './campflowStore.svelte';
 import type { CampflowEvent } from './types';
 
@@ -20,7 +20,7 @@ export async function saveZuschussfaehig(eventId: string, zuschussfaehig: boolea
   }
   const detail = campflowDetailStore.data[eventId];
   if (detail) apply(detail.event);
-  for (const abrechnung of Object.values(abrechnungStore.data)) {
+  for (const abrechnung of loadedAbrechnungen()) {
     if (abrechnung.event.id === eventId) apply(abrechnung.event);
   }
 }
@@ -42,7 +42,7 @@ export async function saveKeineAktion(eventId: string, keineAktion: boolean): Pr
   }
   const detail = campflowDetailStore.data[eventId];
   if (detail) apply(detail.event);
-  for (const abrechnung of Object.values(abrechnungStore.data)) {
+  for (const abrechnung of loadedAbrechnungen()) {
     if (abrechnung.event.id === eventId) apply(abrechnung.event);
   }
 }

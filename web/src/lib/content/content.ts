@@ -151,7 +151,7 @@ export async function getGruppenstundenContent(): Promise<Baked<Gruppenstunde[]>
   const data = await loadSource<Gruppenstunde[]>('gruppenstunden');
   const leaders = (data ?? []).flatMap((g) => g.leitende ?? []).filter((l) => l.hasImage);
   return {
-    data: data && sortGruppenstunden([...data]),
+    data: data && sortGruppenstunden(data),
     images: await bakeImages(leaders.map((l) => leaderImage(l.id))),
   };
 }
@@ -164,7 +164,7 @@ export async function getVorstandContent(): Promise<Baked<Vorstand[]>> {
 
 export async function getAktionenContent(): Promise<Baked<Aktion[]>> {
   const data = await loadSource<Aktion[]>('aktionen');
-  return { data: data && sortAktionen([...data]), images: {} };
+  return { data: data && sortAktionen(data), images: {} };
 }
 
 export async function getDownloadsContent(): Promise<Baked<DownloadFile[]>> {
@@ -175,7 +175,7 @@ export async function getDownloadsContent(): Promise<Baked<DownloadFile[]>> {
       `/api/downloads/${file.id}/image/small`,
       `/api/downloads/${file.id}/image/large`,
     ]);
-  return { data: data && sortDownloads([...data]), images: await bakeImages(urls) };
+  return { data: data && sortDownloads(data), images: await bakeImages(urls) };
 }
 
 export async function getQuestionsContent(): Promise<Baked<QuestionAndAnswer[]>> {
