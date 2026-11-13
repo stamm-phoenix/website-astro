@@ -6,6 +6,8 @@ import {
   EditorCollection,
   EditorItem,
   EditorSperre,
+} from '../endpoints/intern-protokoll-editor-bearbeiten';
+import {
   GetEditorLive,
   GetEditorPersonen,
   GetEditorProtokoll,

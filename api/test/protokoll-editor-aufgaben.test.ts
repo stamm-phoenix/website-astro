@@ -2,15 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 import { HttpRequest, InvocationContext } from '@azure/functions';
+import { EditorAufgabe } from '../endpoints/intern-protokoll-editor-aufgaben';
 import {
-  EditorAufgabe,
   EditorCollection,
   EditorItem,
-  EditorReview,
   EditorSperre,
-  GetEditorAufgaben,
-  GetEditorProtokoll,
-} from '../endpoints/intern-protokoll-editor';
+} from '../endpoints/intern-protokoll-editor-bearbeiten';
+import { EditorReview } from '../endpoints/intern-protokoll-editor-review';
+import { GetEditorAufgaben, GetEditorProtokoll } from '../endpoints/intern-protokoll-editor';
 import {
   createTask,
   deleteTaskProject,

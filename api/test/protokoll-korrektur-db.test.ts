@@ -4,8 +4,10 @@ import { HttpRequest, InvocationContext } from '@azure/functions';
 import {
   EditorCollection,
   EditorItem,
-  EditorReview,
   EditorSperre,
+} from '../endpoints/intern-protokoll-editor-bearbeiten';
+import { EditorReview } from '../endpoints/intern-protokoll-editor-review';
+import {
   GetEditorProtokoll,
   GetEditorRevision,
   GetEditorRevisions,
