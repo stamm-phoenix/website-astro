@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import { parseId } from '../lib/db';
 import {
   METHOD_NOT_ALLOWED,
@@ -67,3 +67,24 @@ export const InventurZaehlungEndpoint = pflegeHandler(
 export const InventurCollection = withErrorHandling(InventurCollectionEndpoint);
 export const InventurItem = withErrorHandling(InventurItemEndpoint);
 export const InventurZaehlung = withErrorHandling(InventurZaehlungEndpoint);
+
+app.http('internPflegeInventur', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/inventur',
+  handler: InventurCollection,
+});
+
+app.http('internPflegeInventurArtikel', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/inventur/{id}',
+  handler: InventurItem,
+});
+
+app.http('internPflegeInventurZaehlung', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/inventur/{id}/zaehlung',
+  handler: InventurZaehlung,
+});

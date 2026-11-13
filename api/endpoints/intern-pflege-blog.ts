@@ -1,6 +1,6 @@
 import { transitionBlog } from '../lib/blog-workflow';
 import { randomInt } from 'node:crypto';
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import type { BlogEntry } from '../lib/blog-list';
 import {
   TooManyImagesError,
@@ -187,3 +187,31 @@ export const BlogCollection = withErrorHandling(BlogCollectionEndpoint);
 export const BlogItem = withErrorHandling(BlogItemEndpoint);
 export const BlogImages = withErrorHandling(BlogImagesEndpoint);
 export const BlogImageItem = withErrorHandling(BlogImageEndpoint);
+
+app.http('internPflegeBlog', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/blog',
+  handler: BlogCollection,
+});
+
+app.http('internPflegeBlogItem', {
+  methods: ['GET', 'PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/blog/{id}',
+  handler: BlogItem,
+});
+
+app.http('internPflegeBlogBilder', {
+  methods: ['PUT', 'PATCH'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/blog/{id}/bilder',
+  handler: BlogImages,
+});
+
+app.http('internPflegeBlogBild', {
+  methods: ['GET', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/blog/{id}/bilder/{file}',
+  handler: BlogImageItem,
+});

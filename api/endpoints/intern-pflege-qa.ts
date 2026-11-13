@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import {
   createQuestionAndAnswer,
   deleteQuestionAndAnswer,
@@ -60,3 +60,18 @@ export const QuestionItemEndpoint = pflegeHandler(
 
 export const QuestionsCollection = withErrorHandling(QuestionsCollectionEndpoint);
 export const QuestionItem = withErrorHandling(QuestionItemEndpoint);
+
+// Edit modules of the Leitendenbereich (write to SharePoint)
+app.http('internPflegeQuestions', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/qa',
+  handler: QuestionsCollection,
+});
+
+app.http('internPflegeQuestion', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/qa/{id}',
+  handler: QuestionItem,
+});

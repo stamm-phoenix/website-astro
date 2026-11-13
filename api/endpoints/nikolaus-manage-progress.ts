@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { NikolausBooking } from '../lib/nikolaus-bookings';
 import type { DispoRow } from '../lib/nikolaus-dispo-list';
 import { getAllBookings } from '../lib/nikolaus-bookings';
@@ -114,4 +114,12 @@ export async function GetNikolausProgressEndpoint(request: HttpRequest): Promise
   });
 }
 
-export default withNikolausNoStore(GetNikolausProgressEndpoint);
+const defaultHandler = withNikolausNoStore(GetNikolausProgressEndpoint);
+export default defaultHandler;
+
+app.http('nikolausManageProgress', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/progress',
+  handler: defaultHandler,
+});

@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { CampflowEvent } from '../lib/campflow';
 import { getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
@@ -135,3 +135,17 @@ export const AktionItemEndpoint = pflegeHandler(
 
 export const AktionenCollection = withErrorHandling(AktionenCollectionEndpoint);
 export const AktionItem = withErrorHandling(AktionItemEndpoint);
+
+app.http('internPflegeAktionen', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aktionen',
+  handler: AktionenCollection,
+});
+
+app.http('internPflegeAktion', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aktionen/{id}',
+  handler: AktionItem,
+});

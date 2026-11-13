@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { getKostenstellen, playwrightErrorResponse } from '../lib/playwright-api';
 import { withErrorHandling } from '../lib/response-utils';
@@ -25,4 +25,14 @@ export async function GetInternAbrechnungKostenstellenEndpoint(
   }
 }
 
-export default withErrorHandling(GetInternAbrechnungKostenstellenEndpoint);
+const defaultHandler = withErrorHandling(GetInternAbrechnungKostenstellenEndpoint);
+export default defaultHandler;
+
+// Not under `intern/abrechnung/`: the host sends that path to `intern/abrechnung/{id}`, whatever
+// the order of registration
+app.http('internKostenstellen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/kostenstellen',
+  handler: defaultHandler,
+});

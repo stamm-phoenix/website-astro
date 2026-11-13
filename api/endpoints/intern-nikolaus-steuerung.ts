@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { z } from 'zod';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
@@ -134,3 +139,31 @@ export const NikolausStatus = withErrorHandling(GetNikolausStatusEndpoint);
 export const NikolausSteuerungEndpoint = withErrorHandling(NikolausSteuerung);
 export const NikolausSteuerungSaveEndpoint = withErrorHandling(NikolausSteuerungSave);
 export const NikolausSteuerungDeleteEndpoint = withErrorHandling(NikolausSteuerungDelete);
+
+app.http('internNikolausStatus', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/status',
+  handler: NikolausStatus,
+});
+
+app.http('internNikolausSteuerung', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/steuerung',
+  handler: NikolausSteuerungEndpoint,
+});
+
+app.http('internPflegeNikolausSteuerung', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-steuerung',
+  handler: NikolausSteuerungSaveEndpoint,
+});
+
+app.http('internPflegeNikolausSteuerungDelete', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-steuerung/loeschen',
+  handler: NikolausSteuerungDeleteEndpoint,
+});

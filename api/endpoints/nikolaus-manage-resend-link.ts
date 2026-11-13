@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { getErrorStatus } from '../lib/response-utils';
 import { findNikolausSlot } from '../lib/nikolaus-config';
@@ -143,4 +148,12 @@ export async function ResendNikolausLinkEndpoint(
   return sent;
 }
 
-export default withNikolausWriteHandling(ResendNikolausLinkEndpoint);
+const defaultHandler = withNikolausWriteHandling(ResendNikolausLinkEndpoint);
+export default defaultHandler;
+
+app.http('nikolausManageResendLink', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/resend-link',
+  handler: defaultHandler,
+});

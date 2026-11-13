@@ -1,4 +1,4 @@
-import type { HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import { listDownloads } from '../lib/downloads';
 import { toPublicDownload } from '../lib/downloads-public';
 import { withErrorHandling } from '../lib/response-utils';
@@ -12,4 +12,11 @@ export async function GetDownloadFilesEndpoint(): Promise<HttpResponseInit> {
   };
 }
 
-export default withErrorHandling(GetDownloadFilesEndpoint);
+const defaultHandler = withErrorHandling(GetDownloadFilesEndpoint);
+export default defaultHandler;
+
+app.http('downloads', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: defaultHandler,
+});

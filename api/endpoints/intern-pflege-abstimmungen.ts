@@ -1,4 +1,4 @@
-import type { HttpRequest, InvocationContext } from '@azure/functions';
+import { app, type HttpRequest, type InvocationContext } from '@azure/functions';
 import { validateAbstimmung } from '../lib/abstimmung-schema';
 import { ABSTIMMUNG_MAIL_TIMEOUT_MS, abstimmungMail } from '../lib/abstimmung-mails';
 import {
@@ -371,3 +371,45 @@ export const AbstimmungStimme = withErrorHandling(AbstimmungStimmeEndpoint);
 export const AbstimmungEinladung = withErrorHandling(AbstimmungEinladungEndpoint);
 export const AbstimmungErinnerung = withErrorHandling(AbstimmungErinnerungEndpoint);
 export const AbstimmungMails = withErrorHandling(AbstimmungMailsEndpoint);
+
+app.http('internPflegeAbstimmungen', {
+  route: 'intern/pflege/abstimmungen',
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  handler: AbstimmungenCollection,
+});
+
+app.http('internPflegeAbstimmung', {
+  route: 'intern/pflege/abstimmungen/{id}',
+  methods: ['GET', 'PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  handler: AbstimmungItem,
+});
+
+app.http('internPflegeAbstimmungStimme', {
+  route: 'intern/pflege/abstimmungen/{id}/stimme',
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  handler: AbstimmungStimme,
+});
+
+app.http('internPflegeAbstimmungEinladung', {
+  route: 'intern/pflege/abstimmungen/{id}/einladung',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: AbstimmungEinladung,
+});
+
+app.http('internPflegeAbstimmungErinnerung', {
+  route: 'intern/pflege/abstimmungen/{id}/erinnerung',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: AbstimmungErinnerung,
+});
+
+app.http('internPflegeAbstimmungMails', {
+  route: 'intern/pflege/abstimmungen/{id}/mails',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: AbstimmungMails,
+});

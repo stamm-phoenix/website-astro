@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { campflowErrorResponse } from '../lib/campflow-api';
 import { getLeitende } from '../lib/leitende-list';
 import {
@@ -106,3 +106,17 @@ export const NikolausStufenDecision = pflegeHandler(
 
 export const NikolausStufen = withErrorHandling(GetInternNikolausStufenEndpoint);
 export const NikolausStufenDecisionEndpoint = withErrorHandling(NikolausStufenDecision);
+
+app.http('internNikolausStufen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/stufen-abgleich',
+  handler: NikolausStufen,
+});
+
+app.http('internPflegeNikolausStufen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/nikolaus-stufen-abgleich',
+  handler: NikolausStufenDecisionEndpoint,
+});

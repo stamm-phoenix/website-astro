@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import { sammelInvitationStep } from '../lib/sammelbestellung-invitations';
 import { isSammelOpen } from '../lib/sammelbestellung-model';
 import { CampflowError } from '../lib/campflow';
@@ -240,3 +241,52 @@ export const SammelStaffInvite = sammelHandler(
     }
   })
 );
+
+app.http('sammelStaffCampaigns', {
+  route: 'intern/pflege/sammelbestellungen',
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffCampaigns,
+});
+
+app.http('sammelStaffCampaign', {
+  route: 'intern/pflege/sammelbestellungen/{id}',
+  methods: ['GET', 'PATCH'],
+  authLevel: 'anonymous',
+  handler: SammelStaffCampaign,
+});
+
+app.http('sammelStaffOrder', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}',
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  handler: SammelStaffOrder,
+});
+
+app.http('sammelStaffMessage', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}/message',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffMessage,
+});
+
+app.http('sammelStaffProduct', {
+  route: 'intern/pflege/sammelbestellungen/product',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffProduct,
+});
+
+app.http('sammelStaffItem', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}/item',
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  handler: SammelStaffItem,
+});
+
+app.http('sammelStaffInvite', {
+  route: 'intern/pflege/sammelbestellungen/{id}/invite',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffInvite,
+});

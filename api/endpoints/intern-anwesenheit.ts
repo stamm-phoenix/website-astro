@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { Child, MeetingRecord, Termin } from '../lib/anwesenheit';
 import {
   PERSON_ID_PATTERN,
@@ -281,3 +281,52 @@ export const AnwesenheitCancelled = withErrorHandling(AnwesenheitCancelledEndpoi
 export const AnwesenheitChild = withErrorHandling(AnwesenheitChildEndpoint);
 export const AnwesenheitGuests = withErrorHandling(AnwesenheitGuestsEndpoint);
 export const AnwesenheitGuest = withErrorHandling(AnwesenheitGuestEndpoint);
+
+app.http('internAnwesenheit', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/anwesenheit',
+  handler: GetAnwesenheit,
+});
+
+app.http('internAnwesenheitTermin', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/anwesenheit/{stufe}/{datum}',
+  handler: GetAnwesenheitTermin,
+});
+
+app.http('internPflegeAnwesenheitNotes', {
+  methods: ['PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/anwesenheit/{stufe}/{datum}',
+  handler: AnwesenheitNotes,
+});
+
+app.http('internPflegeAnwesenheitCancelled', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/anwesenheit/{stufe}/{datum}/ausgefallen',
+  handler: AnwesenheitCancelled,
+});
+
+app.http('internPflegeAnwesenheitChild', {
+  methods: ['PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/anwesenheit/{stufe}/{datum}/kinder/{id}',
+  handler: AnwesenheitChild,
+});
+
+app.http('internPflegeAnwesenheitGuests', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/anwesenheit/{stufe}/{datum}/gaeste',
+  handler: AnwesenheitGuests,
+});
+
+app.http('internPflegeAnwesenheitGuest', {
+  methods: ['DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/anwesenheit/{stufe}/{datum}/gaeste/{id}',
+  handler: AnwesenheitGuest,
+});

@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import {
   completeUpload,
   deleteDownload,
@@ -179,3 +179,38 @@ export const DownloadUploadStart = withErrorHandling(DownloadUploadStartEndpoint
 export const DownloadUploadPart = withErrorHandling(DownloadUploadPartEndpoint);
 export const DownloadUploadComplete = withErrorHandling(DownloadUploadCompleteEndpoint);
 export const DownloadItem = withErrorHandling(DownloadItemEndpoint);
+
+app.http('internPflegeDownloads', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads',
+  handler: DownloadsCollection,
+});
+
+app.http('internPflegeDownloadUpload', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads/upload',
+  handler: DownloadUploadStart,
+});
+
+app.http('internPflegeDownloadUploadPart', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads/upload/{uploadId}/{index}',
+  handler: DownloadUploadPart,
+});
+
+app.http('internPflegeDownloadUploadComplete', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads/upload/{uploadId}',
+  handler: DownloadUploadComplete,
+});
+
+app.http('internPflegeDownloadItem', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/downloads/{id}',
+  handler: DownloadItem,
+});

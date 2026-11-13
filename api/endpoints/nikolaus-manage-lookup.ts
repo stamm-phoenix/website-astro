@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import {
   bookingResponse,
   isErrorResponse,
@@ -15,4 +15,12 @@ export async function LookupNikolausBookingEndpoint(
   return bookingResponse(result.booking, result.config);
 }
 
-export default withNikolausNoStore(LookupNikolausBookingEndpoint);
+const defaultHandler = withNikolausNoStore(LookupNikolausBookingEndpoint);
+export default defaultHandler;
+
+app.http('nikolausManageLookup', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/manage/lookup',
+  handler: defaultHandler,
+});

@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { serveDownloadFile } from '../lib/downloads';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
@@ -10,4 +10,12 @@ export async function GetDownloadFileEndpointInternal(
   return (await serveDownloadFile(request.params.id ?? '')) ?? NOT_FOUND;
 }
 
-export default withErrorHandling(GetDownloadFileEndpointInternal);
+const GetDownloadFileEndpoint = withErrorHandling(GetDownloadFileEndpointInternal);
+export default GetDownloadFileEndpoint;
+
+app.http('downloadFile', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'downloads/{id}/file',
+  handler: GetDownloadFileEndpoint,
+});

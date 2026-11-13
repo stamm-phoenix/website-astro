@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { readBeitraege } from '../lib/beitraege';
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { getBeitraege, PlaywrightApiError } from '../lib/playwright-api';
@@ -35,4 +35,12 @@ export async function GetInternBeitraegeEndpoint(request: HttpRequest): Promise<
   }
 }
 
-export default withErrorHandling(GetInternBeitraegeEndpoint);
+const defaultHandler = withErrorHandling(GetInternBeitraegeEndpoint);
+export default defaultHandler;
+
+app.http('internBeitraege', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/beitraege',
+  handler: defaultHandler,
+});

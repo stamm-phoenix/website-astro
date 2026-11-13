@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import { getDb } from '../lib/db';
 import { istStammAdresse } from '../lib/essen-leitung-model';
 import { darfMitgliederVerwalten } from '../lib/essen-planung-model';
@@ -59,4 +60,11 @@ export const EssensplanungLeitende = planungHandler(async (request) => {
         .sort((a, b) => a.name.localeCompare(b.name, 'de')),
     },
   };
+});
+
+app.http('essensplanungLeitende', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/leitende',
+  handler: EssensplanungLeitende,
 });

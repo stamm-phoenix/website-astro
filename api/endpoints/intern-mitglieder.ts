@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { CampflowColumn, CampflowPerson } from '../lib/campflow';
 import {
   CampflowError,
@@ -75,4 +75,12 @@ export async function GetInternMitgliederEndpoint(request: HttpRequest): Promise
   }
 }
 
-export default withErrorHandling(GetInternMitgliederEndpoint);
+const defaultHandler = withErrorHandling(GetInternMitgliederEndpoint);
+export default defaultHandler;
+
+app.http('internMitglieder', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/mitglieder',
+  handler: defaultHandler,
+});

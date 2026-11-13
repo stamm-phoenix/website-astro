@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import type { CampflowColumn, CampflowPerson } from '../lib/campflow';
 import {
   CAMPFLOW_EVENT_ID_PATTERN,
@@ -53,4 +53,12 @@ export async function GetInternAktionEndpoint(request: HttpRequest): Promise<Htt
   }
 }
 
-export default withErrorHandling(GetInternAktionEndpoint);
+const defaultHandler = withErrorHandling(GetInternAktionEndpoint);
+export default defaultHandler;
+
+app.http('internAktion', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/aktionen/{id}',
+  handler: defaultHandler,
+});

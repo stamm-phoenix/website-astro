@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { findNikolausSlot, isBookingClosed } from '../lib/nikolaus-config';
 import { getNikolausSettings } from '../lib/nikolaus-settings';
@@ -145,4 +150,12 @@ export async function CreateNikolausBookingEndpoint(
   };
 }
 
-export default withNikolausWriteHandling(CreateNikolausBookingEndpoint);
+const defaultHandler = withNikolausWriteHandling(CreateNikolausBookingEndpoint);
+export default defaultHandler;
+
+app.http('nikolausBookingCreate', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'nikolaus/bookings',
+  handler: defaultHandler,
+});

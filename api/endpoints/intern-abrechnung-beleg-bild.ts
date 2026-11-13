@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { getBelegBild, getBelegVorschau, playwrightErrorResponse } from '../lib/playwright-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 import { isStaffError, requireStaff } from '../lib/staff-auth';
@@ -82,4 +82,19 @@ export const GetInternAbrechnungBelegVorschau = withErrorHandling(
   GetInternAbrechnungBelegVorschauEndpoint
 );
 
-export default withErrorHandling(GetInternAbrechnungBelegBildEndpoint);
+const defaultHandler = withErrorHandling(GetInternAbrechnungBelegBildEndpoint);
+export default defaultHandler;
+
+app.http('internAbrechnungBelegBild', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/belege/{nummer}/bild',
+  handler: defaultHandler,
+});
+
+app.http('internAbrechnungBelegVorschau', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/belege/{nummer}/vorschau',
+  handler: GetInternAbrechnungBelegVorschau,
+});

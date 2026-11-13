@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { getAllBookings, isBlocking } from '../lib/nikolaus-bookings';
 import { getNikolausSlots } from '../lib/nikolaus-config';
 import { NO_STORE_HEADERS, toStaffBooking } from '../lib/nikolaus-api';
@@ -48,4 +48,14 @@ export async function GetInternNikolausBookingsEndpoint(
   };
 }
 
-export default withErrorHandling(GetInternNikolausBookingsEndpoint);
+const defaultHandler = withErrorHandling(GetInternNikolausBookingsEndpoint);
+export default defaultHandler;
+
+// Leitendenbereich: only reachable for logged-in members of our tenant
+// (see staticwebapp.config.json and lib/staff-auth.ts)
+app.http('internNikolausBookings', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/bookings',
+  handler: defaultHandler,
+});

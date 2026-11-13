@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import { METHOD_NOT_ALLOWED, ok, pflegeHandler, readJsonBody } from '../lib/pflege-api';
 import { validateChangelogSeen } from '../lib/validation/staff';
 import { withErrorHandling } from '../lib/response-utils';
@@ -24,3 +24,10 @@ export const StaffChangelogEndpoint = pflegeHandler(
 );
 
 export const StaffChangelog = withErrorHandling(StaffChangelogEndpoint);
+
+app.http('internNeuigkeiten', {
+  methods: ['GET', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/neuigkeiten',
+  handler: StaffChangelog,
+});

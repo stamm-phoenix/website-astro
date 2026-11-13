@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { leitungPlanungen } from '../lib/essen-leitung';
 import { leitungPlanungAnlegen } from '../lib/essen-leitung-anlegen';
 import { anzeigeName, istStammAdresse } from '../lib/essen-leitung-model';
@@ -38,4 +38,13 @@ export async function EssensplanungMeineEndpoint(request: HttpRequest): Promise<
   return { status: 201, headers: NO_STORE_HEADERS, jsonBody: angelegt };
 }
 
-export default planungHandler(EssensplanungMeineEndpoint);
+const defaultHandler = planungHandler(EssensplanungMeineEndpoint);
+export default defaultHandler;
+
+// Essensplanung: the own Planungen of a Leitende:r with an address of the Stamm.
+app.http('internEssensplanungMeine', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/essensplanung/meine',
+  handler: defaultHandler,
+});

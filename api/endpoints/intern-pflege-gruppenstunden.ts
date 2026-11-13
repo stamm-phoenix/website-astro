@@ -1,5 +1,5 @@
 import { validateGruppenstundenHinweis } from '../lib/validation/gruppenstunden-exception';
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import { parseId } from '../lib/db';
 import {
   createGruppenstunde,
@@ -92,3 +92,24 @@ export const GruppenstundenHinweisEndpoint = pflegeHandler(
   }
 );
 export const GruppenstundenHinweis = withErrorHandling(GruppenstundenHinweisEndpoint);
+
+app.http('internPflegeGruppenstunden', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/gruppenstunden',
+  handler: GruppenstundenCollection,
+});
+
+app.http('internPflegeGruppenstundenHinweis', {
+  methods: ['PATCH'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/gruppenstunden/{id}/hinweis',
+  handler: GruppenstundenHinweis,
+});
+
+app.http('internPflegeGruppenstunde', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/gruppenstunden/{id}',
+  handler: GruppenstundeItem,
+});

@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { offeneBeitraege, readBeitraege } from '../lib/beitraege';
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { EIGENE_BEITRAEGE_TIMEOUT_MS, eigeneBeitraege } from '../lib/personen';
@@ -55,4 +55,12 @@ export async function GetInternBeitraegeMeineEndpoint(
   }
 }
 
-export default withErrorHandling(GetInternBeitraegeMeineEndpoint);
+const defaultHandler = withErrorHandling(GetInternBeitraegeMeineEndpoint);
+export default defaultHandler;
+
+app.http('internBeitraegeMeine', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/beitraege/meine',
+  handler: defaultHandler,
+});

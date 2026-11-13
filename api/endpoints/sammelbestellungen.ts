@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { sendSammelLinkMail, sendSammelSavedMail } from '../lib/sammelbestellung-mails';
 import { readJsonBody, NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
@@ -270,4 +275,40 @@ export const SammelOrderSave = sammelHandler(async (request, context) => {
     context.error('Sending Sammelbestellung confirmation failed after saving', error);
     return { status: 200, jsonBody: { confirmationMailSent: false } };
   }
+});
+
+// Sammelbestellungen: shared invitation and private order links; staff writes require Entra ID.
+app.http('sammelCampaignLookup', {
+  route: 'sammelbestellungen/campaign',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelCampaignLookup,
+});
+
+app.http('sammelRequestLink', {
+  route: 'sammelbestellungen/request-link',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelRequestLink,
+});
+
+app.http('sammelOrderLookup', {
+  route: 'sammelbestellungen/order',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelOrderLookup,
+});
+
+app.http('sammelOrderSave', {
+  route: 'sammelbestellungen/order',
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  handler: SammelOrderSave,
+});
+
+app.http('sammelProductLookup', {
+  route: 'sammelbestellungen/product',
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: SammelProductLookup,
 });

@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { CampflowError } from '../lib/campflow';
 import { CONFIG } from '../lib/config';
 import { RecordNotFoundError, parseId } from '../lib/db';
@@ -571,3 +571,101 @@ export const EditorSperre = withErrorHandling(EditorSperreEndpoint);
 export const GetEditorPdf = withErrorHandling(GetEditorPdfEndpoint);
 export const EditorReview = withErrorHandling(EditorReviewEndpoint);
 export const EditorVersand = withErrorHandling(EditorVersandEndpoint);
+
+app.http('internProtokollEditor', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor',
+  handler: GetEditorOverview,
+});
+
+app.http('internProtokollEditorPersonen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor-personen',
+  handler: GetEditorPersonen,
+});
+
+app.http('internProtokollEditorAufgaben', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor-aufgaben',
+  handler: GetEditorAufgaben,
+});
+
+app.http('internPflegeProtokollEditorAufgabe', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor-aufgaben/{id}',
+  handler: EditorAufgabe,
+});
+
+app.http('internProtokollEditorItem', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}',
+  handler: GetEditorProtokoll,
+});
+
+app.http('internProtokollEditorLive', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}/live',
+  handler: GetEditorLive,
+});
+
+app.http('internProtokollEditorVersionen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}/versionen',
+  handler: GetEditorRevisions,
+});
+
+app.http('internProtokollEditorVersion', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}/versionen/{revisionId}',
+  handler: GetEditorRevision,
+});
+
+app.http('internProtokollEditorPdf', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/protokoll-editor/{id}/pdf',
+  handler: GetEditorPdf,
+});
+
+app.http('internPflegeProtokollEditor', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor',
+  handler: EditorCollection,
+});
+
+app.http('internPflegeProtokollEditorItem', {
+  methods: ['PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor/{id}',
+  handler: EditorItem,
+});
+
+app.http('internPflegeProtokollEditorSperre', {
+  methods: ['POST', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor/{id}/sperre',
+  handler: EditorSperre,
+});
+
+app.http('internPflegeProtokollEditorReview', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor/{id}/review',
+  handler: EditorReview,
+});
+
+app.http('internPflegeProtokollEditorVersand', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/protokoll-editor/{id}/versand',
+  handler: EditorVersand,
+});

@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import { z } from 'zod';
 import { pflegeHandler, ok, readJsonBody } from '../lib/pflege-api';
 import { parseSession, sessionSizeOk, validAbrechnungSession } from '../lib/abrechnung-session';
@@ -87,3 +88,10 @@ export const AbrechnungEingabeEndpoint = pflegeHandler(
   }
 );
 export const AbrechnungEingabeHandler = withErrorHandling(AbrechnungEingabeEndpoint);
+
+app.http('internAbrechnungEingabe', {
+  methods: ['GET', 'PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/{id}/eingaben',
+  handler: AbrechnungEingabeHandler,
+});

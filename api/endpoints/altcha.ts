@@ -1,4 +1,4 @@
-import type { HttpResponseInit } from '@azure/functions';
+import { app, type HttpResponseInit } from '@azure/functions';
 import { createAltchaChallenge, isAltchaConfigured } from '../lib/altcha';
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
@@ -22,3 +22,11 @@ export async function AltchaChallengeEndpoint(): Promise<HttpResponseInit> {
 }
 
 export const AltchaChallenge = withErrorHandling(AltchaChallengeEndpoint);
+
+// Proof of work for the public forms (Kontakt, Nikolaus booking, Sammelbestellung link request)
+app.http('altchaChallenge', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'altcha/challenge',
+  handler: AltchaChallenge,
+});

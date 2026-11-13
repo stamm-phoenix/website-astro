@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import { einplanungAbhaken } from '../lib/essen-kochen';
 import { validateAbhaken } from '../lib/essen-kochen-validation';
 import { ladeAnsicht } from '../lib/essen-ansicht';
@@ -23,4 +24,11 @@ export const EssensplanungEinplanungStatus = planungHandler(async (request) => {
   const body = await readJsonBody(request);
   await einplanungAbhaken(zugang, readId(request), validateAbhaken(body), readEtag(body, request));
   return ok(await ladeAnsicht(zugang));
+});
+
+app.http('essensplanungEinplanungStatus', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einplanungen/{id}/status',
+  handler: EssensplanungEinplanungStatus,
 });

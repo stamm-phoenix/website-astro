@@ -1,4 +1,4 @@
-import type { HttpRequest, InvocationContext } from '@azure/functions';
+import { app, type HttpRequest, type InvocationContext } from '@azure/functions';
 import type { ClientPrincipal } from '../lib/staff-auth';
 import { getPrincipalFirstName } from '../lib/staff-auth';
 import { cancelBooking, getBooking } from '../lib/nikolaus-bookings';
@@ -89,4 +89,12 @@ export const NikolausCancelEndpoint = pflegeHandler(
   }
 );
 
-export default withErrorHandling(NikolausCancelEndpoint);
+const defaultHandler = withErrorHandling(NikolausCancelEndpoint);
+export default defaultHandler;
+
+app.http('internNikolausCancel', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/nikolaus/bookings/{id}/cancel',
+  handler: defaultHandler,
+});

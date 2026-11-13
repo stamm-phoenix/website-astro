@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import { pflegeHandler, ok, readJsonBody } from '../lib/pflege-api';
 import { getCampflowEvents } from '../lib/campflow';
 import { berlinDay } from '../lib/calendar-day';
@@ -73,3 +74,10 @@ export const AbrechnungZeitplanEndpoint = pflegeHandler('abrechnung-zeitplan', a
   }
 });
 export const AbrechnungZeitplanHandler = withErrorHandling(AbrechnungZeitplanEndpoint);
+
+app.http('internAbrechnungZeitplan', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/{id}/zeitplan',
+  handler: AbrechnungZeitplanHandler,
+});

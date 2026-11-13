@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { serveLeitendePhoto } from '../lib/leitende-list';
 import { errorResponse, withErrorHandling } from '../lib/response-utils';
 
@@ -11,3 +11,10 @@ export async function GetLeitendeImageInternal(request: HttpRequest): Promise<Ht
 }
 
 export const GetLeitendeImage = withErrorHandling(GetLeitendeImageInternal);
+
+app.http('image', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'leitende/{id}/image',
+  handler: GetLeitendeImage,
+});

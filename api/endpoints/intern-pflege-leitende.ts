@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import { parseId } from '../lib/db';
 import {
   createLeitende,
@@ -90,3 +90,24 @@ export const LeitendePhotoEndpoint = pflegeHandler(
 export const LeitendeCollection = withErrorHandling(LeitendeCollectionEndpoint);
 export const LeitendeItem = withErrorHandling(LeitendeItemEndpoint);
 export const LeitendePhoto = withErrorHandling(LeitendePhotoEndpoint);
+
+app.http('internPflegeLeitende', {
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/leitende',
+  handler: LeitendeCollection,
+});
+
+app.http('internPflegeLeitendeItem', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/leitende/{id}',
+  handler: LeitendeItem,
+});
+
+app.http('internPflegeLeitendeFoto', {
+  methods: ['PUT', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/leitende/{id}/foto',
+  handler: LeitendePhoto,
+});

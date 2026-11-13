@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { getAktionArt } from '../lib/aktion-art';
 import { CONFIG } from '../lib/config';
 import { countNights } from '../lib/kjr-zuschuss';
@@ -113,4 +113,12 @@ export async function PostInternAbrechnungKjrListeEndpoint(
   };
 }
 
-export default withErrorHandling(PostInternAbrechnungKjrListeEndpoint);
+const defaultHandler = withErrorHandling(PostInternAbrechnungKjrListeEndpoint);
+export default defaultHandler;
+
+app.http('internAbrechnungKjrListe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'intern/abrechnung/{id}/kjr-liste',
+  handler: defaultHandler,
+});

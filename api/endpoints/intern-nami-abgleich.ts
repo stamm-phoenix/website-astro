@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { berlinDay } from '../lib/calendar-day';
 import { CampflowError, getCampflowMembersWithTime } from '../lib/campflow';
 import { gleicheAb } from '../lib/nami-abgleich';
@@ -101,4 +101,12 @@ export async function GetInternNamiAbgleichEndpoint(
   };
 }
 
-export default withErrorHandling(GetInternNamiAbgleichEndpoint);
+const defaultHandler = withErrorHandling(GetInternNamiAbgleichEndpoint);
+export default defaultHandler;
+
+app.http('internNamiAbgleich', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/nami-abgleich',
+  handler: defaultHandler,
+});

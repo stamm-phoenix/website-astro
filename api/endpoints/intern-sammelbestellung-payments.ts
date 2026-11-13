@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import { pflegeHandler, ok, NOT_FOUND, readJsonBody } from '../lib/pflege-api';
 import { validateSammelPaymentInput } from '../lib/validation/sammel-payment';
 import { CampflowError } from '../lib/campflow';
@@ -92,3 +93,17 @@ export const SammelStaffPaymentPersons = sammelHandler(
     }
   })
 );
+
+app.http('sammelStaffPayment', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}/payment',
+  methods: ['GET', 'POST'],
+  authLevel: 'anonymous',
+  handler: SammelStaffPayment,
+});
+
+app.http('sammelStaffPaymentPersons', {
+  route: 'intern/pflege/sammelbestellungen/orders/{id}/payment/persons',
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  handler: SammelStaffPaymentPersons,
+});

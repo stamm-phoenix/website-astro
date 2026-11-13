@@ -1,4 +1,9 @@
-import type { HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import {
+  app,
+  type HttpRequest,
+  type HttpResponseInit,
+  type InvocationContext,
+} from '@azure/functions';
 import { isAltchaConfigured, verifyAltchaPayload } from '../lib/altcha';
 import { reserveKontaktQuota, sendKontaktMessage, sendKontaktReceipt } from '../lib/kontakt';
 import { validateKontaktMessage } from '../lib/kontakt-validation';
@@ -110,3 +115,10 @@ export async function KontaktSendEndpoint(
 }
 
 export const KontaktSend = withErrorHandling(KontaktSendEndpoint);
+
+app.http('kontaktSend', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'kontakt',
+  handler: KontaktSend,
+});

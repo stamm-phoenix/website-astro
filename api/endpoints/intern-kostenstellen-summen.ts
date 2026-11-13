@@ -1,4 +1,4 @@
-import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { app, type HttpRequest, type HttpResponseInit } from '@azure/functions';
 import { readKostenstellenSummen } from '../lib/kostenstellen';
 import { NO_STORE_HEADERS } from '../lib/nikolaus-api';
 import { getKostenstellenSummen, PlaywrightApiError } from '../lib/playwright-api';
@@ -45,4 +45,12 @@ export async function GetInternKostenstellenSummenEndpoint(
   }
 }
 
-export default withErrorHandling(GetInternKostenstellenSummenEndpoint);
+const defaultHandler = withErrorHandling(GetInternKostenstellenSummenEndpoint);
+export default defaultHandler;
+
+app.http('internKostenstellenSummen', {
+  methods: ['GET'],
+  authLevel: 'anonymous',
+  route: 'intern/kostenstellen/summen',
+  handler: defaultHandler,
+});

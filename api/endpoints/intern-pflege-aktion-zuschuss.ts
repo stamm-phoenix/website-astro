@@ -1,4 +1,4 @@
-import type { HttpRequest } from '@azure/functions';
+import { app, type HttpRequest } from '@azure/functions';
 import { setZuschussfaehig } from '../lib/aktion-zuschuss';
 import { CAMPFLOW_EVENT_ID_PATTERN, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
@@ -33,4 +33,12 @@ export const AktionZuschussEndpoint = pflegeHandler(
   }
 );
 
-export default withErrorHandling(AktionZuschussEndpoint);
+const AktionZuschuss = withErrorHandling(AktionZuschussEndpoint);
+export default AktionZuschuss;
+
+app.http('internPflegeAktionZuschuss', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'intern/pflege/aktionen-zuschuss/{id}',
+  handler: AktionZuschuss,
+});

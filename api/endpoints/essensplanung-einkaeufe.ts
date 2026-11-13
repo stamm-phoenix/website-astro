@@ -1,3 +1,4 @@
+import { app } from '@azure/functions';
 import {
   einkaufAendern,
   einkaufAnlegen,
@@ -99,4 +100,53 @@ export const EssensplanungEinkaufPosten = planungHandler(async (request) => {
   const zugang = await zugangVon(request);
   await postenAufheben(zugang, readId(request), readEtag(null, request));
   return ok(await ladeAnsicht(zugang));
+});
+
+app.http('essensplanungEinkaeufe', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe',
+  handler: EssensplanungEinkaeufe,
+});
+
+app.http('essensplanungEinkauf', {
+  methods: ['PATCH', 'DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe/{id}',
+  handler: EssensplanungEinkauf,
+});
+
+app.http('essensplanungEinkaufAbhaken', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe/{id}/posten',
+  handler: EssensplanungEinkaufAbhaken,
+});
+
+app.http('essensplanungEinkaufRegel', {
+  methods: ['PUT'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe/{id}/regeln',
+  handler: EssensplanungEinkaufRegel,
+});
+
+app.http('essensplanungEinkaufVerschieben', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe/{id}/verschieben',
+  handler: EssensplanungEinkaufVerschieben,
+});
+
+app.http('essensplanungEinkaufZurueckholen', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkaeufe/{id}/zurueckholen',
+  handler: EssensplanungEinkaufZurueckholen,
+});
+
+app.http('essensplanungEinkaufPosten', {
+  methods: ['DELETE'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/einkauf-posten/{id}',
+  handler: EssensplanungEinkaufPosten,
 });
