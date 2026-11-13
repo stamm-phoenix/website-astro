@@ -7,11 +7,10 @@ import {
 import { validateAbstimmungName } from '../lib/abstimmung-schema';
 import {
   AbstimmungClosedError,
-  getAbstimmungAnsicht,
   isAbstimmungToken,
   isAbstimmungVersuch,
-  votePublic,
-} from '../lib/abstimmungen';
+} from '../lib/abstimmungen-basis';
+import { getAbstimmungAnsicht, votePublic } from '../lib/abstimmungen-stimmen';
 import { RecordNotFoundError } from '../lib/db';
 import { ValidationError } from '../lib/validation/errors';
 import { errorResponse, NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';

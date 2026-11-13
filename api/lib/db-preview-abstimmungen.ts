@@ -1,5 +1,7 @@
 import { validateAbstimmung } from './abstimmung-schema';
-import { createAbstimmung, queueAbstimmungEinladungen, voteAsStaff } from './abstimmungen';
+import { createAbstimmung } from './abstimmungen';
+import { queueAbstimmungEinladungen } from './abstimmungen-mails';
+import { voteAsStaff } from './abstimmungen-stimmen';
 import { getDb } from './db';
 
 /** The option IDs of an Abstimmung in their order. */
