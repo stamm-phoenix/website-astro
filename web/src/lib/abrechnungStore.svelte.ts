@@ -65,10 +65,14 @@ export function abrechnungKey(id: string, kostenstelle = ''): string {
 }
 
 const pending: Record<string, Promise<void>> = {};
+/** Counts the loads per key; only the latest sets the store, so a late answer cannot undo a newer one. */
+const requestOf: Record<string, number> = {};
 
 /**
  * Loads the overview of an Aktion; cached per Aktion and Kostenstelle unless `force` is set.
  * `refresh` also has the Einzelnachweise exported from CampFlow again instead of the last export.
+ * A call with `force` or `refresh` never joins a running load, which may have read older data;
+ * it starts its own, and only the newest load of a key sets the store.
  */
 export function fetchAbrechnung(
   id: string,
@@ -78,7 +82,7 @@ export function fetchAbrechnung(
   const key = abrechnungKey(id, kostenstelle);
   if (abrechnungStore.data[key] && !force && !refresh) return Promise.resolve();
   const running = pending[key];
-  if (running) return running;
+  if (running && !force && !refresh) return running;
 
   abrechnungStore.loading[key] = true;
   delete abrechnungStore.errors[key];
@@ -88,19 +92,27 @@ export function fetchAbrechnung(
     ...(refresh ? ['refresh=true'] : []),
   ];
   const query = params.length > 0 ? `?${params.join('&')}` : '';
+  const request = (requestOf[key] ?? 0) + 1;
+  requestOf[key] = request;
+  const latest = (): boolean => requestOf[key] === request;
   const promise = (async () => {
     try {
-      abrechnungStore.data[key] = await fetchApi<Abrechnung>(
+      const data = await fetchApi<Abrechnung>(
         `/intern/abrechnung/${encodeURIComponent(id)}${query}`
       );
+      if (latest()) abrechnungStore.data[key] = data;
     } catch (error: unknown) {
-      abrechnungStore.errors[key] = toStoreError(error);
-      if (error instanceof ApiError && error.code === 'KOSTENSTELLE_NOT_FOUND') {
-        void fetchKostenstellen();
+      if (latest()) {
+        abrechnungStore.errors[key] = toStoreError(error);
+        if (error instanceof ApiError && error.code === 'KOSTENSTELLE_NOT_FOUND') {
+          void fetchKostenstellen();
+        }
       }
     } finally {
-      delete pending[key];
-      delete abrechnungStore.loading[key];
+      if (latest()) {
+        delete pending[key];
+        delete abrechnungStore.loading[key];
+      }
     }
   })();
   pending[key] = promise;
