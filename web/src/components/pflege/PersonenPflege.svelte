@@ -5,6 +5,7 @@
   import LoadState from '../ui/LoadState.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { ApiError, sendApi } from '../../lib/api';
+  import { createActionRunner } from '../../lib/actionRunner.svelte';
   import { createDialogForm, dialogMessage } from '../../lib/dialogForm.svelte';
   import { offeneBeitraegeStore, personenPflege } from '../../lib/pflegeStore.svelte';
   import { forgetAbrechnungen } from '../../lib/abrechnungStore.svelte';
@@ -12,6 +13,11 @@
   import { reloadIch } from '../../lib/ichStore.svelte';
   import { PERSON_GRUPPE_LABELS } from '../../lib/protokollEditor';
   import { campflowVorschlaege, mitgliedName } from '../../lib/personen';
+  import {
+    speichereVorschlaege,
+    vorschlagAngebote,
+    vorschlaegeMeldung,
+  } from '../../lib/personenVorschlaege';
   import type {
     CampflowMitglied,
     LeitendenKonto,
@@ -45,14 +51,14 @@
   let form = $state<Form | null>(null);
   /** The CampFlow person when the dialog opened, to notice a changed or removed link. */
   let campflowBeimOeffnen = $state('');
-  let message = $state<string | null>(null);
   let suche = $state('');
-  let applying = $state(false);
+  const actions = createActionRunner();
   const dialog = createDialogForm(
     (error, fallback) =>
       (error instanceof ApiError && error.fields?.etag) || dialogMessage(error, fallback)
   );
   const errors = $derived(dialog.state.fields);
+  const applying = $derived(actions.busy);
   const busy = $derived(dialog.state.busy || applying);
 
   const personen = $derived(store.data?.personen ?? []);
@@ -179,7 +185,7 @@
     const fresh = personen.find((p) => p.id === id);
     if (!fresh) {
       form = null;
-      message = 'Die Person wurde inzwischen gelöscht.';
+      actions.show('Die Person wurde inzwischen gelöscht.');
       return false;
     }
     open(
@@ -208,7 +214,7 @@
       else await sendApi('POST', '/intern/pflege/personen', body(current));
       // Before the message: a page opened right after it must not get the former link's Aktionen
       linkChanged();
-      message = `${current.name.trim()} gespeichert.`;
+      actions.show(`${current.name.trim()} gespeichert.`);
       form = null;
       await personenPflege.load({ force: true });
     }, 'Die Person wurde nicht gespeichert. Deine Eingaben sind noch da. Tippe noch einmal auf „Speichern“.');
@@ -222,9 +228,11 @@
         etag: current.etag,
       });
       linkChanged();
-      message = current.konto
-        ? `Die Verknüpfung von ${current.name.trim()} ist gelöscht.`
-        : `${current.name.trim()} gelöscht. In alten Protokollen bleibt der Name stehen.`;
+      actions.show(
+        current.konto
+          ? `Die Verknüpfung von ${current.name.trim()} ist gelöscht.`
+          : `${current.name.trim()} gelöscht. In alten Protokollen bleibt der Name stehen.`
+      );
       form = null;
       await personenPflege.load({ force: true });
     }, 'Die Person wurde nicht gelöscht. Tippe noch einmal auf „Löschen“.');
@@ -233,42 +241,19 @@
   /** Saves every suggestion one by one; one that fails leaves the others saved. */
   async function applyVorschlaege(): Promise<void> {
     if (busy || !konten) return;
-    applying = true;
-    let saved = 0;
-    let failed = 0;
-    try {
-      for (const konto of konten) {
-        const mitglied: CampflowMitglied | undefined = vorschlaege.get(konto.login);
-        if (!mitglied) continue;
-        const row = byLogin.get(konto.login);
-        const input = {
-          name: konto.name,
-          login: konto.login,
-          gruppe: 'leitende',
-          campflowPersonId: mitglied.id,
-          aktiv: true,
-        };
-        try {
-          if (row)
-            await sendApi('PATCH', `/intern/pflege/personen/${row.id}`, {
-              ...input,
-              etag: row.etag,
-            });
-          else await sendApi('POST', '/intern/pflege/personen', input);
-          saved++;
-        } catch {
-          failed++;
-        }
+    const angebote = vorschlagAngebote(konten, vorschlaege, byLogin);
+    await actions.run(
+      async () => {
+        const result = await speichereVorschlaege(angebote, sendApi);
+        linkChanged();
+        return result;
+      },
+      {
+        fallback: 'Die Vorschläge wurden nicht übernommen. Bitte verknüpfe die Personen einzeln.',
+        success: vorschlaegeMeldung,
+        reload: personenPflege,
       }
-      message =
-        failed === 0
-          ? `${saved} ${saved === 1 ? 'Vorschlag' : 'Vorschläge'} übernommen.`
-          : `${saved} übernommen, ${failed} nicht gespeichert. Bitte die übrigen einzeln verknüpfen.`;
-    } finally {
-      linkChanged();
-      applying = false;
-      await personenPflege.load({ force: true });
-    }
+    );
   }
 
   function pickCampflow(mitglied: CampflowMitglied): void {
@@ -293,7 +278,7 @@
     >
   </div>
 
-  <StatusNotice {message} popup />
+  <StatusNotice message={actions.message} kind={actions.kind} popup />
 
   <LoadState
     data={store.data}
