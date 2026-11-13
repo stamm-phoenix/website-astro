@@ -33,7 +33,12 @@ function specifiers(path: string): string[] {
     // The compiler finds the script blocks, so no hand-written tag matching is needed
     const ast = parse(text, { modern: true });
     text = [ast.module, ast.instance]
-      .flatMap((script) => (script ? [text.slice(script.content.start, script.content.end)] : []))
+      .flatMap((script) => {
+        if (!script) return [];
+        // The element without its opening and closing tag
+        const element = text.slice(script.start, script.end);
+        return [element.slice(element.indexOf('>') + 1, element.lastIndexOf('<'))];
+      })
       .join('\n');
   }
   const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
