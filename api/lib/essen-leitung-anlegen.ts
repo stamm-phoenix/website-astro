@@ -3,7 +3,7 @@ import { inTransaction } from './db';
 import { istStammAdresse } from './essen-leitung-model';
 import { legePlanungAn } from './essen-planung-anlegen';
 import type { LeitungAnlegenInput } from './essen-planung-model';
-import { WARTUNG, hashToken, neuesToken } from './essen-planung';
+import { WARTUNG, hashToken, neuesToken } from './essen-zugang';
 import { loadEssenEinstellungen } from './essen-steuerung';
 
 /**

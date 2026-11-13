@@ -10,14 +10,8 @@ import { getDb } from '../lib/db';
 import { seedPreviewEssensplanung, seedPreviewEssensplanungPlanung } from '../lib/db-preview';
 import { seedPreviewEssensplanungLeitung } from '../lib/db-preview-essen-leitung';
 import type { LeitungPlanung } from '../lib/essen-leitung-model';
-import {
-  PlanungError,
-  einladen,
-  ladeZugang,
-  mitgliedAendern,
-  neueLinksFuerAdresse,
-  neuerLink,
-} from '../lib/essen-planung';
+import { PlanungError, ladeZugang } from '../lib/essen-zugang';
+import { einladen, mitgliedAendern, neueLinksFuerAdresse, neuerLink } from '../lib/essen-planung';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';

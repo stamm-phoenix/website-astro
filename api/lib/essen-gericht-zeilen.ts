@@ -6,8 +6,9 @@ import { MAX_ZEILEN_PRO_GERICHT, gerichtSperre } from './essen-gerichte-model';
 import type { GerichtKopfInput, GerichtZutatInput } from './essen-gerichte-validation';
 import { gerichtDerPlanung } from './essen-gericht';
 import { pruefeVerweise } from './essen-gerichte';
-import type { Zugang } from './essen-planung';
-import { PlanungError, aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { PlanungError } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import { zutatDerPlanungFuer } from './essen-planung-zutat';
 import { ValidationError } from './validation/errors';
 

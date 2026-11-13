@@ -7,8 +7,8 @@ import {
   toDateString,
   toVersion,
 } from './db';
-import type { Zugang } from './essen-planung';
-import { aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import type {
   Ernaehrung,
   GruppeInput,

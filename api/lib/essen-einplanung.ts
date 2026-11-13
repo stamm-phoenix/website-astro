@@ -6,8 +6,8 @@ import {
   toDateString,
   toVersion,
 } from './db';
-import type { Zugang } from './essen-planung';
-import { aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import type { Einplanung, EinplanungInput } from './essen-planung-model';
 import { MAX_EINPLANUNGEN_PRO_MAHLZEIT } from './essen-planung-model';
 import type { Verbrauch } from './essen-kochen-model';

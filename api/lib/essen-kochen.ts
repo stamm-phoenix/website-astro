@@ -3,8 +3,8 @@ import type { Database } from './db-schema';
 import { VersionConflictError, requireVersion, toDateString } from './db';
 import { einplanungDerPlanung, mahlzeitDerPlanung } from './essen-einplanung';
 import type { AbhakenInput, Verbrauch } from './essen-kochen-model';
-import type { Zugang } from './essen-planung';
-import { aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import { ValidationError } from './validation/errors';
 
 /**

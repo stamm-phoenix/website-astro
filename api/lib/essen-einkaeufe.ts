@@ -22,8 +22,8 @@ import type {
 import { MAX_EINKAEUFE, MAX_EINKAUF_EINTRAEGE, einkaufStand } from './essen-einkaeufe-model';
 import { einheitSchluessel } from './essen-gerichte-model';
 import type { GerichtEinheit } from './essen-gerichte-model';
-import type { Zugang } from './essen-planung';
-import { aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import { zutatDerPlanung } from './essen-planung-zutat';
 import { ValidationError } from './validation/errors';
 

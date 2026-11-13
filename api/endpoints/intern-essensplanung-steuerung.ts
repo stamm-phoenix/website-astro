@@ -7,14 +7,16 @@ import {
   createUnvertraeglichkeit,
   createZutat,
   deleteKategorie,
-  deletePlanungSteuerung,
   deleteUnvertraeglichkeit,
   deleteZutat,
-  loadEssenSteuerung,
   renameKategorie,
   renameUnvertraeglichkeit,
-  saveEssenEinstellungen,
   updateZutat,
+} from '../lib/essen-katalog-pflege';
+import {
+  deletePlanungSteuerung,
+  loadEssenSteuerung,
+  saveEssenEinstellungen,
 } from '../lib/essen-steuerung';
 import {
   validateEssenEinstellungen,

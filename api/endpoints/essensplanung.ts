@@ -9,8 +9,8 @@ import {
   meinePlanungenMail,
   neuerLinkMail,
 } from '../lib/essen-mails';
+import { PlanungError } from '../lib/essen-zugang';
 import {
-  PlanungError,
   anfrageAnlegen,
   anfrageBestaetigen,
   beitreten,
@@ -18,8 +18,6 @@ import {
   eigenenNamenAendern,
   einladen,
   gemeinsamerLink,
-  ladeAnsicht,
-  ladeStand,
   linkZuruecknehmen,
   mahlzeitAendern,
   mahlzeitHinzufuegen,
@@ -33,6 +31,8 @@ import {
   tagLoeschen,
   tagVerschieben,
 } from '../lib/essen-planung';
+import { ladeAnsicht } from '../lib/essen-ansicht';
+import { ladeStand } from '../lib/essen-stand';
 import {
   readPosition,
   validateAnlegen,
@@ -255,9 +255,9 @@ export const EssensplanungPlanung = planungHandler(async (request) => {
 export const EssensplanungStand = planungHandler(async (request) => {
   if (request.method !== 'GET') return METHOD_NOT_ALLOWED;
   const zugang = await zugangVon(request);
-  const stand = await ladeStand(zugang);
-  if (stand === request.query.get('seit')) return ok({ stand });
-  const ansicht = await ladeAnsicht(zugang);
+  const gelesen = await ladeStand(zugang);
+  if (gelesen.stand === request.query.get('seit')) return ok({ stand: gelesen.stand });
+  const ansicht = await ladeAnsicht(zugang, getDb(), gelesen);
   return ok({ stand: ansicht.stand, ansicht });
 });
 

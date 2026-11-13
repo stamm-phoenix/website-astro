@@ -15,8 +15,8 @@ import type {
   ZusatzPosten,
 } from './essen-einkauf-model';
 import { MAX_GESCHAEFTE, MAX_POSTEN } from './essen-einkauf-model';
-import type { Zugang } from './essen-planung';
-import { aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import { sonstigesDerPlanung, zutatDerPlanung, zutatDerPlanungFuer } from './essen-planung-zutat';
 import { ValidationError } from './validation/errors';
 

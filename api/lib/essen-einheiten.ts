@@ -5,8 +5,8 @@ import { VersionConflictError, requireVersion } from './db';
 import type { EinheitenZeileInput } from './essen-einheiten-model';
 import { einheitBasis, einheitSchluessel } from './essen-gerichte-model';
 import type { EinplanungStatus } from './essen-kochen-model';
-import type { Zugang } from './essen-planung';
-import { aendere } from './essen-planung';
+import type { Zugang } from './essen-zugang';
+import { aendere } from './essen-aendern';
 import { zutatDerPlanung } from './essen-planung-zutat';
 import { ValidationError } from './validation/errors';
 

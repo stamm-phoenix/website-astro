@@ -10,7 +10,8 @@ import { getDb } from '../lib/db';
 import { seedPreviewEssensplanungPlanung } from '../lib/db-preview';
 import { raeumeAuf } from '../lib/essen-aufbewahrung';
 import { essenMail } from '../lib/essen-mails';
-import { PlanungError, einladen, ladeZugang, planungLoeschen } from '../lib/essen-planung';
+import { PlanungError, ladeZugang } from '../lib/essen-zugang';
+import { einladen, planungLoeschen } from '../lib/essen-planung';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import {
   loeschDatum,

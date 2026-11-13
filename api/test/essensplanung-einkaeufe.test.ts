@@ -4,7 +4,8 @@ import * as einkauf from '../endpoints/essensplanung-einkauf';
 import * as einkaeufe from '../endpoints/essensplanung-einkaeufe';
 import * as endpoints from '../endpoints/essensplanung';
 import { getDb } from '../lib/db';
-import { listZutaten, updateZutat } from '../lib/essen-steuerung';
+import { listZutaten } from '../lib/essen-steuerung';
+import { updateZutat } from '../lib/essen-katalog-pflege';
 import type { ZutatInput } from '../lib/essen-validation';
 import { seedPreviewEssensplanungEinkauf } from '../lib/db-preview-essen-einkauf';
 import { seedPreviewEssensplanungEinkaeufe } from '../lib/db-preview-essen-einkaeufe';
@@ -14,7 +15,8 @@ import {
   seedPreviewEssensplanungPlanung,
 } from '../lib/db-preview';
 import { einkaufStand } from '../lib/essen-einkaeufe-model';
-import { ladeZugang, planungLoeschen } from '../lib/essen-planung';
+import { ladeZugang } from '../lib/essen-zugang';
+import { planungLoeschen } from '../lib/essen-planung';
 import { mahlzeitStand, tagStand } from '../lib/essen-planung-model';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { dbTest } from './fixtures/database';

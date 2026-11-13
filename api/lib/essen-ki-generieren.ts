@@ -5,7 +5,7 @@ import { DATEN, REZEPT_SCHEMA, frage, ladeGericht, pruefeKiZugang } from './esse
 import { leseKiGericht } from './essen-ki-gericht';
 import type { KiGericht } from './essen-ki-model';
 import { rezeptKandidaten } from './essen-ki-rezept';
-import type { Zugang } from './essen-planung';
+import type { Zugang } from './essen-zugang';
 
 /**
  * „Gericht generieren lassen (KI)“ (`docs/essensplanung.md`, „KI“): the AI writes a whole dish

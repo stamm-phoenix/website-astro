@@ -16,7 +16,7 @@ import {
   validateVerschieben,
   validateZurueckholen,
 } from '../lib/essen-einkaeufe-validation';
-import { ladeAnsicht } from '../lib/essen-planung';
+import { ladeAnsicht } from '../lib/essen-ansicht';
 import {
   METHOD_NOT_ALLOWED,
   ok,
