@@ -10,13 +10,12 @@ import * as sharePoint from '../lib/sharepoint-data-access';
 import * as campflow from '../lib/campflow';
 import * as mail from '../lib/mail';
 import * as editor from '../lib/protokoll-editor';
+import { ProtokolleCollection, ProtokollItem } from '../endpoints/intern-pflege-protokolle';
 import {
-  ProtokolleCollection,
-  ProtokollItem,
   ProtokollPdf,
   ProtokollVersand,
   ProtokollVorschau,
-} from '../endpoints/intern-pflege-protokolle';
+} from '../endpoints/intern-pflege-protokolle-versand';
 import type { ProtokollFields } from '../lib/protokolle';
 import {
   audienceVersion,

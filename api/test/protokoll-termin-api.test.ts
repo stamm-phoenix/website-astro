@@ -3,11 +3,8 @@ import test from 'node:test';
 import type { TestContext } from 'node:test';
 import * as sharePoint from '../lib/sharepoint-data-access';
 import { CONFIG } from '../lib/config';
-import {
-  ProtokolleCollection,
-  ProtokollItem,
-  ProtokollTermin,
-} from '../endpoints/intern-pflege-protokolle';
+import { ProtokolleCollection, ProtokollItem } from '../endpoints/intern-pflege-protokolle';
+import { ProtokollTermin } from '../endpoints/intern-pflege-protokolle-termin';
 import type { ProtokollFields, StaffProtokoll } from '../lib/protokolle';
 import { protokollTransition, toStaffProtokoll } from '../lib/protokolle';
 import type { ProtokollTermin as StoredTermin } from '../lib/protokoll-termin';
