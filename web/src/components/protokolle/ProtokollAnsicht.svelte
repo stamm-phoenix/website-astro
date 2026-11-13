@@ -26,7 +26,7 @@
     date: string;
     inhalt: ProtokollInhalt;
     /** Agenda items that just changed; they light up briefly. */
-    changed?: Set<string>;
+    changed?: ReadonlySet<string>;
     /** The item being written right now. */
     active?: string | null;
     /** Prefix for element IDs, so two views on one page do not clash. */
