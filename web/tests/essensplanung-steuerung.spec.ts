@@ -1,3 +1,4 @@
+import type { Request } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 
 test('the Steuerung saves who may create Planungen and the templates', async ({ page }) => {
@@ -47,6 +48,13 @@ test('a load asked before saving does not bring the old settings back', async ({
     await released;
     await route.fulfill({ response: old });
   });
+  // The save may cancel the reload; either way it must end without bringing the old settings back
+  const isReload = (request: Request): boolean =>
+    request.method() === 'GET' && request.url().endsWith('/api/intern/essensplanung/steuerung');
+  const reloadEnded = Promise.race([
+    page.waitForEvent('requestfinished', isReload),
+    page.waitForEvent('requestfailed', isReload),
+  ]);
   await page.getByRole('button', { name: 'Neu laden' }).click();
   await months.fill('24');
   await page.getByRole('button', { name: 'Einstellungen speichern' }).click();
@@ -54,7 +62,7 @@ test('a load asked before saving does not bring the old settings back', async ({
     page.getByText('Einstellungen gespeichert. Sie gelten ab sofort.').first()
   ).toBeVisible();
   release();
-  await page.waitForResponse('**/api/intern/essensplanung/steuerung');
+  await reloadEnded;
   await page.unroute('**/api/intern/essensplanung/steuerung');
   await expect(months).toHaveValue('24');
   await expect(page.getByText('Alle Änderungen gespeichert.')).toBeVisible();
