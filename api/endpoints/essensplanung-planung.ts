@@ -40,7 +40,7 @@ import {
 } from '../lib/essen-planung-http';
 import { ValidationError } from '../lib/validation/errors';
 import { NO_STORE_HEADERS, readJsonBody } from '../lib/response-utils';
-import { link, planungLink, verschicke } from '../lib/essen-planung-versand';
+import { planungLink, verschicke } from '../lib/essen-planung-versand';
 
 // ---------------------------------------------------------------------------------------------
 // The Planung
