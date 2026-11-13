@@ -2,7 +2,17 @@ import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
 import * as einkauf from '../endpoints/essensplanung-einkauf';
 import * as einkaeufe from '../endpoints/essensplanung-einkaeufe';
-import * as endpoints from '../endpoints/essensplanung';
+import {
+  EssensplanungZutat,
+  EssensplanungGerichte,
+  EssensplanungGerichtZutaten,
+} from '../endpoints/essensplanung-gerichte';
+import {
+  EssensplanungLinks,
+  EssensplanungPlanung,
+  EssensplanungMahlzeit,
+  EssensplanungTag,
+} from '../endpoints/essensplanung-planung';
 import { getDb } from '../lib/db';
 import { listZutaten } from '../lib/essen-steuerung';
 import { updateZutat } from '../lib/essen-katalog-pflege';
@@ -224,17 +234,10 @@ dbTest('things are ticked off with what was bought, also by two at once', async 
     id: bestand.id,
     ifMatch: bestand.etag,
   });
-  const zutatLoeschen = await senden(
-    t,
-    endpoints.EssensplanungZutat,
-    'DELETE',
-    'planung/zutaten',
-    token,
-    {
-      id: zutat,
-      ifMatch: zutatEtag,
-    }
-  );
+  const zutatLoeschen = await senden(t, EssensplanungZutat, 'DELETE', 'planung/zutaten', token, {
+    id: zutat,
+    ifMatch: zutatEtag,
+  });
   assert.equal(zutatLoeschen.status, 400, JSON.stringify(zutatLoeschen.jsonBody));
 
   // Taken back on its version
@@ -266,13 +269,13 @@ dbTest('things are ticked off with what was bought, also by two at once', async 
 
   // The read-only link sees it, but cannot tick off
   const lesen = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungLinks, 'POST', 'planung/links', {
+    await call(t, EssensplanungLinks, 'POST', 'planung/links', {
       token,
       body: { art: 'lesen', an: true },
     })
   ).links!.lesen!;
   const gelesen = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: lesen })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token: lesen })
   );
   assert.equal(gelesen.einkaeufe.length, 1);
   const verboten = await call(
@@ -398,13 +401,13 @@ dbTest(
     const zentral = (await listZutaten()).find((z) => z.name === 'Zimt')!;
     // Only in a dish without an amount, so nothing else measures it
     const gericht = json<{ id: number }>(
-      await senden(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', token, {
+      await senden(t, EssensplanungGerichte, 'POST', 'planung/gerichte', token, {
         body: { name: 'Milchreis', personen: 10 },
       })
     ).id;
     const zeile = await senden(
       t,
-      endpoints.EssensplanungGerichtZutaten,
+      EssensplanungGerichtZutaten,
       'POST',
       'planung/gerichte/zutaten',
       token,
@@ -412,7 +415,7 @@ dbTest(
     );
     assert.equal(zeile.status, 201, JSON.stringify(zeile.jsonBody));
     const mitZeile = json<PlanungAnsicht>(
-      await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+      await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
     );
     const zutat = mitZeile.zutaten.find((z) => z.zutatId === zentral.id)!.id;
     const id = json<PlanungAnsicht>(
@@ -445,7 +448,7 @@ dbTest(
       'test'
     );
     const nachher = json<PlanungAnsicht>(
-      await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+      await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
     );
     assert.deepEqual(
       nachher.einkaeufe[0].posten.map((p) => [p.einheit, p.erhalten]),
@@ -663,13 +666,13 @@ dbTest('a trip whose last meal or day was deleted can still be finished and open
   await senden(t, einkaeufe.EssensplanungEinkaeufe, 'POST', 'planung/einkaeufe', token, {
     body: { name: 'Dienstag', bisMahlzeitId: tag2.mahlzeiten[0].id },
   });
-  await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${mittag.id}`, {
+  await call(t, EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${mittag.id}`, {
     token,
     params: { id: String(mittag.id) },
     ifMatch: mahlzeitStand(mittag),
   });
   const stand = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungTag, 'DELETE', `planung/tage/${tag2.id}`, {
+    await call(t, EssensplanungTag, 'DELETE', `planung/tage/${tag2.id}`, {
       token,
       params: { id: String(tag2.id) },
       ifMatch: tagStand(tag2),

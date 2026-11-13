@@ -1,6 +1,23 @@
 import assert from 'node:assert/strict';
 import { HttpRequest } from '@azure/functions';
-import * as endpoints from '../endpoints/essensplanung';
+import {
+  EssensplanungBestaetigen,
+  EssensplanungAnlegen,
+  EssensplanungBeitrittAnsehen,
+  EssensplanungBeitreten,
+  EssensplanungMeine,
+} from '../endpoints/essensplanung';
+import {
+  EssensplanungStand,
+  EssensplanungMahlzeit,
+  EssensplanungTage,
+  EssensplanungMahlzeiten,
+  EssensplanungTag,
+  EssensplanungMitglieder,
+  EssensplanungPlanung,
+  EssensplanungLinks,
+  EssensplanungMitglied,
+} from '../endpoints/essensplanung-planung';
 import {
   EssensplanungListeEintrag,
   EssensplanungSteuerung,
@@ -62,21 +79,21 @@ dbTest('a Planung is created by mail confirmation with the template meals', asyn
   assert.equal(ansicht.aenderungen[0].aktion, 'planung-angelegt');
 
   // The confirmation link works once
-  const wieder = await call(t, endpoints.EssensplanungBestaetigen, 'POST', 'anlegen/bestaetigen', {
+  const wieder = await call(t, EssensplanungBestaetigen, 'POST', 'anlegen/bestaetigen', {
     body: { token: tokenAus(mails[0], 'a') },
   });
   assert.equal(wieder.status, 409);
 
   // Polling answers with the counter only while nothing changed
   const stand = json<{ stand: string; ansicht?: PlanungAnsicht }>(
-    await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', {
+    await call(t, EssensplanungStand, 'GET', 'planung/stand', {
       token,
       query: `?seit=${encodeURIComponent(ansicht.stand)}`,
     })
   );
   assert.deepEqual(stand, { stand: ansicht.stand });
   const alt = json<{ stand: string; ansicht?: PlanungAnsicht }>(
-    await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', { token, query: '?seit=0' })
+    await call(t, EssensplanungStand, 'GET', 'planung/stand', { token, query: '?seit=0' })
   );
   assert.equal(alt.ansicht?.id, ansicht.id);
 });
@@ -85,7 +102,7 @@ dbTest('externals may only create Planungen when the Steuerung allows it', async
   const mails = captureMails(t);
   useAltcha(t);
   const anfrage = async (email: string) =>
-    call(t, endpoints.EssensplanungAnlegen, 'POST', 'anlegen', {
+    call(t, EssensplanungAnlegen, 'POST', 'anlegen', {
       body: {
         email,
         name: 'Bea Bezirk',
@@ -114,7 +131,7 @@ dbTest('externals may only create Planungen when the Steuerung allows it', async
   assert.equal((await anfrage('jemand@example.org')).status, 403);
   assert.equal(mails.length, 1);
 
-  const ungueltig = await call(t, endpoints.EssensplanungAnlegen, 'POST', 'anlegen', {
+  const ungueltig = await call(t, EssensplanungAnlegen, 'POST', 'anlegen', {
     body: {
       email: 'kein',
       name: '',
@@ -138,17 +155,11 @@ dbTest('days and meals change with versions; the shown IDs follow the order', as
 
   // Rename and move the breakfast behind lunch
   const geaendert = json<PlanungAnsicht>(
-    await call(
-      t,
-      endpoints.EssensplanungMahlzeit,
-      'PATCH',
-      `planung/mahlzeiten/${fruehstueck.id}`,
-      {
-        token,
-        params: { id: String(fruehstueck.id) },
-        body: { etag: fruehstueck.etag, name: 'Brunch', uhrzeit: '10:30', position: 2 },
-      }
-    )
+    await call(t, EssensplanungMahlzeit, 'PATCH', `planung/mahlzeiten/${fruehstueck.id}`, {
+      token,
+      params: { id: String(fruehstueck.id) },
+      body: { etag: fruehstueck.etag, name: 'Brunch', uhrzeit: '10:30', position: 2 },
+    })
   );
   assert.deepEqual(
     geaendert.tage[0].mahlzeiten.slice(0, 2).map((m) => `${m.kennung} ${m.name}`),
@@ -160,7 +171,7 @@ dbTest('days and meals change with versions; the shown IDs follow the order', as
   // The old version is rejected with the current view
   const konflikt = await call(
     t,
-    endpoints.EssensplanungMahlzeit,
+    EssensplanungMahlzeit,
     'PATCH',
     `planung/mahlzeiten/${fruehstueck.id}`,
     {
@@ -177,7 +188,7 @@ dbTest('days and meals change with versions; the shown IDs follow the order', as
 
   // A day before the first one renumbers all IDs
   const frueher = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungTage, 'POST', 'planung/tage', {
+    await call(t, EssensplanungTage, 'POST', 'planung/tage', {
       token,
       body: { datum: '2027-07-31' },
     })
@@ -185,7 +196,7 @@ dbTest('days and meals change with versions; the shown IDs follow the order', as
   assert.equal(frueher.tage.length, 4);
   assert.equal(frueher.tage[1].mahlzeiten[1].kennung, '2_2');
   assert.equal(frueher.tage[1].mahlzeiten[1].name, 'Brunch');
-  const doppelt = await call(t, endpoints.EssensplanungTage, 'POST', 'planung/tage', {
+  const doppelt = await call(t, EssensplanungTage, 'POST', 'planung/tage', {
     token,
     body: { datum: '2027-07-31' },
   });
@@ -194,7 +205,7 @@ dbTest('days and meals change with versions; the shown IDs follow the order', as
   // Add a meal at the top, delete one, delete a day
   const tag = frueher.tage[0];
   const mitSnack = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungMahlzeiten, 'POST', 'planung/mahlzeiten', {
+    await call(t, EssensplanungMahlzeiten, 'POST', 'planung/mahlzeiten', {
       token,
       body: { tagId: tag.id, name: 'Anreise-Snack', position: 1 },
     })
@@ -203,7 +214,7 @@ dbTest('days and meals change with versions; the shown IDs follow the order', as
   assert.equal(mitSnack.tage[0].mahlzeiten.length, 6);
   const weg = mitSnack.tage[0].mahlzeiten[1];
   const ohne = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${weg.id}`, {
+    await call(t, EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${weg.id}`, {
       token,
       params: { id: String(weg.id) },
       ifMatch: mahlzeitStand(weg),
@@ -214,7 +225,7 @@ dbTest('days and meals change with versions; the shown IDs follow the order', as
     ['1_1', '1_2', '1_3', '1_4', '1_5']
   );
   const ohneTag = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungTag, 'DELETE', `planung/tage/${tag.id}`, {
+    await call(t, EssensplanungTag, 'DELETE', `planung/tage/${tag.id}`, {
       token,
       params: { id: String(tag.id) },
       ifMatch: tagStand(ohne.tage[0]),
@@ -227,21 +238,15 @@ dbTest('members are invited, join by link and lose access', async (t) => {
   const mails = captureMails(t);
   const { token } = await anlegen(t, mails);
 
-  const eingeladen = await call(
-    t,
-    endpoints.EssensplanungMitglieder,
-    'POST',
-    'planung/mitglieder',
-    {
-      token,
-      body: { name: 'Ben Bezirk', email: 'Ben@Example.org' },
-    }
-  );
+  const eingeladen = await call(t, EssensplanungMitglieder, 'POST', 'planung/mitglieder', {
+    token,
+    body: { name: 'Ben Bezirk', email: 'Ben@Example.org' },
+  });
   assert.equal(eingeladen.status, 201);
   const ben = tokenAus(mails.at(-1)!, 't');
   assert.equal(mails.at(-1)!.to, 'ben@example.org');
   const benAnsicht = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: ben })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token: ben })
   );
   assert.equal(benAnsicht.zugang, 'bearbeiten');
   assert.equal(benAnsicht.darfVerwalten, false);
@@ -249,24 +254,18 @@ dbTest('members are invited, join by link and lose access', async (t) => {
   assert.equal(benAnsicht.mitglieder.find((m) => !m.ich)?.email, null);
 
   // Editors may not invite until the owner allows it
-  const nichtErlaubt = await call(
-    t,
-    endpoints.EssensplanungMitglieder,
-    'POST',
-    'planung/mitglieder',
-    {
-      token: ben,
-      body: { name: 'Cleo', email: 'cleo@example.org' },
-    }
-  );
+  const nichtErlaubt = await call(t, EssensplanungMitglieder, 'POST', 'planung/mitglieder', {
+    token: ben,
+    body: { name: 'Cleo', email: 'cleo@example.org' },
+  });
   assert.equal(nichtErlaubt.status, 403);
-  await call(t, endpoints.EssensplanungPlanung, 'PATCH', 'planung', {
+  await call(t, EssensplanungPlanung, 'PATCH', 'planung', {
     token,
     body: { name: 'Sommerlager 2027', mitgliederVerwalten: true },
   });
   assert.equal(
     (
-      await call(t, endpoints.EssensplanungMitglieder, 'POST', 'planung/mitglieder', {
+      await call(t, EssensplanungMitglieder, 'POST', 'planung/mitglieder', {
         token: ben,
         body: { name: 'Cleo', email: 'cleo@example.org' },
       })
@@ -274,7 +273,7 @@ dbTest('members are invited, join by link and lose access', async (t) => {
     201
   );
   // …but never make someone owner
-  const besitzer = await call(t, endpoints.EssensplanungMitglieder, 'POST', 'planung/mitglieder', {
+  const besitzer = await call(t, EssensplanungMitglieder, 'POST', 'planung/mitglieder', {
     token: ben,
     body: { name: 'Dora', email: 'dora@example.org', rolle: 'besitzer' },
   });
@@ -282,57 +281,56 @@ dbTest('members are invited, join by link and lose access', async (t) => {
 
   // Shared links: join, read only
   const mitLinks = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungLinks, 'POST', 'planung/links', {
+    await call(t, EssensplanungLinks, 'POST', 'planung/links', {
       token,
       body: { art: 'beitritt', an: true },
     })
   );
   const beitritt = mitLinks.links!.beitritt!;
   const lesen = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungLinks, 'POST', 'planung/links', {
+    await call(t, EssensplanungLinks, 'POST', 'planung/links', {
       token,
       body: { art: 'lesen', an: true },
     })
   ).links!.lesen!;
   assert.deepEqual(
     json(
-      await call(t, endpoints.EssensplanungBeitrittAnsehen, 'POST', 'beitritt/ansehen', {
+      await call(t, EssensplanungBeitrittAnsehen, 'POST', 'beitritt/ansehen', {
         body: { token: beitritt },
       })
     ),
     { name: 'Sommerlager 2027' }
   );
-  const beigetreten = await call(t, endpoints.EssensplanungBeitreten, 'POST', 'beitritt', {
+  const beigetreten = await call(t, EssensplanungBeitreten, 'POST', 'beitritt', {
     body: { token: beitritt, name: 'Eli' },
   });
   assert.equal(beigetreten.status, 201);
   const eli = json<{ token: string }>(beigetreten).token;
   assert.equal(
-    json<PlanungAnsicht>(
-      await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: eli })
-    ).zugang,
+    json<PlanungAnsicht>(await call(t, EssensplanungPlanung, 'GET', 'planung', { token: eli }))
+      .zugang,
     'bearbeiten'
   );
 
   const leser = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: lesen })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token: lesen })
   );
   assert.equal(leser.zugang, 'lesen');
   assert.deepEqual(leser.mitglieder, []);
-  const leserAendert = await call(t, endpoints.EssensplanungTage, 'POST', 'planung/tage', {
+  const leserAendert = await call(t, EssensplanungTage, 'POST', 'planung/tage', {
     token: lesen,
     body: { datum: '2027-08-04' },
   });
   assert.equal(leserAendert.status, 403);
 
   // Switching the join link off stops it
-  await call(t, endpoints.EssensplanungLinks, 'POST', 'planung/links', {
+  await call(t, EssensplanungLinks, 'POST', 'planung/links', {
     token,
     body: { art: 'beitritt', an: false },
   });
   assert.equal(
     (
-      await call(t, endpoints.EssensplanungBeitreten, 'POST', 'beitritt', {
+      await call(t, EssensplanungBeitreten, 'POST', 'beitritt', {
         body: { token: beitritt, name: 'Fritz' },
       })
     ).status,
@@ -341,12 +339,12 @@ dbTest('members are invited, join by link and lose access', async (t) => {
 
   // Removing access: the link stops at once; the last owner stays
   const ansicht = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   const benMitglied = ansicht.mitglieder.find((m) => m.name === 'Ben Bezirk')!;
   const entzogen = await call(
     t,
-    endpoints.EssensplanungMitglied,
+    EssensplanungMitglied,
     'DELETE',
     `planung/mitglieder/${benMitglied.id}`,
     {
@@ -356,22 +354,13 @@ dbTest('members are invited, join by link and lose access', async (t) => {
     }
   );
   assert.equal(entzogen.status, 200);
-  assert.equal(
-    (await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: ben })).status,
-    404
-  );
+  assert.equal((await call(t, EssensplanungPlanung, 'GET', 'planung', { token: ben })).status, 404);
   const ich = ansicht.mitglieder.find((m) => m.ich)!;
-  const letzte = await call(
-    t,
-    endpoints.EssensplanungMitglied,
-    'DELETE',
-    `planung/mitglieder/${ich.id}`,
-    {
-      token,
-      params: { id: String(ich.id) },
-      ifMatch: ich.etag,
-    }
-  );
+  const letzte = await call(t, EssensplanungMitglied, 'DELETE', `planung/mitglieder/${ich.id}`, {
+    token,
+    params: { id: String(ich.id) },
+    ifMatch: ich.etag,
+  });
   assert.equal(letzte.status, 400);
 });
 
@@ -379,7 +368,7 @@ dbTest('„Meine Planungen“ mails new links and the old ones stop working', as
   const mails = captureMails(t);
   const { token } = await anlegen(t, mails);
   const meine = async () =>
-    call(t, endpoints.EssensplanungMeine, 'POST', 'meine', {
+    call(t, EssensplanungMeine, 'POST', 'meine', {
       body: { email: BESITZERIN.email, altcha: await solvedAltcha() },
     });
   // Right after creating, the cooldown is not running (no link mail yet)
@@ -387,21 +376,15 @@ dbTest('„Meine Planungen“ mails new links and the old ones stop working', as
   const mail = mails.at(-1)!;
   assert.equal(mail.subject, 'Deine Essensplanungen');
   const neu = tokenAus(mail, 't');
-  assert.equal(
-    (await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })).status,
-    404
-  );
-  assert.equal(
-    (await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: neu })).status,
-    200
-  );
+  assert.equal((await call(t, EssensplanungPlanung, 'GET', 'planung', { token })).status, 404);
+  assert.equal((await call(t, EssensplanungPlanung, 'GET', 'planung', { token: neu })).status, 200);
 
   // A second request within the waiting time sends nothing, with the same answer
   const anzahl = mails.length;
   const zweite = await meine();
   assert.equal(zweite.status, 200);
   assert.equal(mails.length, anzahl);
-  const unbekannt = await call(t, endpoints.EssensplanungMeine, 'POST', 'meine', {
+  const unbekannt = await call(t, EssensplanungMeine, 'POST', 'meine', {
     body: { email: 'niemand@example.org', altcha: await solvedAltcha() },
   });
   assert.deepEqual(json(unbekannt), { email: 'niemand@example.org' });
@@ -411,7 +394,7 @@ dbTest('two requests for new links at once send one working link', async (t) => 
   const mails = captureMails(t);
   await anlegen(t, mails);
   const anfrage = async () =>
-    call(t, endpoints.EssensplanungMeine, 'POST', 'meine', {
+    call(t, EssensplanungMeine, 'POST', 'meine', {
       body: { email: BESITZERIN.email, altcha: await solvedAltcha() },
     });
   const vorher = mails.length;
@@ -420,7 +403,7 @@ dbTest('two requests for new links at once send one working link', async (t) => 
   assert.equal(neue.length, 1);
   assert.equal(
     (
-      await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', {
+      await call(t, EssensplanungPlanung, 'GET', 'planung', {
         token: tokenAus(neue[0], 't'),
       })
     ).status,
@@ -434,7 +417,7 @@ dbTest(
     const mails = captureMails(t);
     const { token, ansicht } = await anlegen(t, mails);
     const patch = (body: unknown) =>
-      call(t, endpoints.EssensplanungPlanung, 'PATCH', 'planung', { token, body });
+      call(t, EssensplanungPlanung, 'PATCH', 'planung', { token, body });
     // Another owner switches on member management
     assert.equal(
       (await patch({ mitgliederVerwalten: true, vorher: { mitgliederVerwalten: false } })).status,
@@ -461,15 +444,12 @@ dbTest('a link mail that fails keeps the old link and allows a new try', async (
     throw new Error('Graph down');
   });
   const meine = async () =>
-    call(t, endpoints.EssensplanungMeine, 'POST', 'meine', {
+    call(t, EssensplanungMeine, 'POST', 'meine', {
       body: { email: BESITZERIN.email, altcha: await solvedAltcha() },
     });
   // Same answer as for any address, but nothing changed
   assert.deepEqual(json(await meine()), { email: BESITZERIN.email });
-  assert.equal(
-    (await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })).status,
-    200
-  );
+  assert.equal((await call(t, EssensplanungPlanung, 'GET', 'planung', { token })).status, 200);
   // Without the waiting time, the next request sends the mail once it works again
   const wieder = captureMails(t);
   assert.equal((await meine()).status, 200);
@@ -480,7 +460,7 @@ dbTest('a confirmation link opened twice at once creates one Planung', async (t)
   const mails = captureMails(t);
   useAltcha(t);
   neueBesitzerin();
-  await call(t, endpoints.EssensplanungAnlegen, 'POST', 'anlegen', {
+  await call(t, EssensplanungAnlegen, 'POST', 'anlegen', {
     body: {
       ...BESITZERIN,
       planungName: 'Doppelt',
@@ -490,7 +470,7 @@ dbTest('a confirmation link opened twice at once creates one Planung', async (t)
     },
   });
   const bestaetigen = () =>
-    call(t, endpoints.EssensplanungBestaetigen, 'POST', 'anlegen/bestaetigen', {
+    call(t, EssensplanungBestaetigen, 'POST', 'anlegen/bestaetigen', {
       body: { token: tokenAus(mails.at(-1)!, 'a') },
     });
   const antworten = await Promise.all([bestaetigen(), bestaetigen()]);
@@ -537,7 +517,7 @@ dbTest('previews show the link instead of sending mail', async (t) => {
   overrideConfig(t, CONFIG.database, { server: CONFIG.database.previewServer });
   useAltcha(t);
   neueBesitzerin();
-  const angelegt = await call(t, endpoints.EssensplanungAnlegen, 'POST', 'anlegen', {
+  const angelegt = await call(t, EssensplanungAnlegen, 'POST', 'anlegen', {
     body: {
       ...BESITZERIN,
       planungName: 'Vorschau',
@@ -557,34 +537,25 @@ dbTest('the maintenance mode stops changes but not reading', async (t) => {
   t.after(async () => {
     await getDb().updateTable('essen.einstellungen').set({ wartung: false }).execute();
   });
-  assert.equal(
-    (await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })).status,
-    200
-  );
+  assert.equal((await call(t, EssensplanungPlanung, 'GET', 'planung', { token })).status, 200);
   // Pages opened before learn about it by polling, and again when it ends
   const gewartet = json<{ stand: string; ansicht?: PlanungAnsicht }>(
-    await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', {
+    await call(t, EssensplanungStand, 'GET', 'planung/stand', {
       token,
       query: `?seit=${encodeURIComponent(ansicht.stand)}`,
     })
   );
   assert.equal(gewartet.ansicht?.wartung, true);
   const tag = ansicht.tage[0];
-  const gesperrt = await call(t, endpoints.EssensplanungTag, 'DELETE', `planung/tage/${tag.id}`, {
+  const gesperrt = await call(t, EssensplanungTag, 'DELETE', `planung/tage/${tag.id}`, {
     token,
     params: { id: String(tag.id) },
     ifMatch: tagStand(tag),
   });
   assert.equal(gesperrt.status, 503);
   // Deleting the whole Planung is a change too
-  assert.equal(
-    (await call(t, endpoints.EssensplanungPlanung, 'DELETE', 'planung', { token })).status,
-    503
-  );
-  assert.equal(
-    (await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })).status,
-    200
-  );
+  assert.equal((await call(t, EssensplanungPlanung, 'DELETE', 'planung', { token })).status, 503);
+  assert.equal((await call(t, EssensplanungPlanung, 'GET', 'planung', { token })).status, 200);
 });
 
 dbTest('the Steuerung lists and deletes Planungen; the retention warns and deletes', async (t) => {
@@ -621,10 +592,7 @@ dbTest('the Steuerung lists and deletes Planungen; the retention warns and delet
   // On the day it is gone
   const ergebnis = await raeumeAuf(new Date('2028-08-03T03:00:00Z'));
   assert.ok(ergebnis.geloescht >= 1);
-  assert.equal(
-    (await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })).status,
-    404
-  );
+  assert.equal((await call(t, EssensplanungPlanung, 'GET', 'planung', { token })).status, 404);
 
   // Deleting from the Steuerung needs the current version
   const zweite = await anlegen(t, mails);
@@ -648,8 +616,7 @@ dbTest('the Steuerung lists and deletes Planungen; the retention warns and delet
   assert.equal(geloescht.status, 200);
   assert.equal(json<EssenSteuerungView>(geloescht).log[0].action, 'planung-geloescht');
   assert.equal(
-    (await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: zweite.token }))
-      .status,
+    (await call(t, EssensplanungPlanung, 'GET', 'planung', { token: zweite.token })).status,
     404
   );
 });
@@ -698,7 +665,7 @@ dbTest('requests to create at the same time stay within the limit per hour', asy
   const mails = captureMails(t);
   useAltcha(t);
   const anfrage = async () =>
-    call(t, endpoints.EssensplanungAnlegen, 'POST', 'anlegen', {
+    call(t, EssensplanungAnlegen, 'POST', 'anlegen', {
       body: {
         email: 'eilig@stamm-phoenix.de',
         name: 'Eli Eilig',
@@ -722,7 +689,7 @@ dbTest('a Planung without days shows the deletion from the day it was created', 
   for (const tag of ansicht.tage) {
     const etag = tagStand(aktuell.tage.find((eintrag) => eintrag.id === tag.id)!);
     aktuell = json<PlanungAnsicht>(
-      await call(t, endpoints.EssensplanungTag, 'DELETE', `planung/tage/${tag.id}`, {
+      await call(t, EssensplanungTag, 'DELETE', `planung/tage/${tag.id}`, {
         token,
         params: { id: String(tag.id) },
         ifMatch: etag,
@@ -770,17 +737,17 @@ dbTest('a day from the largest template still takes a replacement meal', async (
   const tag = ansicht.tage[0];
   assert.equal(tag.mahlzeiten.length, MAX_MAHLZEITEN_PRO_TAG);
   const weg = tag.mahlzeiten[0];
-  await call(t, endpoints.EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${weg.id}`, {
+  await call(t, EssensplanungMahlzeit, 'DELETE', `planung/mahlzeiten/${weg.id}`, {
     token,
     params: { id: String(weg.id) },
     ifMatch: mahlzeitStand(weg),
   });
-  const ersatz = await call(t, endpoints.EssensplanungMahlzeiten, 'POST', 'planung/mahlzeiten', {
+  const ersatz = await call(t, EssensplanungMahlzeiten, 'POST', 'planung/mahlzeiten', {
     token,
     body: { tagId: tag.id, name: 'Ersatz' },
   });
   assert.equal(ersatz.status, 201, JSON.stringify(ersatz.jsonBody));
-  const zuViel = await call(t, endpoints.EssensplanungMahlzeiten, 'POST', 'planung/mahlzeiten', {
+  const zuViel = await call(t, EssensplanungMahlzeiten, 'POST', 'planung/mahlzeiten', {
     token,
     body: { tagId: tag.id, name: 'Noch eine' },
   });
@@ -797,7 +764,7 @@ dbTest('a confirmation link no longer creates once the address is not allowed', 
       .execute();
   t.after(() => freigabe(false, []));
   const anfrage = async (email: string) => {
-    const antwort = await call(t, endpoints.EssensplanungAnlegen, 'POST', 'anlegen', {
+    const antwort = await call(t, EssensplanungAnlegen, 'POST', 'anlegen', {
       body: {
         email,
         name: 'Bea Bezirk',
@@ -811,7 +778,7 @@ dbTest('a confirmation link no longer creates once the address is not allowed', 
     return tokenAus(mails.at(-1)!, 'a');
   };
   const bestaetigen = (token: string) =>
-    call(t, endpoints.EssensplanungBestaetigen, 'POST', 'anlegen/bestaetigen', {
+    call(t, EssensplanungBestaetigen, 'POST', 'anlegen/bestaetigen', {
       body: { token },
     });
 
@@ -840,24 +807,24 @@ dbTest('a confirmation link no longer creates once the address is not allowed', 
 dbTest('opening a link changes no version the owner holds', async (t) => {
   const mails = captureMails(t);
   const { token } = await anlegen(t, mails);
-  await call(t, endpoints.EssensplanungMitglieder, 'POST', 'planung/mitglieder', {
+  await call(t, EssensplanungMitglieder, 'POST', 'planung/mitglieder', {
     token,
     body: { name: 'Ben Bezirk', email: 'ben@example.org' },
   });
   const ben = tokenAus(mails.at(-1)!, 't');
   const vorher = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   const benVorher = vorher.mitglieder.find((m) => !m.ich)!;
   // Ben opens his link for the first time and polls
-  await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: ben });
-  await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', {
+  await call(t, EssensplanungPlanung, 'GET', 'planung', { token: ben });
+  await call(t, EssensplanungStand, 'GET', 'planung/stand', {
     token: ben,
     query: `?seit=${encodeURIComponent(vorher.stand)}`,
   });
   const geaendert = await call(
     t,
-    endpoints.EssensplanungMitglied,
+    EssensplanungMitglied,
     'PATCH',
     `planung/mitglieder/${benVorher.id}`,
     {

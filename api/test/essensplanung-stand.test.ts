@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { KyselyPlugin } from 'kysely';
-import * as endpoints from '../endpoints/essensplanung';
+import { EssensplanungStand } from '../endpoints/essensplanung-planung';
 import { getDb } from '../lib/db';
 import type { Db } from '../lib/db';
 import {
@@ -58,7 +58,7 @@ dbTest('the stand changes with a change of the Planung and with the central list
   const { token, ansicht } = await anlegen(t, mails);
   const poll = async (seit: string) =>
     json<{ stand: string; ansicht?: PlanungAnsicht }>(
-      await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', {
+      await call(t, EssensplanungStand, 'GET', 'planung/stand', {
         token,
         query: `?seit=${encodeURIComponent(seit)}`,
       })

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
-import * as endpoints from '../endpoints/essensplanung';
+import { EssensplanungGerichte } from '../endpoints/essensplanung-gerichte';
+import { EssensplanungPlanung } from '../endpoints/essensplanung-planung';
 import * as ki from '../endpoints/essensplanung-ki';
 import { getDb } from '../lib/db';
 import type { KiGericht } from '../lib/essen-ki-model';
@@ -23,7 +24,7 @@ async function zentraleZutat(name: string): Promise<number> {
 }
 
 async function gericht(t: TestContext, token: string, personen: number | null) {
-  const antwort = await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+  const antwort = await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
     token,
     body: { name: 'Chili', personen, anleitung: '', werkzeuge: ['Kelle'] },
   });
@@ -32,9 +33,7 @@ async function gericht(t: TestContext, token: string, personen: number | null) {
 }
 
 async function ansichtVon(t: TestContext, token: string): Promise<PlanungAnsicht> {
-  return json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
-  );
+  return json<PlanungAnsicht>(await call(t, EssensplanungPlanung, 'GET', 'planung', { token }));
 }
 
 function modell(t: TestContext, antwort: unknown): void {

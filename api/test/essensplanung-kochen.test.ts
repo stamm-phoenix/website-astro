@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
 import * as einkauf from '../endpoints/essensplanung-einkauf';
-import * as endpoints from '../endpoints/essensplanung';
+import { EssensplanungGerichte, EssensplanungGericht } from '../endpoints/essensplanung-gerichte';
+import { EssensplanungEinplanungen } from '../endpoints/essensplanung-teilnehmende';
+import { EssensplanungPlanung } from '../endpoints/essensplanung-planung';
 import * as kochen from '../endpoints/essensplanung-kochen';
 import { getDb } from '../lib/db';
 import { gerichtStand } from '../lib/essen-gerichte-model';
@@ -21,13 +23,13 @@ dbTest('planned dishes are ticked off as cooked with what they used, or left out
   const mails = captureMails(t);
   const { token, ansicht } = await anlegen(t, mails);
   const gericht = json<{ id: number }>(
-    await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+    await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
       token,
       body: { name: 'Nudeln', personen: 10 },
     })
   ).id;
   const mittag = ansicht.tage[0].mahlzeiten[1];
-  await call(t, endpoints.EssensplanungEinplanungen, 'POST', 'planung/einplanungen', {
+  await call(t, EssensplanungEinplanungen, 'POST', 'planung/einplanungen', {
     token,
     body: { mahlzeitId: mittag.id, gerichtId: gericht },
   });
@@ -122,28 +124,22 @@ dbTest('planned dishes are ticked off as cooked with what they used, or left out
     .execute();
   assert.equal(verbraucht.length, 1);
   const stand = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   const zuLoeschen = stand.gerichte.find((g) => g.id === gericht)!;
-  const geloescht = await call(
-    t,
-    endpoints.EssensplanungGericht,
-    'DELETE',
-    `planung/gerichte/${gericht}`,
-    {
-      token,
-      params: { id: String(gericht) },
-      // The dish with its planned places, as the page sends it
-      ifMatch: gerichtStand(
-        zuLoeschen,
-        stand.tage.flatMap((tag) =>
-          tag.mahlzeiten.flatMap((m) =>
-            m.einplanungen.filter((e) => e.gerichtId === gericht).map((e) => e.etag)
-          )
+  const geloescht = await call(t, EssensplanungGericht, 'DELETE', `planung/gerichte/${gericht}`, {
+    token,
+    params: { id: String(gericht) },
+    // The dish with its planned places, as the page sends it
+    ifMatch: gerichtStand(
+      zuLoeschen,
+      stand.tage.flatMap((tag) =>
+        tag.mahlzeiten.flatMap((m) =>
+          m.einplanungen.filter((e) => e.gerichtId === gericht).map((e) => e.etag)
         )
-      ),
-    }
-  );
+      )
+    ),
+  });
   assert.equal(geloescht.status, 200, JSON.stringify(geloescht.jsonBody));
   assert.equal(
     (
@@ -174,12 +170,12 @@ dbTest('two Planungen tick off the same central ingredients at once', async (t) 
   async function planung(reihenfolge: number[]) {
     const { token, ansicht } = await anlegen(t, mails);
     const gericht = json<{ id: number }>(
-      await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+      await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
         token,
         body: { name: 'Suppe', personen: 10 },
       })
     ).id;
-    await call(t, endpoints.EssensplanungEinplanungen, 'POST', 'planung/einplanungen', {
+    await call(t, EssensplanungEinplanungen, 'POST', 'planung/einplanungen', {
       token,
       body: { mahlzeitId: ansicht.tage[0].mahlzeiten[1].id, gerichtId: gericht },
     });

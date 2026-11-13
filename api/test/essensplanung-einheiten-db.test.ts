@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
-import * as endpoints from '../endpoints/essensplanung';
+import {
+  EssensplanungGerichte,
+  EssensplanungGerichtZutaten,
+} from '../endpoints/essensplanung-gerichte';
+import { EssensplanungPlanung } from '../endpoints/essensplanung-planung';
+import { EssensplanungEinplanungen } from '../endpoints/essensplanung-teilnehmende';
 import * as einkauf from '../endpoints/essensplanung-einkauf';
 import * as einkaeufe from '../endpoints/essensplanung-einkaeufe';
 import * as kochen from '../endpoints/essensplanung-kochen';
@@ -22,14 +27,14 @@ dbTest('lines, extra needs and stock keep units of their own; all convert in one
       .executeTakeFirstOrThrow()
   ).id;
   const gericht = json<{ id: number }>(
-    await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+    await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
       token,
       body: { name: 'Kräuterquark', personen: 10 },
     })
   ).id;
   const zeile = await call(
     t,
-    endpoints.EssensplanungGerichtZutaten,
+    EssensplanungGerichtZutaten,
     'POST',
     `planung/gerichte/${gericht}/zutaten`,
     {
@@ -51,7 +56,7 @@ dbTest('lines, extra needs and stock keep units of their own; all convert in one
   );
   assert.equal(zusatz.status, 201, JSON.stringify(zusatz.jsonBody));
   const ansicht = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   const [linie] = ansicht.gerichte[0].zutaten;
   assert.equal(linie.einheit, 'Messerspitzen');
@@ -85,7 +90,7 @@ dbTest('lines, extra needs and stock keep units of their own; all convert in one
   ]);
   assert.equal(konflikt.status, 409, JSON.stringify(konflikt.jsonBody));
   const danach = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   assert.equal(danach.gerichte[0].zutaten[0].einheit, 'Messerspitzen');
 
@@ -121,28 +126,22 @@ dbTest(
         .executeTakeFirstOrThrow()
     ).id;
     const gericht = json<{ id: number }>(
-      await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+      await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
         token,
         body: { name: 'Kräuterquark', personen: 10 },
       })
     ).id;
-    await call(
-      t,
-      endpoints.EssensplanungGerichtZutaten,
-      'POST',
-      `planung/gerichte/${gericht}/zutaten`,
-      {
-        token,
-        params: { id: String(gericht) },
-        body: { zutatId: salz, menge: 1, einheit: 'Bund' },
-      }
-    );
-    await call(t, endpoints.EssensplanungEinplanungen, 'POST', 'planung/einplanungen', {
+    await call(t, EssensplanungGerichtZutaten, 'POST', `planung/gerichte/${gericht}/zutaten`, {
+      token,
+      params: { id: String(gericht) },
+      body: { zutatId: salz, menge: 1, einheit: 'Bund' },
+    });
+    await call(t, EssensplanungEinplanungen, 'POST', 'planung/einplanungen', {
       token,
       body: { mahlzeitId: ansicht.tage[0].mahlzeiten[1].id, gerichtId: gericht },
     });
     let stand = json<PlanungAnsicht>(
-      await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+      await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
     );
     const id = stand.gerichte[0].zutaten[0].planungZutatId;
     const geplant = stand.tage[0].mahlzeiten[1].einplanungen[0];

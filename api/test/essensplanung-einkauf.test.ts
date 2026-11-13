@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
 import * as einkauf from '../endpoints/essensplanung-einkauf';
-import * as endpoints from '../endpoints/essensplanung';
+import {
+  EssensplanungZutat,
+  EssensplanungGerichte,
+  EssensplanungGerichtZutaten,
+} from '../endpoints/essensplanung-gerichte';
 import { getDb } from '../lib/db';
 import { seedPreviewEssensplanungEinkauf } from '../lib/db-preview-essen-einkauf';
 import {
@@ -193,17 +197,11 @@ dbTest('stock and extra needs take any ingredient in its unit', async (t) => {
 
   // An ingredient in use cannot go
   const salzDerPlanung = zusatz.zutaten.find((z) => z.zutatId === salz)!;
-  const weg = await call(
-    t,
-    endpoints.EssensplanungZutat,
-    'DELETE',
-    `planung/zutaten/${salzDerPlanung.id}`,
-    {
-      token,
-      params: { id: String(salzDerPlanung.id) },
-      ifMatch: salzDerPlanung.etag,
-    }
-  );
+  const weg = await call(t, EssensplanungZutat, 'DELETE', `planung/zutaten/${salzDerPlanung.id}`, {
+    token,
+    params: { id: String(salzDerPlanung.id) },
+    ifMatch: salzDerPlanung.etag,
+  });
   assert.equal(weg.status, 400);
 
   // Changing an entry with an old version is a conflict; with the current one it goes
@@ -336,14 +334,14 @@ dbTest('extra needs take a name of their own and go without an amount', async (t
 
   // What is no food goes into no dish
   const gericht = json<{ id: number }>(
-    await call(t, endpoints.EssensplanungGerichte, 'POST', 'planung/gerichte', {
+    await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
       token,
       body: { name: 'Chili', personen: 10 },
     })
   );
   const zeile = await call(
     t,
-    endpoints.EssensplanungGerichtZutaten,
+    EssensplanungGerichtZutaten,
     'POST',
     `planung/gerichte/${gericht.id}/zutaten`,
     {

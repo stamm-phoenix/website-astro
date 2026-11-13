@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { HttpRequest, InvocationContext } from '@azure/functions';
 import type { HttpResponseInit } from '@azure/functions';
-import * as endpoints from '../endpoints/essensplanung';
+import { EssensplanungPlanung, EssensplanungStand } from '../endpoints/essensplanung-planung';
 import EssensplanungMeineEndpoint from '../endpoints/intern-essensplanung-meine';
 import { EssensplanungLeitende } from '../endpoints/essensplanung-leitende';
 import * as taskDirectory from '../lib/task-directory';
@@ -14,7 +14,12 @@ import {
 import { seedPreviewEssensplanungLeitung } from '../lib/db-preview-essen-leitung';
 import type { LeitungPlanung } from '../lib/essen-leitung-model';
 import { PlanungError, ladeZugang } from '../lib/essen-zugang';
-import { einladen, mitgliedAendern, neueLinksFuerAdresse, neuerLink } from '../lib/essen-planung-mitglieder';
+import {
+  einladen,
+  mitgliedAendern,
+  neueLinksFuerAdresse,
+  neuerLink,
+} from '../lib/essen-planung-mitglieder';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { overrideConfig } from './fixtures/config';
 import { dbTest } from './fixtures/database';
@@ -70,7 +75,7 @@ dbTest('a Leitende:r opens own Planungen with the token of the Leitendenbereich'
 
   // Same access as the link from the mail, which keeps working
   const geoeffnet = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: planung.token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token: planung.token })
   );
   assert.equal(geoeffnet.zugang, 'besitzer');
   assert.equal(geoeffnet.ichId, ansicht.ichId);
@@ -92,7 +97,7 @@ dbTest('a withdrawn member loses the Planung and its token', async (t) => {
   assert.equal((await ladeZugang(ben.token)).zugang, 'bearbeiten');
 
   const ansicht = json<PlanungAnsicht>(
-    await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token })
+    await call(t, EssensplanungPlanung, 'GET', 'planung', { token })
   );
   const mitglied = ansicht.mitglieder.find((m) => m.email === 'ben@stamm-phoenix.de')!;
   await mitgliedAendern(besitzerin, mitglied.id, { entziehen: true }, mitglied.etag);
@@ -292,12 +297,12 @@ dbTest('an invitation is new until the Planung is opened', async (t) => {
   assert.equal(eingeladen.neu, true);
 
   // Polling does not count, the first load of the Planung does
-  await call(t, endpoints.EssensplanungStand, 'GET', 'planung/stand', {
+  await call(t, EssensplanungStand, 'GET', 'planung/stand', {
     token: eingeladen.token,
     query: '?seit=0',
   });
   assert.equal((await planungen('ben@stamm-phoenix.de'))[0].neu, true);
-  await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: eingeladen.token });
-  await call(t, endpoints.EssensplanungPlanung, 'GET', 'planung', { token: eingeladen.token });
+  await call(t, EssensplanungPlanung, 'GET', 'planung', { token: eingeladen.token });
+  await call(t, EssensplanungPlanung, 'GET', 'planung', { token: eingeladen.token });
   assert.equal((await planungen('ben@stamm-phoenix.de'))[0].neu, false);
 });
