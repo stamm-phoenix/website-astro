@@ -1,7 +1,8 @@
 <script lang="ts" module>
-  /** Loaded previews by receipt and version, so polling does not load them again. */
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- a cache, never rendered
-  const geladen = new Map<string, Promise<string>>();
+  import { ObjectUrlCache } from '../../lib/objectUrlCache';
+
+  /** Loaded previews by receipt, so polling does not load them again; a new version replaces one. */
+  const geladen = new ObjectUrlCache();
 </script>
 
 <script lang="ts">
@@ -24,15 +25,11 @@
   let fehler = $state(false);
 
   $effect(() => {
-    const key = `${beleg.id}:${beleg.etag}`;
     const api = kontext.api;
     const id = beleg.id;
-    let laden = geladen.get(key);
-    if (!laden) {
-      laden = api.belegFoto(id, 'vorschau').then((datei) => URL.createObjectURL(datei.blob));
-      geladen.set(key, laden);
-      laden.catch(() => geladen.delete(key));
-    }
+    const laden = geladen.get(String(id), beleg.etag, () =>
+      api.belegFoto(id, 'vorschau').then((datei) => datei.blob)
+    );
     let aktuell = true;
     fehler = false;
     laden.then(
