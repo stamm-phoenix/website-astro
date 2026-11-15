@@ -22,6 +22,7 @@ export const STAFF_USAGE_MODULES = [
   '/leitendenbereich/essensplanung-steuerung',
   '/leitendenbereich/essensplanung-zutaten',
   '/leitendenbereich/inventur',
+  '/leitendenbereich/verleih',
   '/leitendenbereich/kostenstellen',
   '/leitendenbereich/gruppenstunden',
   '/leitendenbereich/gruppenstunden-hinweise',

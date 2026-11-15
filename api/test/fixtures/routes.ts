@@ -1,3 +1,4 @@
+import { VERLEIH_ROUTES } from './routes-verleih';
 // Every function registered by main.ts, in registration order, taken before the registrations moved
 // next to their handlers. `route: null` means the function name is the route.
 export interface RegisteredRoute {
@@ -1460,4 +1461,5 @@ export const ROUTES: RegisteredRoute[] = [
     authLevel: 'anonymous',
     route: 'protokoll-cutover-status',
   },
+  ...VERLEIH_ROUTES,
 ];

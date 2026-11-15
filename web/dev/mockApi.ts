@@ -228,3 +228,5 @@ export function mockApiMiddleware(): Connect.NextHandleFunction {
     });
   };
 }
+
+import './mockVerleih';

@@ -1,3 +1,4 @@
+import { MATERIAL_MODULES } from './staffMaterial';
 import { POSTFACH_MODULES } from './postfaecher';
 import { CHANGELOG_PATH, type StaffModule } from './staffModuleTypes';
 
@@ -279,27 +280,7 @@ export const STAFF_MODULES: StaffModule[] = [
     ],
     icon: 'M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01',
   },
-  {
-    href: '/leitendenbereich/inventur',
-    title: 'Inventur',
-    description:
-      'Pullis, Aufnäher, Zelte und anderes Material mit Bestand, Lagerort und Zustand erfassen und zählen.',
-    intro:
-      'Bei Kleidung und Aufnähern hat jede Größe oder jedes Motiv einen eigenen Bestand. „Zählen“ speichert den gezählten Bestand mit Datum und deinem Namen.',
-    keywords: [
-      'material',
-      'lager',
-      'bestand',
-      'zelt',
-      'kohte',
-      'pulli',
-      'aufnäher',
-      'zählen',
-      'reparatur',
-      'verleih',
-    ],
-    icon: 'M21 8l-9-5-9 5v8l9 5 9-5V8zM3.3 7.5L12 12.5l8.7-5M12 22V12.5',
-  },
+  ...MATERIAL_MODULES,
   {
     href: '/leitendenbereich/kostenstellen',
     title: 'Kostenstellen',

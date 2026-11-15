@@ -43,6 +43,7 @@ const BROWSER_SAFE_API_MODULES = [
   'foto-pfade',
   'fotos-model',
   'help-contacts',
+  'verleih-model',
   'inventur-model',
   'kjr-zuschuss',
   'kontakt-validation',

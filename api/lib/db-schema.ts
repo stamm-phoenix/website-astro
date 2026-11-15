@@ -1,3 +1,10 @@
+import type {
+  VerleihEinstellungTable,
+  VerleihTable,
+  VerleihPositionTable,
+  VerleihVerlaufTable,
+  VerleihMailTable,
+} from './db-schema-verleih';
 import type { ColumnType, Generated } from 'kysely';
 import type { ReadOnly, SqlDate } from './db-schema-types';
 import type {
@@ -120,6 +127,11 @@ import type {
 
 /** The tables as Kysely sees them; mirrors `api/migrations/*.sql`. */
 export interface Database {
+  'organisation.verleih_einstellung': VerleihEinstellungTable;
+  'organisation.verleih': VerleihTable;
+  'organisation.verleih_position': VerleihPositionTable;
+  'organisation.verleih_verlauf': VerleihVerlaufTable;
+  'organisation.verleih_mail': VerleihMailTable;
   'nikolaus.booking': BookingTable;
   'nikolaus.helper': HelperTable;
   'nikolaus.helper_availability': HelperAvailabilityTable;

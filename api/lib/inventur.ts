@@ -1,3 +1,4 @@
+import { pruefeInventurVerleih } from './verleih-bestand';
 import type { Selectable } from 'kysely';
 import { sql } from 'kysely';
 import {
@@ -5,6 +6,7 @@ import {
   VersionConflictError,
   getDb,
   inTransaction,
+  lockResource,
   toVersion,
   requireRowversion,
 } from './db';
@@ -101,6 +103,7 @@ export async function createInventarArtikel(
   actor: string
 ): Promise<number> {
   return inTransaction(async (trx) => {
+    await lockResource(trx, 'inventur-verleih');
     const { id } = await trx
       .insertInto('organisation.inventar_artikel')
       .values({ ...toRow(input), updated_by: actor })
@@ -150,6 +153,8 @@ export async function updateInventarArtikel(
   actor: string
 ): Promise<void> {
   await inTransaction(async (trx) => {
+    await lockResource(trx, 'inventur-verleih');
+    await pruefeInventurVerleih(trx, id, input.varianten);
     const result = await trx
       .updateTable('organisation.inventar_artikel')
       .set({ ...toRow(input), updated_by: actor, updated_at: sql<Date>`SYSUTCDATETIME()` })
@@ -205,6 +210,8 @@ export async function zaehleInventarArtikel(
   actor: string
 ): Promise<void> {
   await inTransaction(async (trx) => {
+    await lockResource(trx, 'inventur-verleih');
+    await pruefeInventurVerleih(trx, id, input.varianten);
     await touch(trx, id, etag, actor);
     const rows = await trx
       .selectFrom('organisation.inventar_variante')
@@ -232,11 +239,14 @@ export async function zaehleInventarArtikel(
 
 /** Deletes an article with its variants if it still has the version `etag`. */
 export async function deleteInventarArtikel(id: number, etag: string): Promise<void> {
-  const db = getDb();
-  const result = await db
-    .deleteFrom('organisation.inventar_artikel')
-    .where('id', '=', id)
-    .where('version', '=', requireRowversion(etag))
-    .executeTakeFirst();
-  if (Number(result.numDeletedRows) === 0) await notChanged(db, id);
+  await inTransaction(async (db) => {
+    await lockResource(db, 'inventur-verleih');
+    await pruefeInventurVerleih(db, id, []);
+    const result = await db
+      .deleteFrom('organisation.inventar_artikel')
+      .where('id', '=', id)
+      .where('version', '=', requireRowversion(etag))
+      .executeTakeFirst();
+    if (Number(result.numDeletedRows) === 0) await notChanged(db, id);
+  });
 }
