@@ -4,9 +4,9 @@ export const MATERIAL_MODULES: StaffModule[] = [
   {
     href: '/leitendenbereich/verleih',
     title: 'Verleih',
-    description: 'Stammesmaterial ausleihen, Anträge prüfen und Rückgaben erfassen.',
+    description: 'Ausleihen von Stammesmaterial eintragen und Rückgaben erfassen.',
     intro:
-      'Ein Antrag reserviert noch kein Material. Erst die Genehmigung durch den Materialwart bestätigt die Ausleihe. Material mit Reparaturbedarf oder fehlenden Teilen ist gesperrt.',
+      'Material mit Reparaturbedarf oder fehlenden Teilen bleibt für weitere Ausleihen gesperrt.',
     keywords: ['material', 'ausleihe', 'rückgabe', 'materialwart'],
     icon: 'M4 7h16M4 17h16M16 3l4 4-4 4M8 13l-4 4 4 4',
   },

@@ -17,8 +17,8 @@ export async function getVerleihEinstellung(): Promise<{ materialwart: string; e
   return { materialwart: row.materialwart, etag: toVersion(row.version) };
 }
 export async function saveVerleihEinstellung(login: string, etag: string): Promise<void> {
-  const users = await getTaskDirectoryUsers();
-  if (!users.some((u) => u.login.toLowerCase() === login.toLowerCase()))
+  const users = login ? await getTaskDirectoryUsers() : [];
+  if (login && !users.some((u) => u.login.toLowerCase() === login.toLowerCase()))
     throw new ValidationError({
       materialwart: 'Bitte ein aktives Stammeskonto aus der Liste auswählen.',
     });

@@ -50,14 +50,7 @@ export function validateVerleih(body: unknown): VerleihInput {
   return parseWith(schema, body);
 }
 const aktionSchema = lenientObject({
-  aktion: choice('die Aktion', [
-    'genehmigen',
-    'ablehnen',
-    'ausgeben',
-    'zurueckziehen',
-    'rueckgabe',
-    'stornieren',
-  ] as const),
+  aktion: choice('die Aktion', ['rueckgabe', 'stornieren'] as const),
   nachricht: labeledText('die Nachricht', 2000),
   rueckgaben: z
     .array(
@@ -90,7 +83,7 @@ export function validateVerleihAnfrageId(body: unknown): string {
   return parseWith(
     lenientObject({
       anfrageId: z.uuid({
-        error: 'Der Antrag konnte nicht zugeordnet werden. Bitte öffne das Formular erneut.',
+        error: 'Die Eintragung konnte nicht zugeordnet werden. Bitte öffne das Formular erneut.',
       }),
     }),
     body

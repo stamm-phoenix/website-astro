@@ -28,15 +28,13 @@ export async function getVerleih(): Promise<VerleihVorgang[]> {
     id: v.id,
     etag: toVersion(v.version),
     status: v.status,
-    antragsteller: v.antragsteller,
+    eingetragenVon: v.antragsteller,
     entleiher: v.entleiher,
     kontakt: v.kontakt,
     verantwortlich: v.verantwortlich,
     von: v.von,
     bis: v.bis,
     notizen: v.notizen,
-    entscheidung: v.entscheidung,
-    entschiedenVon: v.entschieden_von,
     positionen: positionen
       .filter((p) => p.verleih_id === v.id)
       .map((p) => ({

@@ -31,9 +31,7 @@ export interface VerleihVorgang extends Omit<VerleihInput, 'positionen'> {
   id: number;
   etag: string;
   status: VerleihStatus;
-  antragsteller: string;
-  entscheidung: string;
-  entschiedenVon: string;
+  eingetragenVon: string;
   positionen: VerleihPosition[];
   verlauf: { am: string; von: string; text: string }[];
   mailOffen: number;
@@ -41,7 +39,6 @@ export interface VerleihVorgang extends Omit<VerleihInput, 'positionen'> {
 export interface VerleihUebersicht {
   vorgaenge: VerleihVorgang[];
   materialwart: string;
-  darfVerwalten: boolean;
   darfEinrichten: boolean;
   login: string;
 }

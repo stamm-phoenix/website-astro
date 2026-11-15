@@ -3,7 +3,7 @@ export interface VerleihFormPosition {
   varianteId: number;
   menge: number | undefined;
 }
-export interface VerleihAntragForm extends Omit<VerleihInput, 'positionen'> {
+export interface VerleihForm extends Omit<VerleihInput, 'positionen'> {
   positionen: VerleihFormPosition[];
 }
 export interface VerleihEntwurf {

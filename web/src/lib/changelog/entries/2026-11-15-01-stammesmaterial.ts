@@ -5,11 +5,11 @@ const entry: ChangelogEntry = {
   title: 'Material ausleihen und mit Schildern kennzeichnen',
   changes: [
     {
-      text: 'Du kannst Stammesmaterial mit mehreren Artikeln beantragen. Der Materialwart genehmigt oder lehnt die Ausleihe ab; du erhältst eine Bestätigung und die Entscheidung per E-Mail.',
+      text: 'Du trägst Ausleihen von Stammesmaterial direkt mit mehreren Artikeln ein und kannst sie später bearbeiten.',
       href: '/leitendenbereich/verleih',
     },
     {
-      text: 'Der Materialwart erfasst die Ausgabe und auch einzelne Rückgaben. Offene Mengen, überfällige Ausleihen und Schäden bleiben sichtbar.',
+      text: 'Alle Leitenden können auch einzelne Rückgaben erfassen. Offene Mengen, überfällige Ausleihen und Schäden bleiben sichtbar.',
       href: '/leitendenbereich/verleih',
     },
     {
