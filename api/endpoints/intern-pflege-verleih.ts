@@ -21,7 +21,7 @@ const FORBIDDEN = {
   status: 403,
   jsonBody: { message: 'Du darfst diese Aktion nicht ausführen. Es wurde nichts gespeichert.' },
 };
-const settingsSchema = lenientObject({ materialwart: labeledText('den Materialwart', 254, true) });
+const settingsSchema = lenientObject({ materialwart: labeledText('den Materialwart', 254) });
 export const VerleihCollection = staffHandler('verleih', async (request, _context, principal) => {
   const login = principal.userDetails.toLowerCase();
   const settings = await getVerleihEinstellung();
@@ -30,7 +30,6 @@ export const VerleihCollection = staffHandler('verleih', async (request, _contex
       vorgaenge: await getVerleih(),
       materialwart: settings.materialwart,
       login,
-      darfVerwalten: !!settings.materialwart && settings.materialwart === login,
       darfEinrichten: hasTeam(principal, 'vorstand') || hasTeam(principal, 'admin'),
     });
   const body = await readJsonBody(request);
@@ -53,14 +52,11 @@ export const VerleihItem = staffHandler('verleih', async (request, _context, pri
   else await changeVerleih(id, etag, validateVerleihAktion(body), login);
   return ok({ id, mailGesendet: await sendVerleihMails(id, getSiteUrl(request)) });
 });
-export const VerleihVersand = staffHandler('verleih', async (request, _context, principal) => {
+export const VerleihVersand = staffHandler('verleih', async (request) => {
   const id = parseId(request.params.id ?? '');
   if (!id) return NOT_FOUND;
   const vorgang = (await getVerleih()).find((v) => v.id === id);
   if (!vorgang) return NOT_FOUND;
-  const settings = await getVerleihEinstellung();
-  const login = principal.userDetails.toLowerCase();
-  if (login !== settings.materialwart && login !== vorgang.antragsteller) return FORBIDDEN;
   return ok({ mailGesendet: await sendVerleihMails(id, getSiteUrl(request)) });
 });
 export const VerleihEinstellung = staffHandler('verleih', async (request, _context, principal) => {

@@ -6,29 +6,28 @@
   import LoadState from '../ui/LoadState.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import ReloadButton from '../pflege/ReloadButton.svelte';
-  import VerleihAntragDialog from './VerleihAntragDialog.svelte';
+  import VerleihEintragenDialog from './VerleihEintragenDialog.svelte';
   import VerleihAktionDialog from './VerleihAktionDialog.svelte';
   import VerleihEinstellung from './VerleihEinstellung.svelte';
   import { verleihResource } from '../../lib/verleihStore.svelte';
   import { inventurPflege } from '../../lib/inventurStore.svelte';
   import { sendApi, errorMessage } from '../../lib/api';
   import type { VerleihVorgang, VerleihStatus } from '../../../../api/lib/verleih-model';
-  type Aktion =
-    'genehmigen' | 'ablehnen' | 'ausgeben' | 'zurueckziehen' | 'rueckgabe' | 'stornieren';
+  type Aktion = 'rueckgabe' | 'stornieren';
   const store = verleihResource.state;
   const namen: Record<VerleihStatus, string> = {
-    antrag: 'Wartet auf Freigabe',
-    genehmigt: 'Genehmigt',
-    ausgegeben: 'Ausgegeben',
+    antrag: 'Abgesagt',
+    genehmigt: 'Offen',
+    ausgegeben: 'Offen',
     abgeschlossen: 'Abgeschlossen',
-    abgelehnt: 'Abgelehnt',
-    zurueckgezogen: 'Zurückgezogen',
+    abgelehnt: 'Abgesagt',
+    zurueckgezogen: 'Abgesagt',
   };
   let suche = $state('');
   let filter = $state('offen');
   let message = $state<string | null>(null);
   let error = $state('');
-  let antrag = $state<{ vorgang: VerleihVorgang | null } | null>(null);
+  let eintrag = $state<{ vorgang: VerleihVorgang | null } | null>(null);
   let aktion = $state<{ vorgang: VerleihVorgang; aktion: Aktion } | null>(null);
   let einrichten = $state(false);
   let sending = $state<number | null>(null);
@@ -42,7 +41,7 @@
       const passt =
         filter === 'alle' ||
         (filter === 'offen'
-          ? ['antrag', 'genehmigt', 'ausgegeben'].includes(v.status)
+          ? ['genehmigt', 'ausgegeben'].includes(v.status)
           : filter === 'ueberfaellig'
             ? ueberfaellig(v)
             : filter === 'verlauf'
@@ -70,7 +69,7 @@
     });
   });
   async function done(text: string): Promise<void> {
-    antrag = null;
+    eintrag = null;
     aktion = null;
     einrichten = false;
     message = text;
@@ -125,8 +124,8 @@
       <ActionButton
         type="button"
         variant="primary"
-        disabled={!store.data?.materialwart || !inventurPflege.state.data}
-        onclick={() => (antrag = { vorgang: null })}>Ausleihe beantragen</ActionButton
+        disabled={!store.data || !inventurPflege.state.data}
+        onclick={() => (eintrag = { vorgang: null })}>Ausleihe eintragen</ActionButton
       >
     </div>
   </div>
@@ -134,7 +133,6 @@
     label="Ausleihen"
     options={[
       { value: 'offen', label: 'Offen' },
-      { value: 'antrag', label: 'Anträge' },
       { value: 'ueberfaellig', label: 'Überfällig' },
       { value: 'verlauf', label: 'Verlauf' },
       { value: 'alle', label: 'Alle' },
@@ -144,9 +142,6 @@
   />
   <StatusNotice {message} popup />
   {#if error}<p role="alert" class="text-danger">{error}</p>{/if}
-  {#if store.data && !store.data.materialwart}<p role="status" class="text-warning">
-      Noch kein Materialwart eingerichtet. Bitte wende dich an den Vorstand.
-    </p>{/if}
   {#if inventurPflege.state.error}<p role="alert" class="text-danger">
       {inventurPflege.state.error}
     </p>
@@ -176,13 +171,7 @@
             </div>
             <StatusLabel
               label={ueberfaellig(v) ? 'Überfällig' : namen[v.status]}
-              tone={ueberfaellig(v)
-                ? 'danger'
-                : v.status === 'antrag'
-                  ? 'warning'
-                  : v.status === 'abgelehnt'
-                    ? 'danger'
-                    : 'neutral'}
+              tone={ueberfaellig(v) ? 'danger' : 'neutral'}
             />
           </div>
           <ul class="space-y-1">
@@ -196,9 +185,8 @@
             <div class="space-y-2 py-2 [overflow-wrap:anywhere]">
               {#if v.verantwortlich}<p>Verantwortlich: {v.verantwortlich}</p>{/if}
               {#if v.kontakt}<p>Kontakt: {v.kontakt}</p>{/if}
-              <p>Beantragt von: {v.antragsteller}</p>
+              <p>Eingetragen von: {v.eingetragenVon}</p>
               {#if v.notizen}<p>{v.notizen}</p>{/if}
-              {#if v.entscheidung}<p>Entscheidung: {v.entscheidung}</p>{/if}
               <ol class="space-y-2 text-sm text-neutral-700">
                 {#each v.verlauf as e, i (i)}<li>
                     {new Date(e.am).toLocaleString('de-DE')} · {e.von}<br />{e.text}
@@ -206,78 +194,51 @@
               </ol>
             </div>
           </details>
-          <div class="flex flex-wrap gap-2">
-            {#if v.status === 'antrag' && v.antragsteller === store.data?.login}
+          {#if v.status === 'ausgegeben'}
+            <div class="flex flex-wrap gap-2">
               <ActionButton
                 type="button"
                 variant="secondary"
-                onclick={() => (antrag = { vorgang: v })}>Antrag bearbeiten</ActionButton
+                onclick={() => (eintrag = { vorgang: v })}>Ausleihe bearbeiten</ActionButton
               >
               <ActionButton
                 type="button"
-                variant="secondary"
-                onclick={() => (aktion = { vorgang: v, aktion: 'zurueckziehen' })}
-                >Antrag zurückziehen</ActionButton
+                variant="primary"
+                onclick={() => (aktion = { vorgang: v, aktion: 'rueckgabe' })}
+                >Rückgabe erfassen</ActionButton
               >
-            {/if}
-            {#if store.data?.darfVerwalten}
-              {#if v.status === 'antrag'}
-                <ActionButton
-                  type="button"
-                  variant="primary"
-                  onclick={() => (aktion = { vorgang: v, aktion: 'genehmigen' })}
-                  >Genehmigen</ActionButton
-                >
-                <ActionButton
-                  type="button"
-                  variant="secondary"
-                  onclick={() => (aktion = { vorgang: v, aktion: 'ablehnen' })}
-                  >Ablehnen</ActionButton
-                >
-              {:else if v.status === 'genehmigt'}
-                <ActionButton
+              {#if v.positionen.every((p) => p.zurueck === 0)}<ActionButton
                   type="button"
                   variant="secondary"
                   onclick={() => (aktion = { vorgang: v, aktion: 'stornieren' })}
                   >Ausleihe absagen</ActionButton
-                ><ActionButton
-                  type="button"
-                  variant="primary"
-                  onclick={() => (aktion = { vorgang: v, aktion: 'ausgeben' })}
-                  >Material ausgeben</ActionButton
-                >
-              {:else if v.status === 'ausgegeben'}<ActionButton
-                  type="button"
-                  variant="primary"
-                  onclick={() => (aktion = { vorgang: v, aktion: 'rueckgabe' })}
-                  >Rückgabe erfassen</ActionButton
                 >{/if}
-            {/if}
-          </div>
+            </div>
+          {/if}
           {#if v.mailOffen}
             <p role="status" class="text-warning">
               {v.mailOffen} E-Mail{v.mailOffen === 1 ? '' : 's'} noch nicht versandt
             </p>
-            {#if store.data?.darfVerwalten || store.data?.login === v.antragsteller}<ActionButton
-                type="button"
-                variant="secondary"
-                disabled={sending !== null}
-                onclick={() => versand(v.id)}
-                >{sending === v.id ? 'Wird versandt …' : 'E-Mails erneut versenden'}</ActionButton
-              >{/if}
+            <ActionButton
+              type="button"
+              variant="secondary"
+              disabled={sending !== null}
+              onclick={() => versand(v.id)}
+              >{sending === v.id ? 'Wird versandt …' : 'E-Mails erneut versenden'}</ActionButton
+            >
           {/if}
         </li>
       {/each}
     </ul>
   </LoadState>
 </div>
-{#if antrag && store.data && inventurPflege.state.data}<VerleihAntragDialog
+{#if eintrag && store.data && inventurPflege.state.data}<VerleihEintragenDialog
     artikel={inventurPflege.state.data}
     vorgaenge={alle}
     login={store.data.login}
-    vorgang={antrag.vorgang}
+    vorgang={eintrag.vorgang}
     onclose={() => {
-      antrag = null;
+      eintrag = null;
       void verleihResource.load({ force: true });
     }}
     ondone={done}

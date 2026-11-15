@@ -3,7 +3,7 @@
   import FormField from '../pflege/FormField.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import { sendApi } from '../../lib/api';
-  import { leseVerleihEntwurf, type VerleihAntragForm } from '../../lib/verleihForm';
+  import { leseVerleihEntwurf, type VerleihForm } from '../../lib/verleihForm';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
   import type { InventarArtikel } from '../../lib/inventur';
   import { reservierterBestand } from '../../../../api/lib/verleih-model';
@@ -19,7 +19,7 @@
   let { artikel, vorgaenge, login, vorgang, onclose, ondone }: Props = $props();
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
   // svelte-ignore state_referenced_locally
-  let input = $state<VerleihAntragForm>(
+  let input = $state<VerleihForm>(
     vorgang
       ? {
           entleiher: vorgang.entleiher,
@@ -56,7 +56,7 @@
   function verfuegbar(id: number): number {
     const v = varianten.find((v) => v.id === id);
     const reservations = vorgaenge
-      .filter((a) => a.id !== vorgang?.id && ['genehmigt', 'ausgegeben'].includes(a.status))
+      .filter((a) => a.id !== vorgang?.id && ['ausgegeben'].includes(a.status))
       .flatMap((a) =>
         a.positionen
           .filter((p) => p.varianteId === id)
@@ -78,22 +78,24 @@
       );
       await ondone(
         result.mailGesendet
-          ? 'Ausleihe beantragt. Die Bestätigung wurde versandt.'
-          : 'Ausleihe beantragt. Eine E-Mail konnte nicht versandt werden. Du kannst den Versand in der Ausleihe wiederholen.'
+          ? vorgang
+            ? 'Ausleihe geändert.'
+            : 'Ausleihe eingetragen.'
+          : 'Ausleihe eingetragen. Eine E-Mail konnte nicht versandt werden. Du kannst den Versand in der Ausleihe wiederholen.'
       );
-    }, 'Der Antrag konnte nicht bestätigt werden. Deine Eingaben sind noch da. Prüfe die Liste oder versuche es erneut.');
+    }, 'Die Eintragung konnte nicht bestätigt werden. Deine Eingaben sind noch da. Prüfe die Liste oder versuche es erneut.');
   }
 </script>
 
 <EditDialog
   open
-  title={vorgang ? 'Ausleihantrag bearbeiten' : 'Ausleihe beantragen'}
+  title={vorgang ? 'Ausleihe bearbeiten' : 'Ausleihe eintragen'}
   rescueKey={`verleih:${vorgang?.id ?? 'neu'}`}
   rescueVersion={vorgang?.etag}
   busy={dialog.state.busy}
   error={dialog.state.fields.form || dialog.state.fields.positionen || dialog.state.error}
   dirty={dirty !== initial}
-  submitLabel={vorgang ? 'Antrag ändern' : 'Ausleihe beantragen'}
+  submitLabel={vorgang ? 'Ausleihe speichern' : 'Ausleihe eintragen'}
   onreload={dialog.state.error
     ? async () => {
         await ondone('Aktuelle Ausleihe geladen.');
@@ -105,7 +107,7 @@
       key: 'materialauswahl',
       structure: true,
       get: () => JSON.stringify({ anfrageId, positionen: input.positionen }),
-      describe: () => 'Materialauswahl des Antrags',
+      describe: () => 'Materialauswahl der Ausleihe',
       set: (text) => {
         const entwurf = leseVerleihEntwurf(text);
         if (!entwurf) return false;

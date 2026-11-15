@@ -50,7 +50,7 @@
   title="Materialwart festlegen"
   submitLabel="Materialwart speichern"
   busy={dialog.state.busy}
-  submitDisabled={!data || !login}
+  submitDisabled={!data}
   dirty={!!data && login !== data.materialwart}
   error={dialog.state.error || loadError}
   onreload={dialog.state.conflict
@@ -66,11 +66,13 @@
     <FormField
       id="materialwart"
       label="Stammeskonto des Materialwarts"
+      optional
+      info="Der Materialwart erhält eine E-Mail zu eingetragenen und geänderten Ausleihen."
       error={dialog.state.fields.materialwart}
     >
       {#snippet children(attrs)}
         <select {...attrs} class="form-input" bind:value={login}>
-          <option value="">Person auswählen</option>
+          <option value="">Kein Materialwart</option>
           {#each data?.konten ?? [] as k (k.login)}<option value={k.login}
               >{k.name} ({k.login})</option
             >{/each}

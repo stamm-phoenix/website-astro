@@ -6,16 +6,12 @@
   import type { VerleihVorgang } from '../../../../api/lib/verleih-model';
   interface Props {
     vorgang: VerleihVorgang;
-    aktion: 'genehmigen' | 'ablehnen' | 'ausgeben' | 'zurueckziehen' | 'rueckgabe' | 'stornieren';
+    aktion: 'rueckgabe' | 'stornieren';
     onclose: () => void;
     ondone: (text: string) => Promise<void>;
   }
   let { vorgang, aktion, onclose, ondone }: Props = $props();
   const titel = {
-    genehmigen: 'Ausleihe genehmigen',
-    ablehnen: 'Ausleihe ablehnen',
-    ausgeben: 'Material ausgeben',
-    zurueckziehen: 'Antrag zurückziehen',
     rueckgabe: 'Rückgabe speichern',
     stornieren: 'Ausleihe absagen',
   };
@@ -43,7 +39,7 @@
         }
       );
       await ondone(
-        `${{ genehmigen: 'Ausleihe genehmigt.', ablehnen: 'Ausleihe abgelehnt.', ausgeben: 'Material ausgegeben.', zurueckziehen: 'Antrag zurückgezogen.', rueckgabe: 'Rückgabe gespeichert.', stornieren: 'Ausleihe abgesagt.' }[aktion]}${result.mailGesendet ? '' : ' Eine E-Mail konnte nicht versandt werden. Du kannst den Versand in der Ausleihe wiederholen.'}`
+        `${{ rueckgabe: 'Rückgabe gespeichert.', stornieren: 'Ausleihe abgesagt.' }[aktion]}${result.mailGesendet ? '' : ' Eine E-Mail konnte nicht versandt werden. Du kannst den Versand in der Ausleihe wiederholen.'}`
       );
     }, 'Die Änderung konnte nicht bestätigt werden. Deine Eingaben sind noch da. Prüfe die aktuelle Ausleihe, bevor du es noch einmal versuchst.');
   }
@@ -108,14 +104,7 @@
         {#each vorgang.positionen as p (p.id)}<li>{p.menge} × {p.bezeichnung}</li>{/each}
       </ul>
     {/if}
-    <FormField
-      id="verleih-nachricht"
-      label={aktion === 'genehmigen' || aktion === 'ablehnen'
-        ? 'Nachricht zur Entscheidung'
-        : 'Notiz'}
-      optional
-      error={dialog.state.fields.nachricht}
-    >
+    <FormField id="verleih-nachricht" label="Notiz" optional error={dialog.state.fields.nachricht}>
       {#snippet children(attrs)}<textarea
           {...attrs}
           class="form-input"

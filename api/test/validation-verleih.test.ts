@@ -52,3 +52,9 @@ test('a return needs positive quantities and unique positions', () => {
     ValidationError
   );
 });
+
+test('approval and request actions are not part of the direct entry API', () => {
+  for (const aktion of ['genehmigen', 'ablehnen', 'ausgeben', 'zurueckziehen']) {
+    assert.throws(() => validateVerleihAktion({ aktion }), ValidationError);
+  }
+});
