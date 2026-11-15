@@ -125,6 +125,11 @@ export async function resetDatabase(): Promise<void> {
     DELETE FROM organisation.staff_favorites;
     DELETE FROM organisation.staff_settings;
     DELETE FROM organisation.person;
+    DELETE FROM organisation.verleih_mail;
+    DELETE FROM organisation.verleih_verlauf;
+    DELETE FROM organisation.verleih_position;
+    DELETE FROM organisation.verleih;
+    UPDATE organisation.verleih_einstellung SET materialwart = N'' WHERE id = 1;
     DELETE FROM organisation.inventar_variante;
     DELETE FROM organisation.inventar_artikel;
     DELETE FROM content.instagram_token;

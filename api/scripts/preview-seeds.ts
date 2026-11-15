@@ -1,3 +1,4 @@
+import { seedPreviewVerleih } from '../lib/db-preview-verleih';
 import { seedPreviewContentReviews } from '../lib/db-preview-content-review';
 import { seedPreviewAktionen } from '../lib/db-preview-aktionen';
 import { seedPreviewStaffUsage } from '../lib/staff-usage-preview';
@@ -85,6 +86,7 @@ export async function seedPreviewData(): Promise<void> {
       { name: 'seedPreviewAbrechnungEingabe', run: () => seedPreviewAbrechnungEingabe() },
       { name: 'seedPreviewProblemmeldungen', run: () => seedPreviewProblemmeldungen() },
       { name: 'seedPreviewInventur', run: () => seedPreviewInventur() },
+      { name: 'seedPreviewVerleih', run: () => seedPreviewVerleih() },
       { name: 'seedPreviewSchnupperanfragen', run: () => seedPreviewSchnupperanfragen() },
       { name: 'seedPreviewPostfach', run: () => seedPreviewPostfach() },
     ],

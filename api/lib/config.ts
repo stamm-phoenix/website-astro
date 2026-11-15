@@ -52,6 +52,7 @@ export const CONFIG: ApiConfig = {
     },
   },
   mail: {
+    verleihSender: 'kontakt@stamm-phoenix.de',
     nikolausSender: 'nikolaus@stamm-phoenix.de',
     sammelbestellungSender: 'bestellungen@stamm-phoenix.de',
     belegeSender: 'kontakt@stamm-phoenix.de',

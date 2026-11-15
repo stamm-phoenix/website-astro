@@ -49,7 +49,8 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
       'beitraege',
       'kostenstellen',
       'sammelbestellungen',
-      'inventur'
+      'inventur',
+      'verleih'
     ),
   },
   {

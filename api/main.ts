@@ -110,3 +110,5 @@ import './endpoints/abstimmungen';
 import './endpoints/intern-pflege-abstimmungen';
 import './endpoints/intern-pflege-aufgaben';
 import './endpoints/protokoll-cutover-status';
+
+import './endpoints/intern-pflege-verleih';

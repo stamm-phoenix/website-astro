@@ -22,6 +22,8 @@
   } from '../../lib/inventur';
   import type { InventarArtikel, InventarFilter } from '../../lib/inventur';
   import InventurArtikelDialog from './InventurArtikelDialog.svelte';
+  import InventurQrButton from './InventurQrButton.svelte';
+  import { inventurArtikelId } from '../../lib/inventurQr';
   import InventurZaehlenDialog from './InventurZaehlenDialog.svelte';
 
   /**
@@ -45,8 +47,17 @@
       filter.zustand !== 'alle'
   );
 
+  let gescannterArtikel = $state<number | null>(null);
   onMount(() => {
+    gescannterArtikel = inventurArtikelId(window.location.search);
     void inventurPflege.load();
+  });
+  $effect(() => {
+    if (gescannterArtikel === null || !store.data) return;
+    const artikel = store.data.find((a) => a.id === gescannterArtikel);
+    gescannterArtikel = null;
+    if (artikel) bearbeiten = { artikel };
+    else message = 'Dieser Artikel ist nicht mehr in der Inventur vorhanden.';
   });
 
   const KATEGORIE_OPTIONEN = [
@@ -106,6 +117,7 @@
     </div>
     <div class="flex flex-wrap gap-2">
       <ReloadButton resource={inventurPflege} />
+      <InventurQrButton artikel={treffer} />
       <ActionButton
         variant="primary"
         type="button"
@@ -215,7 +227,8 @@
             {/if}
             <p class="text-sm text-neutral-700">{gezaehltText(artikel)}</p>
           </div>
-          <div class="flex shrink-0 gap-2">
+          <div class="flex shrink-0 flex-wrap gap-2">
+            <InventurQrButton artikel={[artikel]} />
             <ActionButton
               variant="secondary"
               type="button"

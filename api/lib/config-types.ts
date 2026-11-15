@@ -34,6 +34,7 @@ export interface ApiConfig {
     };
   };
   mail: {
+    verleihSender: string;
     nikolausSender: string;
     sammelbestellungSender: string;
     /**
