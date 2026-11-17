@@ -37,7 +37,7 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
           sparse-checkout: .github/scripts
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         with:
           script: |
             await require('./.github/scripts/ci-comments.cjs').report({ github, context, core });
