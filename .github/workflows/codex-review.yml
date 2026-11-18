@@ -283,7 +283,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Post review
-        # v8.0.0
+        # v9.0.0
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
         env:
           REVIEW: ${{ needs.review.outputs.review }}
@@ -429,7 +429,7 @@ jobs:
       actions: read
     steps:
       - name: Remove label
-        # v8.0.0
+        # v9.0.0
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
         with:
           script: |
