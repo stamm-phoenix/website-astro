@@ -71,7 +71,7 @@
 
   const data = $derived(store.data);
   const items = $derived(
-    [...(data?.items ?? [])].sort(
+    (data?.items ?? []).toSorted(
       (a, b) => b.date.localeCompare(a.date) || b.lastModifiedAt.localeCompare(a.lastModifiedAt)
     )
   );

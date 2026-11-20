@@ -125,7 +125,7 @@ export function sortiere<T extends KostenstellenSummen & { name: string }>(
     einnahmen: (a, b) => b.incomeCent - a.incomeCent,
     saldo: (a, b) => a.balanceCent - b.balanceCent,
   };
-  return [...eintraege].sort((a, b) => key[sortierung](a, b) || byName(a, b));
+  return eintraege.toSorted((a, b) => key[sortierung](a, b) || byName(a, b));
 }
 
 /** The Kategorien of a Kostenstelle with their names on screen, sorted like the Kostenstellen. */

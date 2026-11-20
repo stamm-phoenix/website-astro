@@ -61,7 +61,7 @@ export type ZeilenInhalt = Omit<ReturnType<typeof zeileBody>, 'etag'>;
 
 /** Whether two states of a line say the same, apart from version and position. */
 export function gleicheZeile(a: ZeilenInhalt, b: ZeilenInhalt): boolean {
-  const liste = (ids: number[]): string => [...ids].sort((x, y) => x - y).join(',');
+  const liste = (ids: number[]): string => ids.toSorted((x, y) => x - y).join(',');
   return (
     a.planungZutatId === b.planungZutatId &&
     a.menge === b.menge &&

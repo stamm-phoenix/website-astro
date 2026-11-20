@@ -118,7 +118,7 @@ function wann(daysBefore: number): string {
 /** A Vorlage as a checklist to tick off by hand; pure, so it can be tested. */
 export function vorlageChecklistReport(template: TaskTemplate, users: TaskUser[] = []): PdfReport {
   // Earliest first, as the tasks fall due before the Aktion
-  const items = [...template.items].sort((a, b) => b.daysBefore - a.daysBefore);
+  const items = template.items.toSorted((a, b) => b.daysBefore - a.daysBefore);
   return {
     title: template.title,
     subtitle: `Checkliste · ${anzahl(items.length)}`,

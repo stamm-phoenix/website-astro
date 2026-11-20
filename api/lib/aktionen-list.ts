@@ -138,7 +138,7 @@ function sortStufen(stufen: readonly string[]): string[] {
     const index = fixed.indexOf(stufe);
     return index === -1 ? fixed.length : index;
   };
-  return [...stufen].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b, 'de'));
+  return stufen.toSorted((a, b) => rank(a) - rank(b) || a.localeCompare(b, 'de'));
 }
 
 function dateText(value: Date | string | null): string {

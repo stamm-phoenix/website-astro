@@ -174,8 +174,8 @@ export function nummeriereTage(
   tage: Omit<PlanungTag, 'nummer' | 'mahlzeiten'>[],
   mahlzeiten: (Omit<PlanungMahlzeit, 'kennung'> & { tagId: number })[]
 ): PlanungTag[] {
-  return [...tage]
-    .sort((a, b) => a.datum.localeCompare(b.datum))
+  return tage
+    .toSorted((a, b) => a.datum.localeCompare(b.datum))
     .map((tag, index) => ({
       ...tag,
       nummer: index + 1,
@@ -188,10 +188,10 @@ export function nummeriereTage(
           name: mahlzeit.name,
           position: mahlzeit.position,
           kennung: `${index + 1}_${slot + 1}`,
-          einplanungen: [...mahlzeit.einplanungen].sort(
+          einplanungen: mahlzeit.einplanungen.toSorted(
             (a, b) => a.position - b.position || a.id - b.id
           ),
-          ohneGruppen: [...mahlzeit.ohneGruppen].sort((a, b) => a - b),
+          ohneGruppen: mahlzeit.ohneGruppen.toSorted((a, b) => a - b),
         })),
     }));
 }

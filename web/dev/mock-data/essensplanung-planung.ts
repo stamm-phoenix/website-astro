@@ -307,12 +307,12 @@ export function ansichtVon(
     loeschtAm: loeschDatum(letzter ?? planung.erstellt.slice(0, 10), monate),
     wartung,
     aenderungen: planung.aenderungen.slice(0, 30),
-    gruppen: planung.gruppen.slice().sort((a, b) => a.position - b.position),
+    gruppen: planung.gruppen.toSorted((a, b) => a.position - b.position),
     teilnehmende: sortiereTeilnehmende(planung),
-    geschaefte: planung.geschaefte.slice().sort((a, b) => a.position - b.position),
+    geschaefte: planung.geschaefte.toSorted((a, b) => a.position - b.position),
     bestand: planung.bestand,
     zusatzbedarf: planung.zusatzbedarf,
-    einkaeufe: planung.einkaeufe.slice().sort((a, b) => a.position - b.position || a.id - b.id),
+    einkaeufe: planung.einkaeufe.toSorted((a, b) => a.position - b.position || a.id - b.id),
     packliste: packlisteAnsicht(planung),
     belege: belegeAnsicht(planung),
     ...gerichteAnsicht(planung),
@@ -687,8 +687,8 @@ function mahlzeitStandVon(mahlzeit: MockMahlzeit): string {
 }
 
 export function planungenUebersicht(monate: number): EssenPlanungUebersicht[] {
-  return [...planungen]
-    .sort((a, b) => b.id - a.id)
+  return planungen
+    .toSorted((a, b) => b.id - a.id)
     .map((planung) => {
       const daten = planung.tage.map((t) => t.datum).sort();
       const letzter = daten.at(-1) ?? null;

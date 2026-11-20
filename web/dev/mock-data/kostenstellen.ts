@@ -196,7 +196,7 @@ export function kostenstellenFor(refresh: boolean): KostenstellenData {
   if (refresh || !loadedAt) loadedAt = new Date().toISOString();
   return {
     loadedAt,
-    costUnits: [...COST_UNITS].sort(
+    costUnits: COST_UNITS.toSorted(
       (a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name, 'de')
     ),
   };

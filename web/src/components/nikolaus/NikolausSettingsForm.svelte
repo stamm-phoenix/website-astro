@@ -79,7 +79,7 @@
 
   function addDay(): void {
     if (!form) return;
-    const last = [...form.days].sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+    const last = form.days.toSorted((a, b) => a.date.localeCompare(b.date)).at(-1);
     // The day after the last one, as a default
     const date = last?.date
       ? new Date(Date.parse(`${last.date}T00:00:00Z`) + 24 * 60 * 60_000).toISOString().slice(0, 10)
@@ -103,7 +103,7 @@
   /** Index of a day in the sent (sorted) list, for the field errors of the API. */
   function sentIndex(day: DayForm): number {
     if (!form) return -1;
-    return [...form.days].sort((a, b) => a.date.localeCompare(b.date)).indexOf(day);
+    return form.days.toSorted((a, b) => a.date.localeCompare(b.date)).indexOf(day);
   }
 
   function dayError(day: DayForm, field: 'date' | 'start' | 'end' | 'teams'): string | undefined {

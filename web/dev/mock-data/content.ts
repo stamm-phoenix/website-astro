@@ -355,7 +355,7 @@ function toSummary(entry: MockBlogEntry): BlogPostSummary {
 }
 
 function sortedEntries(): MockBlogEntry[] {
-  return [...blogEntries].sort(
+  return blogEntries.toSorted(
     (a, b) => b.date.localeCompare(a.date) || Number(b.id) - Number(a.id)
   );
 }
