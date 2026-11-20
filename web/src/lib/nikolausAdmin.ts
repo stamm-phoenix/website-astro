@@ -61,13 +61,11 @@ export function formatTimestamp(iso: string | null): string {
 /** Active bookings per slot key, oldest booking (lowest id) first. */
 export function activeBookingsBySlot(
   bookings: StaffNikolausBooking[]
-): Record<string, StaffNikolausBooking[]> {
-  const map: Record<string, StaffNikolausBooking[]> = {};
-  for (const booking of bookings.filter(isActiveBooking)) {
-    (map[booking.slotKey] ??= []).push(booking);
-  }
-  for (const list of Object.values(map)) list.sort((a, b) => Number(a.id) - Number(b.id));
-  return map;
+): Partial<Record<string, StaffNikolausBooking[]>> {
+  return Object.groupBy(
+    bookings.filter(isActiveBooking).sort((a, b) => Number(a.id) - Number(b.id)),
+    (booking) => booking.slotKey
+  );
 }
 
 /** Whether a slot (`YYYY-MM-DDTHH:MM`, local time) has already started. */
