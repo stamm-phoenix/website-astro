@@ -13,7 +13,7 @@
 
 <label class="inline-flex min-h-11 cursor-pointer items-center gap-3 py-2 text-sm">
   <span class="font-semibold text-brand-900">{label}</span>
-  <input type="checkbox" class="schalter shrink-0" role="switch" bind:checked {disabled} />
+  <input type="checkbox" switch class="schalter shrink-0" role="switch" bind:checked {disabled} />
   <span class="text-neutral-800" aria-hidden="true">{checked ? 'An' : 'Aus'}</span>
 </label>
 
