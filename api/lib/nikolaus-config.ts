@@ -127,7 +127,7 @@ function fromMinutes(total: number): string {
 /** Returns all bookable slots derived from the configuration, in chronological order. */
 export function getNikolausSlots(config: Pick<NikolausConfig, 'days'>): NikolausSlotDefinition[] {
   const slots: NikolausSlotDefinition[] = [];
-  const days = [...config.days].sort((a, b) => a.date.localeCompare(b.date));
+  const days = config.days.toSorted((a, b) => a.date.localeCompare(b.date));
 
   for (const day of days) {
     const start = toMinutes(day.start);

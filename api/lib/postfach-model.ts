@@ -178,7 +178,7 @@ export interface InboxNachricht {
 
 /** The newest first; the same time keeps the order of the input. */
 function neuesteZuerst<T extends Pick<InboxNachricht, 'am'>>(nachrichten: readonly T[]): T[] {
-  return [...nachrichten].sort((a, b) => b.am.localeCompare(a.am));
+  return nachrichten.toSorted((a, b) => b.am.localeCompare(a.am));
 }
 
 /**

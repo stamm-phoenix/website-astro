@@ -35,8 +35,8 @@ export function canonical(s: NikolausSettings): string {
     s.maintenance,
     s.pendingHoldMinutes,
     s.changeDeadlineHours,
-    [...s.days]
-      .sort((a, b) => a.date.localeCompare(b.date))
+    s.days
+      .toSorted((a, b) => a.date.localeCompare(b.date))
       .map((day) => [day.date, day.start, day.end, day.teams]),
     [s.area.base.name, s.area.base.lat, s.area.base.lon],
     s.area.servicePostalCodes,

@@ -91,7 +91,7 @@ export function reminderStage(sitzung: Sitzung, now: Date): number | null {
   const end = sitzungEnd(sitzung);
   if (now >= end) return null;
   const hour = `${String(CONFIG.leitendenrundeReminders.startHour).padStart(2, '0')}:00`;
-  const stages = [...CONFIG.leitendenrundeReminders.daysBefore].sort((a, b) => b - a);
+  const stages = CONFIG.leitendenrundeReminders.daysBefore.toSorted((a, b) => b - a);
   let current: number | null = null;
   for (const days of stages) {
     if (now >= localDateTimeToDate(offsetDay(sitzung.date, -days), hour)) current = days;

@@ -34,7 +34,7 @@ export function anmeldungenPdfReport({
   filters,
   fileName,
 }: AnmeldungenPdfInput): PdfReport {
-  const sorted = [...bookings].sort(
+  const sorted = bookings.toSorted(
     (a, b) => a.slotKey.localeCompare(b.slotKey) || collator.compare(a.familyName, b.familyName)
   );
   const dates = [...new Set(sorted.map((b) => b.slotKey.split('T')[0]))];

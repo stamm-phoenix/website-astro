@@ -16,7 +16,7 @@ export interface ChangelogEntry {
 
 /** The entries ordered by ID, the newest first; an ID starts with the date and the number of the day. */
 export function sortedNewestFirst<E extends { id: string }>(entries: readonly E[]): E[] {
-  return [...entries].sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
+  return entries.toSorted((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
 }
 
 /** The entries newer than `lastSeenId`; all of them while nothing has been seen. */

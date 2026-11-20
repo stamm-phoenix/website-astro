@@ -13,7 +13,7 @@ const LANDSCAPE_FROM_DAYS = 4;
 const collator = new Intl.Collator('de');
 
 export function helfendePdfReport(data: StaffNikolausHelfendeData, fileName: string): PdfReport {
-  const persons = [...data.persons].sort((a, b) => collator.compare(a.name, b.name));
+  const persons = data.persons.toSorted((a, b) => collator.compare(a.name, b.name));
   const coverage = helperCoverage(data);
   return {
     title: 'Nikolaus-Helfende',

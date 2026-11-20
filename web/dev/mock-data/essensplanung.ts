@@ -152,7 +152,7 @@ function current(): MockState {
 export function essenSteuerungView(): StaffEssenSteuerung {
   const s = current();
   const sorted = <T extends { name: string }>(items: T[]): T[] =>
-    [...items].sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }));
+    items.toSorted((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }));
   return {
     einstellungen: structuredClone(s.einstellungen),
     etag: s.etag,
@@ -184,8 +184,8 @@ export function essenKatalog(): EssenKatalog {
       name,
       schluessel,
     })),
-    zutaten: [...s.zutaten]
-      .sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }))
+    zutaten: s.zutaten
+      .toSorted((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }))
       .map((zutat) => ({
         id: zutat.id,
         name: zutat.name,

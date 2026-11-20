@@ -70,7 +70,7 @@
       .map((a) => a.personId)
       .sort(byName)
   );
-  const idle = $derived([...(result.idle[date] ?? [])].sort(byName));
+  const idle = $derived((result.idle[date] ?? []).toSorted(byName));
   // Also who sits in the box without being put aside there, so recalculating leaves them out
   const canPark = $derived(held !== null && !(parked[date] ?? []).includes(held));
   const canCook = $derived(

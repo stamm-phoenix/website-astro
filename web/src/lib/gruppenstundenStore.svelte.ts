@@ -5,7 +5,7 @@ import { STUFE_ORDER } from './types/stufen';
 
 /** In the order of the Stufen; also applied to the data baked at build time. */
 export function sortGruppenstunden(data: Gruppenstunde[]): Gruppenstunde[] {
-  return [...data].sort((a, b) => (STUFE_ORDER[a.stufe] ?? 99) - (STUFE_ORDER[b.stufe] ?? 99));
+  return data.toSorted((a, b) => (STUFE_ORDER[a.stufe] ?? 99) - (STUFE_ORDER[b.stufe] ?? 99));
 }
 
 const gruppenstunden = createResource<Gruppenstunde[]>('/gruppenstunden', {
