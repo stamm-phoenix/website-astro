@@ -86,14 +86,12 @@ export async function proxyFile(
 
   const timeout = options?.timeout ?? 30000; // Default 30s
   const maxBytes = options?.maxBytes ?? PROXY_FILE_MAX_BYTES;
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
 
   try {
     const response = await fetch(url, {
       method: 'GET',
       headers: headers,
-      signal: controller.signal,
+      signal: AbortSignal.timeout(timeout),
     });
 
     if (!response.ok) {
@@ -141,8 +139,6 @@ export async function proxyFile(
       };
     }
     throw error;
-  } finally {
-    clearTimeout(id);
   }
 }
 
