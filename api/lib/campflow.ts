@@ -66,32 +66,27 @@ async function request<T>(
   const token = findEnvironment(EnvironmentVariable.CAMPFLOW_API_TOKEN);
   if (!token) throw new CampflowError(401, `${EnvironmentVariable.CAMPFLOW_API_TOKEN} is not set`);
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
 
+  let response: Response;
   try {
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-        signal: controller.signal,
-      });
-    } catch (error: unknown) {
-      throw new CampflowError(
-        controller.signal.aborted ? 504 : 502,
-        `CampFlow request ${url.pathname} failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-    if (!response.ok) {
-      throw new CampflowError(
-        response.status,
-        `CampFlow request ${url.pathname} failed: ${response.status} ${response.statusText}`
-      );
-    }
-    return (await response.json()) as CampflowResponse<T>;
-  } finally {
-    clearTimeout(timeout);
+    response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      signal: timeout,
+    });
+  } catch (error: unknown) {
+    throw new CampflowError(
+      timeout.aborted ? 504 : 502,
+      `CampFlow request ${url.pathname} failed: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
+  if (!response.ok) {
+    throw new CampflowError(
+      response.status,
+      `CampFlow request ${url.pathname} failed: ${response.status} ${response.statusText}`
+    );
+  }
+  return (await response.json()) as CampflowResponse<T>;
 }
 
 /** Loads a single CampFlow resource. */

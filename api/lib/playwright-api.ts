@@ -76,8 +76,7 @@ async function send<T>(
   // Read outside the try block: a missing key is a configuration error, not an outage
   const apiKey = getEnvironment(EnvironmentVariable.PLAYWRIGHT_API_KEY);
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
 
   try {
     const response = await fetch(url, {
@@ -89,9 +88,7 @@ async function send<T>(
         ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      signal: options.signal
-        ? AbortSignal.any([controller.signal, options.signal])
-        : controller.signal,
+      signal: options.signal ? AbortSignal.any([timeout, options.signal]) : timeout,
     });
     if (!response.ok) {
       throw new PlaywrightApiError(
@@ -105,8 +102,6 @@ async function send<T>(
     if (error instanceof PlaywrightApiError) throw error;
     // Timeouts and network errors look like an unavailable upstream to the caller
     throw new PlaywrightApiError(504, `Playwright API request ${url.pathname} failed: ${error}`);
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
