@@ -28,6 +28,7 @@
     <label class="flex items-center gap-3 min-h-11 cursor-pointer py-2"
       ><input
         type="checkbox"
+        switch
         class="person-switch shrink-0"
         role="switch"
         bind:checked={ownOnly}
