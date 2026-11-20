@@ -31,14 +31,7 @@
   const options = $derived(
     booking ? getFreeSlots(slots, bookings).filter((f) => f.slot.key !== booking.slotKey) : []
   );
-  const optionsByDate = $derived(
-    Object.entries(
-      options.reduce<Record<string, typeof options>>((groups, option) => {
-        (groups[option.slot.date] ??= []).push(option);
-        return groups;
-      }, {})
-    )
-  );
+  const optionsByDate = $derived([...Map.groupBy(options, (option) => option.slot.date)]);
 
   $effect(() => {
     if (request && request !== preparedFor) {
