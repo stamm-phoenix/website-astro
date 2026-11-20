@@ -4,7 +4,7 @@ import { loadStateOf } from './storeView';
 
 /** Earliest first; also applied to the data baked at build time. */
 export function sortAktionen(data: Aktion[]): Aktion[] {
-  return [...data].sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+  return data.toSorted((a, b) => Date.parse(a.start) - Date.parse(b.start));
 }
 
 const aktionen = createResource<Aktion[]>('/aktionen', { transform: sortAktionen });

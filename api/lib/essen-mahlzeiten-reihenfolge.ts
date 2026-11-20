@@ -15,7 +15,7 @@ export function neueMahlzeitPositionen(
   mahlzeiten: MahlzeitPosition[],
   verschiebe?: MahlzeitPosition
 ): MahlzeitPosition[] {
-  const reihenfolge = [...mahlzeiten].sort((a, b) => a.position - b.position || a.id - b.id);
+  const reihenfolge = mahlzeiten.toSorted((a, b) => a.position - b.position || a.id - b.id);
   const ids = reihenfolge.map((mahlzeit) => mahlzeit.id);
   if (verschiebe) {
     const ohne = ids.filter((id) => id !== verschiebe.id);

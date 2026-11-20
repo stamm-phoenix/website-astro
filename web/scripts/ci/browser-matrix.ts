@@ -147,7 +147,7 @@ export function browserMatrix(groups: readonly TestGroup[]): BrowserMatrix {
       group: 'webkit',
       args: `--project=${WEBKIT_PROJECT} --test-list=test-results/shard.txt`,
       workers: 1,
-      tests: testList([...webkit].sort((a, b) => a.file.localeCompare(b.file))),
+      tests: testList(webkit.toSorted((a, b) => a.file.localeCompare(b.file))),
       seconds: Math.round(sum(webkit)),
       wall: Math.round(estimateWallSeconds(webkit, 1)),
     });

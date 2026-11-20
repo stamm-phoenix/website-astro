@@ -107,7 +107,7 @@ export function registerSchnupperRoutes(
 
   route('GET', '/api/intern/pflege/schnupperanfragen', () =>
     json(
-      [...anfragen].sort(
+      anfragen.toSorted(
         (a, b) =>
           Number(b.status === 'offen') - Number(a.status === 'offen') ||
           b.createdAt.localeCompare(a.createdAt)

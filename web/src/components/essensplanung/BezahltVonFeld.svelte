@@ -46,9 +46,7 @@
 
   let textFeld = $state<HTMLInputElement | null>(null);
   const auswahl = $derived(
-    [...bezahltVonWahl(mitglieder, bisher, bisherName)].sort(
-      (a, b) => Number(b.ich) - Number(a.ich)
-    )
+    bezahltVonWahl(mitglieder, bisher, bisherName).toSorted((a, b) => Number(b.ich) - Number(a.ich))
   );
 
   async function gewaehlt(wert: string): Promise<void> {

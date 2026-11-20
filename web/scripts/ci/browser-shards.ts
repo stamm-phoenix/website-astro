@@ -28,7 +28,7 @@ const byName = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /** The order in which Playwright takes the project/files of a shard. */
 export function playwrightOrder(groups: readonly TestGroup[]): TestGroup[] {
-  return [...groups].sort(
+  return groups.toSorted(
     (a, b) =>
       projectRank(a.project) - projectRank(b.project) ||
       byName(a.project, b.project) ||
@@ -71,7 +71,7 @@ export function balanceGroups(
 ): TestGroup[][] {
   if (!Number.isInteger(count) || count < 1) throw new Error('Invalid shard count');
   const shards: TestGroup[][] = Array.from({ length: count }, () => []);
-  const ordered = [...groups].sort((a, b) => b.seconds - a.seconds || byName(key(a), key(b)));
+  const ordered = groups.toSorted((a, b) => b.seconds - a.seconds || byName(key(a), key(b)));
   for (const group of ordered) {
     let best = 0;
     let bestWall = Infinity;

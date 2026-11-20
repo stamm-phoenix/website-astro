@@ -5,7 +5,7 @@ import { loadStateOf } from './storeView';
 
 /** Newest first; also applied to the data baked at build time. */
 export function sortDownloads(data: DownloadFile[]): DownloadFile[] {
-  return [...data].sort((a, b) => Date.parse(b.lastModifiedAt) - Date.parse(a.lastModifiedAt));
+  return data.toSorted((a, b) => Date.parse(b.lastModifiedAt) - Date.parse(a.lastModifiedAt));
 }
 
 const downloads = createResource<DownloadFile[]>('/downloads', { transform: sortDownloads });

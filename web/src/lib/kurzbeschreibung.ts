@@ -154,7 +154,7 @@ export function parseZeitzeilen(text: string): NeuerBlock[] {
 
 /** Blocks without a time first, then by start; blocks of the same time keep their order. */
 export function nachUhrzeit(bloecke: ZeitBlock[]): ZeitBlock[] {
-  return [...bloecke].sort((a, b) => a.von.localeCompare(b.von));
+  return bloecke.toSorted((a, b) => a.von.localeCompare(b.von));
 }
 
 export function istNachUhrzeit(bloecke: ZeitBlock[]): boolean {

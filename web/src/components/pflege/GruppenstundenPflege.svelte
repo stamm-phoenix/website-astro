@@ -38,7 +38,7 @@
   let message = $state<string | null>(null);
 
   const items = $derived(
-    [...(store.data?.items ?? [])].sort(
+    (store.data?.items ?? []).toSorted(
       (a, b) => (STUFE_ORDER[a.stufe] ?? 99) - (STUFE_ORDER[b.stufe] ?? 99)
     )
   );

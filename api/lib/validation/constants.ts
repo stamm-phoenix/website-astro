@@ -16,7 +16,7 @@ export function sortTeams(teams: string[]): string[] {
     const index = fixed.indexOf(team);
     return index === -1 ? fixed.length : index;
   };
-  return [...teams].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b, 'de'));
+  return teams.toSorted((a, b) => rank(a) - rank(b) || a.localeCompare(b, 'de'));
 }
 
 export const WEEKDAYS = [

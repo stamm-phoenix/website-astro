@@ -212,7 +212,7 @@ function addSamples(a: Sample, b: Sample): Sample {
 }
 
 function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
+  const sorted = values.toSorted((a, b) => a - b);
   return sorted[Math.floor(sorted.length / 2)];
 }
 

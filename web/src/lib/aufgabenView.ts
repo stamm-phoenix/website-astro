@@ -17,7 +17,7 @@ export function pendingTask(task: Task): boolean {
   return task.state === 'vorschlag' && (!task.dueDate || task.dueDate >= taskToday());
 }
 export function sortTasks(tasks: Task[]): Task[] {
-  return [...tasks].sort(
+  return tasks.toSorted(
     (a, b) =>
       (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999') ||
       a.title.localeCompare(b.title, 'de')
