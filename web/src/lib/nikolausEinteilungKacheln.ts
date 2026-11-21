@@ -141,7 +141,7 @@ export function parkedFromRows(
   const parked: Parked = {};
   if (rows.length === 0) return parked;
   const placed = new Set(rows.map((row) => `${row.personId}|${row.date}`));
-  for (const date of [...dates].sort()) {
+  for (const date of dates.toSorted()) {
     const ids = persons
       .filter((p) => rolesOn(p, date).includes(KITCHEN) && !placed.has(`${p.id}|${date}`))
       .map((p) => p.id);

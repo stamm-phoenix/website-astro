@@ -8,6 +8,7 @@
   import FahrtOfflinePanel from './nikolaus/FahrtOfflinePanel.svelte';
   import PdfDownloadButton from './ui/PdfDownloadButton.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
+  import Fortschrittsbalken from './ui/Fortschrittsbalken.svelte';
 
   import LoadState from './ui/LoadState.svelte';
   import { onMount, untrack } from 'svelte';
@@ -362,20 +363,13 @@
               <p class="mt-2 text-sm font-semibold tabular-nums text-neutral-900">
                 {visitedCount} von {stops.length} besucht
               </p>
-              <div
-                class="mt-1 h-1.5 overflow-hidden bg-neutral-200"
-                role="progressbar"
-                aria-label="Besuche erledigt"
-                aria-valuemin={0}
-                aria-valuemax={stops.length}
-                aria-valuenow={visitedCount}
-              >
-                <div
-                  class="h-full transition-[width]"
-                  style:background={teamInfo.color}
-                  style:width="{(visitedCount / stops.length) * 100}%"
-                ></div>
-              </div>
+              <Fortschrittsbalken
+                class="mt-1"
+                value={visitedCount}
+                max={stops.length}
+                label="Besuche erledigt"
+                color={teamInfo.color}
+              />
             {/if}
           </div>
 

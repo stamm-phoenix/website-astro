@@ -102,5 +102,5 @@ function sortName(person: CampflowPerson): string {
 
 /** Persons by last name, then first name. */
 export function sortMitglieder(persons: CampflowPerson[]): CampflowPerson[] {
-  return [...persons].sort((a, b) => sortName(a).localeCompare(sortName(b), 'de'));
+  return persons.toSorted((a, b) => sortName(a).localeCompare(sortName(b), 'de'));
 }

@@ -59,7 +59,7 @@ function eingeplanteWerkzeuge(z: MockZugang): Map<string, string> {
     )
   );
   const werkzeuge = new Map<string, string>();
-  for (const gericht of [...z.planung.gerichte].sort((a, b) => a.id - b.id)) {
+  for (const gericht of z.planung.gerichte.toSorted((a, b) => a.id - b.id)) {
     if (!geplant.has(gericht.id)) continue;
     for (const name of gericht.werkzeuge) {
       const key = packlisteSchluessel(name);

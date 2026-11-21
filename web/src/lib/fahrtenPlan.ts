@@ -294,7 +294,7 @@ export function planFahrt(
     }
   }
   // Then Leitende, into the cars with the oldest company; the sort keeps larger cars first
-  for (const auto of [...autos].sort((a, b) => seniority(b.fahrer) - seniority(a.fahrer))) {
+  for (const auto of autos.toSorted((a, b) => seniority(b.fahrer) - seniority(a.fahrer))) {
     auto.mitfahrende.push(...leitende.splice(0, freiePlaetze(auto)));
   }
   for (const auto of autos) {

@@ -59,7 +59,7 @@ function shorten(text: string): string {
  */
 export function stufenberichte(meetings: BerichtGruppenstunde[]): Record<string, string> {
   const berichte: Record<string, string> = {};
-  const sorted = [...meetings].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = meetings.toSorted((a, b) => a.date.localeCompare(b.date));
   for (const meeting of sorted) {
     const [, month, day] = meeting.date.split('-');
     let line = `- ${day}.${month}.: `;

@@ -221,7 +221,7 @@ const WAITING: Partial<Record<BelegStand, number>> = {
 };
 
 export function sortEintraege(eintraege: BelegEintrag[]): BelegEintrag[] {
-  return [...eintraege].sort(
+  return eintraege.toSorted(
     (a, b) =>
       (WAITING[a.stand] ?? 3) - (WAITING[b.stand] ?? 3) ||
       b.date.localeCompare(a.date) ||

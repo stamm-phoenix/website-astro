@@ -62,7 +62,7 @@
   const groups = $derived.by(() => {
     const byName = (a: AbrechnungPerson, b: AbrechnungPerson): number =>
       a.lastName.localeCompare(b.lastName, 'de') || a.firstName.localeCompare(b.firstName, 'de');
-    const sorted = [...allPersons].sort(byName);
+    const sorted = allPersons.toSorted(byName);
     return [
       { id: 'betreuer', title: 'Betreuer*innen', persons: sorted.filter((p) => p.betreuer) },
       { id: 'teilnehmende', title: 'Teilnehmende', persons: sorted.filter((p) => !p.betreuer) },

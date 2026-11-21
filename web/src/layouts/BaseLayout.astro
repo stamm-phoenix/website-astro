@@ -92,6 +92,7 @@ const websiteLd = {
     <meta name="description" content={description} />
     <meta name="theme-color" content="#f8f5ef" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#181614" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
     <script is:inline>
       (() => {
         let choice;
@@ -101,6 +102,12 @@ const websiteLd = {
         if (choice === 'light' || choice === 'dark')
           document.documentElement.dataset.theme = choice;
         else delete document.documentElement.dataset.theme;
+        document
+          .querySelector('meta[name="color-scheme"]')
+          ?.setAttribute(
+            'content',
+            choice === 'light' || choice === 'dark' ? choice : 'light dark'
+          );
         const dark =
           choice === 'dark' ||
           (choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);

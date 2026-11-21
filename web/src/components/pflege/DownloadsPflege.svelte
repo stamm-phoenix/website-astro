@@ -42,7 +42,7 @@
   const actions = createActionRunner();
 
   const files = $derived(
-    [...(store.data ?? [])].sort((a, b) => b.lastModifiedAt.localeCompare(a.lastModifiedAt))
+    (store.data ?? []).toSorted((a, b) => b.lastModifiedAt.localeCompare(a.lastModifiedAt))
   );
 
   const categories = $derived(downloadCategories(store.data ?? []));

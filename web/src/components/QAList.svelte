@@ -31,15 +31,12 @@
   const questionIndex = $derived(createQuestionIndex(view.data ?? []));
   const matchingQuestions = $derived(searchQuestions(questionIndex, query));
 
-  const groupedQuestions = $derived.by(() => {
-    const groups: Record<string, QuestionAndAnswer[]> = Object.create(null);
-
-    for (const item of matchingQuestions) {
-      (groups[item.category] ??= []).push(item);
-    }
-
-    return Object.entries(groups).map(([category, questions]) => ({ category, questions }));
-  });
+  const groupedQuestions = $derived(
+    Array.from(
+      Map.groupBy(matchingQuestions, (item) => item.category),
+      ([category, questions]) => ({ category, questions })
+    )
+  );
 
   onMount(() => {
     fetchQuestionsAndAnswers();

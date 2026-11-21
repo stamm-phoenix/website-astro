@@ -76,7 +76,7 @@ const VERGLEICH = new Intl.Collator('de');
 export function einkaufsReihenfolge<E extends Pick<Einkauf, 'id' | 'datum' | 'position'>>(
   einkaeufe: E[]
 ): E[] {
-  return [...einkaeufe].sort(
+  return einkaeufe.toSorted(
     (a, b) =>
       (a.datum ?? '9999-99-99').localeCompare(b.datum ?? '9999-99-99') ||
       a.position - b.position ||

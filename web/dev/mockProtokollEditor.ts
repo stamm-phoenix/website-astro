@@ -66,8 +66,8 @@ route('GET', '/api/intern/protokoll-editor-personen', () =>
 /** Projects and open tasks of the mock module Aufgaben, as `getProtokollEditorAufgaben`. */
 function editorAufgaben(): ProtokollEditorAufgaben {
   return {
-    projekte: [...taskData.projects]
-      .sort((a, b) => a.title.localeCompare(b.title, 'de'))
+    projekte: taskData.projects
+      .toSorted((a, b) => a.title.localeCompare(b.title, 'de'))
       .map((project) => ({
         id: project.id,
         titel: einzeilig(project.title),

@@ -1,7 +1,7 @@
 type Theme = 'light' | 'dark';
 const STORAGE_KEY = 'phoenix-theme';
 
-/** Persist an explicit choice. Otherwise follow the operating system. */
+/** Persist a choice that differs from the operating system. Otherwise follow the system. */
 export function initTheme(): void {
   const preference = matchMedia('(prefers-color-scheme: dark)');
   let choice: Theme | null = null;
@@ -11,10 +11,14 @@ export function initTheme(): void {
   } catch {
     /* The switch still works for this visit when storage is blocked. */
   }
-  const current = (): Theme => choice ?? (preference.matches ? 'dark' : 'light');
-  function apply(root: HTMLElement = document.documentElement): void {
-    if (choice) root.dataset.theme = choice;
-    else delete root.dataset.theme;
+  const system = (): Theme => (preference.matches ? 'dark' : 'light');
+  const current = (): Theme => choice ?? system();
+  function apply(page: Document = document): void {
+    if (choice) page.documentElement.dataset.theme = choice;
+    else delete page.documentElement.dataset.theme;
+    page
+      .querySelector<HTMLMetaElement>('meta[name="color-scheme"]')
+      ?.setAttribute('content', choice ?? 'light dark');
   }
   function refresh(): void {
     apply();
@@ -32,9 +36,12 @@ export function initTheme(): void {
   refresh();
   document.addEventListener('click', (event) => {
     if (!(event.target instanceof Element) || !event.target.closest('[data-theme-toggle]')) return;
-    choice = current() === 'dark' ? 'light' : 'dark';
+    const next: Theme = current() === 'dark' ? 'light' : 'dark';
+    // Switching back to what the system shows ends the override, so the page follows it again.
+    choice = next === system() ? null : next;
     try {
-      localStorage.setItem(STORAGE_KEY, choice);
+      if (choice) localStorage.setItem(STORAGE_KEY, choice);
+      else localStorage.removeItem(STORAGE_KEY);
     } catch {
       /* Keep the choice in memory. */
     }
@@ -49,7 +56,7 @@ export function initTheme(): void {
     refresh();
   });
   document.addEventListener('astro:before-swap', (event) => {
-    apply((event as Event & { newDocument: Document }).newDocument.documentElement);
+    apply((event as Event & { newDocument: Document }).newDocument);
   });
   document.addEventListener('astro:page-load', refresh);
 }

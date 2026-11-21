@@ -15,8 +15,7 @@ export async function createCampflowFee(
   options: { signal?: AbortSignal } = {}
 ): Promise<SammelContribution> {
   const token = getEnvironment(EnvironmentVariable.CAMPFLOW_API_TOKEN);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
+  const timeout = AbortSignal.timeout(20_000);
   try {
     const response = await fetch('https://api.campflow.de/fees', {
       method: 'POST',
@@ -44,8 +43,8 @@ export async function createCampflowFee(
         ],
       }),
       signal: options.signal
-        ? AbortSignal.any([controller.signal, options.signal])
-        : controller.signal,
+        ? AbortSignal.any([timeout, options.signal])
+        : timeout,
     });
     if (response.status !== 201) throw new CampflowFeeUncertainError(`http_${response.status}`);
     const body: unknown = await response.json();
@@ -69,9 +68,7 @@ export async function createCampflowFee(
   } catch (error: unknown) {
     if (error instanceof CampflowFeeUncertainError) throw error;
     throw new CampflowFeeUncertainError(
-      controller.signal.aborted || options.signal?.aborted ? 'timeout' : 'transport_or_json'
+      timeout.aborted || options.signal?.aborted ? 'timeout' : 'transport_or_json'
     );
-  } finally {
-    clearTimeout(timeout);
   }
 }

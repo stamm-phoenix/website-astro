@@ -46,7 +46,7 @@
   let notice = $state('');
   const selected = $derived(list.filter((r) => !excluded.includes(r.email)).length);
   const sorted = $derived(
-    [...list].sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email, 'de'))
+    list.toSorted((a, b) => (a.name || a.email).localeCompare(b.name || b.email, 'de'))
   );
 
   /** People not on the list with a tick and not added yet; the address is the login. */

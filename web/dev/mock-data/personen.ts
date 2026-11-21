@@ -90,7 +90,7 @@ export function resetPersonen(): void {
 }
 
 export function mockPersonen(): Person[] {
-  return [...personen].sort(
+  return personen.toSorted(
     (a, b) => Number(b.aktiv) - Number(a.aktiv) || a.name.localeCompare(b.name, 'de')
   );
 }

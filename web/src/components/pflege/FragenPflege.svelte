@@ -51,11 +51,13 @@
         (a, b) =>
           a.category.localeCompare(b.category, 'de') || a.question.localeCompare(b.question, 'de')
       );
-    const grouped: Record<string, StaffQuestionAndAnswer[]> = Object.create(null);
-    for (const item of items) {
-      (grouped[item.category] ??= []).push(item);
-    }
-    return Object.entries(grouped).map(([category, items]) => ({ category, items }));
+    return Array.from(
+      Map.groupBy(items, (item) => item.category),
+      ([category, items]) => ({
+        category,
+        items,
+      })
+    );
   });
 
   onMount(() => {

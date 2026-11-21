@@ -16,9 +16,8 @@ import { aendere, feld, konflikt, neueId, neuesEtag, nichtGefunden } from './ess
 /** The meals in their order, like the database: days by date, meals by position. */
 function reihe(planung: MockPlanung): number[] {
   return planung.tage
-    .slice()
-    .sort((a, b) => a.datum.localeCompare(b.datum))
-    .flatMap((tag) => tag.mahlzeiten.slice().sort((a, b) => a.position - b.position || a.id - b.id))
+    .toSorted((a, b) => a.datum.localeCompare(b.datum))
+    .flatMap((tag) => tag.mahlzeiten.toSorted((a, b) => a.position - b.position || a.id - b.id))
     .map((m) => m.id);
 }
 
@@ -28,8 +27,7 @@ const ERNAEHRUNG_REIHE: Record<Ernaehrung, number> = { alles: 0, vegetarisch: 1,
 export function sortiereTeilnehmende(planung: MockPlanung): Teilnehmende[] {
   const position = new Map(planung.gruppen.map((g) => [g.id, g.position]));
   return planung.teilnehmende
-    .slice()
-    .sort(
+    .toSorted(
       (a, b) =>
         (position.get(a.gruppeId) ?? 0) - (position.get(b.gruppeId) ?? 0) ||
         ERNAEHRUNG_REIHE[a.ernaehrung] - ERNAEHRUNG_REIHE[b.ernaehrung] ||

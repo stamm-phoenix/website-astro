@@ -1134,7 +1134,7 @@ export function steuerungView(): StaffNikolausSteuerung {
       due: false,
     },
     confirmations: { bookings: 'ANMELDUNGEN LÖSCHEN', helpers: 'HELFENDE LÖSCHEN' },
-    log: [...auditLog].reverse(),
+    log: auditLog.toReversed(),
   };
 }
 
