@@ -119,6 +119,18 @@ darf. Sie braucht kein Secret, GitHub meldet sich per OIDC an.
    - `ENTRA_TENANT_ID` = `0e650e3e-3da0-4a47-bf6c-df3dd3980caa`, falls noch nicht vorhanden
      (wird schon für die Preview-Anmeldung verwendet)
 
+5. Der Identität erlauben, die Firewall des Produktionsservers zu ändern: GitHub betreibt
+   gehostete Runner auch außerhalb Azures, deshalb gibt der Deploy-Job vor den Migrationen die
+   IP-Adresse seines Runners frei und entfernt die Regel danach wieder
+   (`.github/scripts/sql-firewall.sh`). Die Rolle „SQL-Firewall für GitHub-Runner“ legt Schritt 6
+   der Einrichtung unter „Previews“ an; mit `az login` als Owner:
+
+   ```bash
+   az role assignment create --role "SQL-Firewall für GitHub-Runner" \
+     --assignee <Client-ID aus Schritt 1> \
+     --scope "$(az sql server show -g website-astro -n stamm-phoenix-website --query id -o tsv)"
+   ```
+
 Fehlt `SQL_MIGRATION_CLIENT_ID`, schlägt der Deploy-Job auf `main` absichtlich fehl, bevor er
 Code ausrollt, der ein noch nicht angelegtes Schema braucht. Die bisherige Version bleibt dann
 online.
@@ -481,18 +493,20 @@ offen ist.
 
    Übrig gebliebene `website-pr-*` auf dem Produktionsserver im Portal löschen.
 6. Der Identität erlauben, die Firewall des Preview-Servers zu ändern (Schritt „Firewall“ oben),
-   mit einer eigenen Rolle, die nur Firewall-Regeln dieses Servers lesen, anlegen und löschen
-   darf. Mit `az login` als Owner, z. B. in der Azure Cloud Shell:
+   mit der eigenen Rolle „SQL-Firewall für GitHub-Runner“, die nur Firewall-Regeln lesen, anlegen
+   und löschen darf. Die Migrationen auf `main` nutzen dieselbe Rolle am Produktionsserver
+   (Abschnitt „Identität für Migrationen“, Schritt 5). Mit `az login` als Owner, z. B. in der
+   Azure Cloud Shell; die Rolle wird nur einmal angelegt:
 
    ```bash
    rg=$(az group show -n website-astro --query id -o tsv)
    az role definition create --role-definition "{
-     \"Name\": \"SQL-Firewall der Previews\",
-     \"Description\": \"Firewall-Regeln des Preview-SQL-Servers lesen, anlegen und löschen\",
+     \"Name\": \"SQL-Firewall für GitHub-Runner\",
+     \"Description\": \"Firewall-Regeln eines SQL-Servers lesen, anlegen und löschen (GitHub-Runner außerhalb Azures)\",
      \"Actions\": [\"Microsoft.Sql/servers/read\", \"Microsoft.Sql/servers/firewallRules/*\"],
      \"AssignableScopes\": [\"$rg\"]
    }"
-   az role assignment create --role "SQL-Firewall der Previews" \
+   az role assignment create --role "SQL-Firewall für GitHub-Runner" \
      --assignee <Client-ID aus Schritt 1> \
      --scope "$(az sql server show -g website-astro -n stamm-phoenix-previews --query id -o tsv)"
    ```

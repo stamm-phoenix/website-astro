@@ -575,14 +575,22 @@ jobs:
           client-id: ${{ vars.SQL_MIGRATION_CLIENT_ID }}
           tenant-id: ${{ vars.ENTRA_TENANT_ID }}
           allow-no-subscriptions: true
+      # Not every hosted runner runs in Azure, the only network the server lets in
+      - name: Open the production server's firewall for this runner
+        id: firewall
+        if: steps.current.outputs.deploy == 'true'
+        run: .github/scripts/sql-firewall.sh open stamm-phoenix-website
       - name: Apply database migrations
         if: steps.current.outputs.deploy == 'true'
         working-directory: api
-        run: bun scripts/db-migrate.ts
+        run: ../.github/scripts/sql-firewall.sh retry bun scripts/db-migrate.ts
       - name: Verify protocol cutover gate or current SQL import
         if: steps.current.outputs.deploy == 'true'
         working-directory: api
-        run: bun scripts/protokoll-migrate.ts --check
+        run: ../.github/scripts/sql-firewall.sh retry bun scripts/protokoll-migrate.ts --check
+      - name: Close the production server's firewall again
+        if: always() && steps.firewall.outcome == 'success'
+        run: .github/scripts/sql-firewall.sh close stamm-phoenix-website
       - name: Upload to Azure Static Web Apps
         if: steps.current.outputs.deploy == 'true'
         uses: ./.github/actions/swa-upload

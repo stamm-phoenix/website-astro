@@ -5,7 +5,7 @@
 #        sql-firewall.sh close <server>
 #        sql-firewall.sh retry <command> [args…]
 #
-# The firewall of the preview server lets in Azure only, but GitHub also runs hosted runners
+# The firewalls of the SQL servers let in Azure only, but GitHub also runs hosted runners
 # outside Azure (e.g. 3.42.157.0/24 in AWS). "open" adds a rule for the public IPv4 address of
 # this runner, "close" removes it again (run it with `if: always()`). The rule is named after
 # the run, its attempt and the job, so parallel jobs never remove each other's rule.
@@ -13,7 +13,7 @@
 # this address: Azure may take a few minutes to apply a new rule.
 #
 # Needs a logged-in Azure CLI (azure/login) whose identity may write the firewall rules of the
-# server in the resource group website-astro (docs/azure-sql.md, "Datenbanken für PR-Previews").
+# server in the resource group website-astro (role "SQL-Firewall für GitHub-Runner", docs/azure-sql.md).
 set -euo pipefail
 
 resource_group=website-astro
