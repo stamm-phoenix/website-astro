@@ -55,12 +55,20 @@ jobs:
           client-id: ${{ vars.SQL_PREVIEW_CLIENT_ID }}
           tenant-id: ${{ vars.ENTRA_TENANT_ID }}
           allow-no-subscriptions: true
+      # Not every hosted runner runs in Azure, the only network the server lets in
+      - name: Open the preview server's firewall for this runner
+        id: firewall
+        if: steps.current.outputs.prepared == 'true'
+        run: .github/scripts/sql-firewall.sh open stamm-phoenix-previews
       - name: Create, migrate and seed preview database
         if: steps.current.outputs.prepared == 'true'
         working-directory: api
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: bun scripts/db-preview.ts create "$PR_NUMBER" --write-deployment
+        run: ../.github/scripts/sql-firewall.sh retry bun scripts/db-preview.ts create "$PR_NUMBER" --write-deployment
+      - name: Close the preview server's firewall again
+        if: always() && steps.firewall.outcome == 'success'
+        run: .github/scripts/sql-firewall.sh close stamm-phoenix-previews
       - name: Upload preview database configuration
         if: steps.current.outputs.prepared == 'true'
         uses: actions/upload-artifact@v7

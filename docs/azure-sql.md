@@ -402,6 +402,13 @@ statt der echten Daten. PRs von Bots (z. B. Dependabot) und aus Forks bekommen k
 - **PR geschlossen oder gemergt:** Der Job „Close Pull Request“ löscht Datenbank und Container.
 - **Migrationen eines PRs** laufen zuerst an seiner Preview-Datenbank, vor dem Merge also schon
   einmal gegen Azure SQL. In die Produktion kommen sie erst mit dem Deploy auf `main`.
+- **Firewall:** Der Preview-Server lässt nur Azure herein, GitHub betreibt gehostete Runner aber
+  auch außerhalb Azures (z. B. `3.42.157.0/24` bei AWS). Deshalb gibt jeder Job, der die
+  Datenbank anlegt, zurücksetzt oder löscht, vorher die öffentliche IP-Adresse seines Runners in
+  der Firewall frei und entfernt die Regel danach wieder
+  (`.github/scripts/sql-firewall.sh`, Regeln `github-actions-<Lauf>-<Versuch>-<Job>`). Bleibt
+  eine Regel nach einem abgebrochenen Lauf übrig, lässt sie sich am Preview-Server unter
+  **Networking** löschen.
 
 Das alles macht `api/scripts/db-preview.ts` mit einer eigenen Identität
 `website-astro-previews`. Sie hat die Rolle `dbmanager` in `master` **des Preview-Servers**: Sie
@@ -473,6 +480,25 @@ offen ist.
    ```
 
    Übrig gebliebene `website-pr-*` auf dem Produktionsserver im Portal löschen.
+6. Der Identität erlauben, die Firewall des Preview-Servers zu ändern (Schritt „Firewall“ oben),
+   mit einer eigenen Rolle, die nur Firewall-Regeln dieses Servers lesen, anlegen und löschen
+   darf. Mit `az login` als Owner, z. B. in der Azure Cloud Shell:
+
+   ```bash
+   rg=$(az group show -n website-astro --query id -o tsv)
+   az role definition create --role-definition "{
+     \"Name\": \"SQL-Firewall der Previews\",
+     \"Description\": \"Firewall-Regeln des Preview-SQL-Servers lesen, anlegen und löschen\",
+     \"Actions\": [\"Microsoft.Sql/servers/read\", \"Microsoft.Sql/servers/firewallRules/*\"],
+     \"AssignableScopes\": [\"$rg\"]
+   }"
+   az role assignment create --role "SQL-Firewall der Previews" \
+     --assignee <Client-ID aus Schritt 1> \
+     --scope "$(az sql server show -g website-astro -n stamm-phoenix-previews --query id -o tsv)"
+   ```
+
+   Die Rolle wirkt nach einigen Minuten. Weil sie in der Subscription liegt, meldet sich
+   `azure/login` danach mit dieser Subscription an; die Workflows brauchen dafür keine Variable.
 
 Danach bekommt der nächste Push auf einen PR seine Datenbank. Preview-Datenbanken zu PRs, die
 vor der Einrichtung geschlossen wurden, gibt es nicht; vorhandene Datenbanken
