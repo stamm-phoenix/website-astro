@@ -42,11 +42,18 @@ jobs:
           client-id: ${{ vars.SQL_PREVIEW_CLIENT_ID }}
           tenant-id: ${{ vars.ENTRA_TENANT_ID }}
           allow-no-subscriptions: true
+      # Not every hosted runner runs in Azure, the only network the server lets in
+      - name: Open the preview server's firewall for this runner
+        id: firewall
+        run: .github/scripts/sql-firewall.sh open stamm-phoenix-previews
       - name: Reset preview database
         working-directory: api
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: bun scripts/db-preview.ts reset "$PR_NUMBER"
+        run: ../.github/scripts/sql-firewall.sh retry bun scripts/db-preview.ts reset "$PR_NUMBER"
+      - name: Close the preview server's firewall again
+        if: always() && steps.firewall.outcome == 'success'
+        run: .github/scripts/sql-firewall.sh close stamm-phoenix-previews
       # Also after a failure, so setting the label again starts a new attempt
       - name: Remove label
         if: always()

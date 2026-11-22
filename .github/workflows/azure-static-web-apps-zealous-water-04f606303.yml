@@ -635,9 +635,16 @@ jobs:
           client-id: ${{ vars.SQL_PREVIEW_CLIENT_ID }}
           tenant-id: ${{ vars.ENTRA_TENANT_ID }}
           allow-no-subscriptions: true
+      # Not every hosted runner runs in Azure, the only network the server lets in
+      - name: Open the preview server's firewall for this runner
+        id: firewall
+        run: .github/scripts/sql-firewall.sh open stamm-phoenix-previews
       - name: Drop preview database
         working-directory: api
-        run: bun scripts/db-preview.ts drop "${{ github.event.pull_request.number }}"
+        run: ../.github/scripts/sql-firewall.sh retry bun scripts/db-preview.ts drop "${{ github.event.pull_request.number }}"
+      - name: Close the preview server's firewall again
+        if: always() && steps.firewall.outcome == 'success'
+        run: .github/scripts/sql-firewall.sh close stamm-phoenix-previews
       - name: Azure login (Entra)
         if: vars.ENTRA_DEPLOY_CLIENT_ID != ''
         uses: azure/login@v3
