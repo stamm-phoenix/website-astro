@@ -32,6 +32,15 @@ export enum EnvironmentVariable {
   GITHUB_ISSUES_TOKEN = 'GITHUB_ISSUES_TOKEN',
 
   KONTAKT_ALTCHA_SECRET = 'KONTAKT_ALTCHA_SECRET',
+
+  /**
+   * Application Insights for the usage events of the Leitendenbereich (`usage-telemetry.ts`).
+   * Deliberately not `APPLICATIONINSIGHTS_CONNECTION_STRING`, which would also connect the
+   * Functions host and send its log lines with the names of the acting users.
+   */
+  USAGE_INSIGHTS_CONNECTION_STRING = 'USAGE_INSIGHTS_CONNECTION_STRING',
+  /** Key of the pseudonyms in those events; changing it starts new pseudonyms for everyone. */
+  USAGE_PSEUDONYM_SECRET = 'USAGE_PSEUDONYM_SECRET',
 }
 
 /** The value of a variable, or `undefined` if it is not set. */
