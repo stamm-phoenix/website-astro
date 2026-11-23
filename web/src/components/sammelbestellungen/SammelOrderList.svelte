@@ -3,6 +3,7 @@
   import { paymentSummary, orderStatusTone } from '../../lib/sammelPayment';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import { SAMMEL_SHOPS, getSammelShop, sammelAvailabilityLabel } from '../../lib/sammelShops';
   import { sammelReceipt } from '../../lib/sammelExport';
   import type { SammelOrderFilters } from '../../lib/sammelStaffView';
@@ -91,6 +92,15 @@
     <ReloadAction type="button" disabled={loading || busy || !selected} onclick={onreload}
       >Neu laden</ReloadAction
     >
+  </div>
+  <Aktionsraster class="mt-3">
+    <ActionButton
+      variant="secondary"
+      type="button"
+      disabled={pdfBusy || !filtered.some((order) => order.status !== 'Storniert')}
+      onclick={() => void exportPdf()}
+      >{pdfBusy ? 'Erstellt PDF …' : 'Ausgabeliste als PDF'}</ActionButton
+    >
     <ActionButton
       variant="secondary"
       type="button"
@@ -131,16 +141,9 @@
             ])
           ),
         ])}
-      disabled={!orders.length}>Einzelbestellungen herunterladen (CSV)</ActionButton
+      disabled={!orders.length}>Bestellungen als CSV</ActionButton
     >
-    <ActionButton
-      variant="secondary"
-      type="button"
-      disabled={pdfBusy || !filtered.some((order) => order.status !== 'Storniert')}
-      onclick={() => void exportPdf()}
-      >{pdfBusy ? 'Erstellt PDF …' : 'Ausgabeliste herunterladen (PDF)'}</ActionButton
-    >
-  </div>
+  </Aktionsraster>
   <StatusNotice
     message={pdfNotice?.text ?? null}
     kind={pdfNotice?.kind}
@@ -181,27 +184,44 @@
     {#each filtered as order (order.id)}
       {@const orderReceipt = sammelReceipt(order.items, prices)}
       <article class="py-5">
-        <div class="flex flex-wrap justify-between gap-3">
-          <div>
-            <h3 class="font-semibold text-brand-900">{order.name}</h3>
-            <p class="break-all text-sm text-neutral-700">{order.email}</p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <ActionButton
-              variant="secondary"
-              type="button"
-              onclick={() => {
-                onmessage(order);
-              }}>Nachricht schreiben</ActionButton
-            >
-            <ActionButton variant="secondary" type="button" onclick={() => onedit(order)}
-              >Status bearbeiten</ActionButton
-            >
-            <ActionButton variant="secondary" type="button" onclick={() => onpayment(order)}
-              >Bezahlung verwalten</ActionButton
-            >
-          </div>
+        <div>
+          <h3 class="font-semibold text-brand-900">{order.name}</h3>
+          <p class="break-all text-sm text-neutral-700">{order.email}</p>
         </div>
+        <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <StatusLabel label={order.status} tone={orderStatusTone(order.status)} />
+          <span class="text-sm font-semibold tabular-nums">{money(order.totalCents)}</span>
+          <StatusLabel
+            label={order.paid ? 'Bezahlt' : 'Unbezahlt'}
+            tone={order.paid ? 'success' : 'neutral'}
+          />
+          <StatusLabel
+            label={order.delivered ? 'Ausgeliefert' : 'Nicht ausgeliefert'}
+            tone={order.delivered ? 'success' : 'neutral'}
+          />
+        </div>
+        {#if order.payment}
+          {@const payment = paymentSummary(order.payment)}
+          <p class="mt-1"><StatusLabel {...payment} /></p>
+          {#if order.payment.reference}<p class="mt-1 break-all text-sm text-neutral-700">
+              CampFlow-Referenz {order.payment.reference}
+            </p>{/if}
+        {/if}
+        <Aktionsraster class="mt-3">
+          <ActionButton variant="secondary" type="button" onclick={() => onpayment(order)}
+            >Bezahlung verwalten</ActionButton
+          >
+          <ActionButton variant="secondary" type="button" onclick={() => onedit(order)}
+            >Status bearbeiten</ActionButton
+          >
+          <ActionButton
+            variant="secondary"
+            type="button"
+            onclick={() => {
+              onmessage(order);
+            }}>Nachricht schreiben</ActionButton
+          >
+        </Aktionsraster>
         <ul class="mt-3 space-y-1 text-sm">
           {#each order.items as item, index (item)}<li>
               <span class={item.excluded ? 'line-through text-neutral-500' : ''}
@@ -239,25 +259,6 @@
         {#if order.notes}<p class="mt-3 whitespace-pre-line text-sm text-neutral-700">
             {order.notes}
           </p>{/if}
-        <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <StatusLabel label={order.status} tone={orderStatusTone(order.status)} />
-          <span class="text-sm font-semibold tabular-nums">{money(order.totalCents)}</span>
-          <StatusLabel
-            label={order.paid ? 'Bezahlt' : 'Unbezahlt'}
-            tone={order.paid ? 'success' : 'neutral'}
-          />
-          <StatusLabel
-            label={order.delivered ? 'Ausgeliefert' : 'Nicht ausgeliefert'}
-            tone={order.delivered ? 'success' : 'neutral'}
-          />
-        </div>
-        {#if order.payment}
-          {@const payment = paymentSummary(order.payment)}
-          <p class="mt-1"><StatusLabel {...payment} /></p>
-          {#if order.payment.reference}<p class="mt-1 break-all text-sm text-neutral-700">
-              CampFlow-Referenz {order.payment.reference}
-            </p>{/if}
-        {/if}
       </article>
     {:else}<div class="py-5">
         <p class="text-neutral-700">Keine Bestellungen passen zur aktuellen Auswahl.</p>

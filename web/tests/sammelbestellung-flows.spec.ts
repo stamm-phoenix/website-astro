@@ -13,7 +13,7 @@ test('the Bestellliste and the Ausgabeliste download as PDFs', async ({ page }) 
   await expect(page.getByText('Bestellliste heruntergeladen.').first()).toBeVisible();
 
   download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Ausgabeliste herunterladen (PDF)' }).click();
+  await page.getByRole('button', { name: 'Ausgabeliste als PDF' }).click();
   pdf = await download;
   expect(pdf.suggestedFilename()).toMatch(/^Ausgabeliste .+\.pdf$/);
   expect((await readFile(await pdf.path())).subarray(0, 5).toString()).toBe('%PDF-');
