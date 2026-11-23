@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
   import {
     FAHRT_LABEL,
@@ -124,21 +125,26 @@
         </div>
       {/if}
 
-      <div class="flex flex-wrap gap-2">
-        {#if !isDriver && auto}
-          <ActionButton onclick={() => onanpassungen(withMove(anpassungen, current.id, null))}
-            >Ohne Platz</ActionButton
-          >
-        {/if}
+      <Aktionsraster>
         {#if !isDriver && seats > 0}
           <ActionButton
             variant="primary"
+            class="col-span-2"
             onclick={() => onanpassungen(withDriver(anpassungen, current.id, true))}
             >Fahren lassen ({seatsText(seats)})</ActionButton
           >
         {/if}
+        {#if !isDriver && auto}
+          <ActionButton
+            class="col-span-2"
+            onclick={() => onanpassungen(withMove(anpassungen, current.id, null))}
+            >Ohne Platz</ActionButton
+          >
+        {/if}
         {#if isDriver}
-          <ActionButton onclick={() => onanpassungen(withDriver(anpassungen, current.id, false))}
+          <ActionButton
+            class="col-span-2"
+            onclick={() => onanpassungen(withDriver(anpassungen, current.id, false))}
             >Fährt nicht</ActionButton
           >
         {/if}
@@ -148,7 +154,7 @@
           >Nicht einplanen</ActionButton
         >
         <ActionButton onclick={onclose}>Fertig</ActionButton>
-      </div>
+      </Aktionsraster>
     </div>
   {/if}
 </ModalDialog>

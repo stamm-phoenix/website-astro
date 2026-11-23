@@ -14,9 +14,11 @@
     eventId: string;
     plans: Record<Fahrt, FahrtPlan>;
     onresult: (result: { message: string; kind: 'success' | 'error' }) => void;
+    /** Classes of the button that opens the dialog, e.g. its place in a grid. */
+    class?: string;
   }
 
-  let { eventId, plans, onresult }: Props = $props();
+  let { eventId, plans, onresult, class: className = '' }: Props = $props();
 
   let open = $state(false);
   let nachricht = $state('');
@@ -91,7 +93,7 @@
   }
 </script>
 
-<ActionButton onclick={show} disabled={fahrer.length === 0}
+<ActionButton class={className} onclick={show} disabled={fahrer.length === 0}
   >Fahrende per Mail informieren</ActionButton
 >
 
