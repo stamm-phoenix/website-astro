@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import ReloadButton from '../pflege/ReloadButton.svelte';
@@ -206,7 +207,7 @@
             {/if}
             <p class="text-sm text-neutral-700">Eingegangen am {eingangText(anfrage.createdAt)}</p>
           </div>
-          <div class="flex shrink-0 flex-wrap gap-2">
+          <Aktionsraster class="w-full sm:w-96 sm:shrink-0">
             <ActionButton
               variant={anfrage.status === 'offen' ? 'primary' : 'secondary'}
               type="button"
@@ -223,12 +224,12 @@
               >
             {/if}
             <ActionButton
-              variant="secondary"
+              variant="danger"
               type="button"
               aria-label={`Löschen: Anfrage von ${anfrage.name}`}
               onclick={() => void loeschen(anfrage)}>Löschen</ActionButton
             >
-          </div>
+          </Aktionsraster>
         </li>
       {/each}
     </ul>
