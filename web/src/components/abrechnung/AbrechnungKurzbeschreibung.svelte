@@ -4,6 +4,7 @@
   import InfoHint from '../ui/InfoHint.svelte';
   import KurzbeschreibungKopf from './KurzbeschreibungKopf.svelte';
   import ZeitplanBlockZeile from './ZeitplanBlockZeile.svelte';
+  import ZeitplanTagAktionen from './ZeitplanTagAktionen.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import { zeitplanFreitext, zeitplanZeilen } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
@@ -19,8 +20,6 @@
     MAX_ZEITBLOECKE_PRO_TAG,
     MAX_ZEITPLAN_TAGE,
     aktionTage,
-    istNachUhrzeit,
-    kurzerWochentag,
     kurzbeschreibungPdfData,
     mitAktionTagen,
     mitId,
@@ -51,7 +50,6 @@
 
   const FREITEXT_BEISPIEL =
     'z. B. Wir fahren mit den Jupfis ins Zeltlager, damit sie lernen, selbst ein Lager aufzubauen. Am Samstag reisen wir um 10 Uhr an und bauen auf, nachmittags gibt es ein Geländespiel und abends Lagerfeuer. Am Sonntag nach dem Frühstück um 8 bauen wir ab und fahren gegen 13 Uhr heim.';
-  const ZEILEN_BEISPIEL = '8-9 Uhr Frühstück\n9:30-12 Uhr Geländespiel\n20 Uhr Lagerfeuer';
 
   const event = $derived(abrechnung.event);
   const kurz = $derived(session.kurzbeschreibung);
@@ -639,32 +637,12 @@
           aria-labelledby={`tag-${tag.datum}-titel`}
           class="rounded-sm border border-neutral-300 p-3 sm:p-4"
         >
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <h3 id={`tag-${tag.datum}-titel`} class="font-semibold text-brand-900">
-              {tagTitel(tag.datum)}
-              {#if aktionsTage.size > 0 && !aktionsTage.has(tag.datum)}
-                <span class="ml-1 text-xs font-normal text-warning">außerhalb der Aktion</span>
-              {/if}
-            </h3>
-            <div class="flex flex-wrap gap-2">
-              {#if vortag && vortag.bloecke.length > 0 && tag.bloecke.length === 0}
-                <ActionButton variant="secondary" onclick={() => copyPreviousDay(tagIndex)}>
-                  Ablauf vom {kurzerWochentag(vortag.datum)} übernehmen
-                </ActionButton>
-              {/if}
-              {#if !istNachUhrzeit(tag.bloecke)}
-                <ActionButton variant="secondary" onclick={() => sortDay(tagIndex)}>
-                  Nach Uhrzeit sortieren
-                </ActionButton>
-              {/if}
-              <!-- The last day stays: no days at all would show the days of the Aktion again -->
-              {#if tage.length > 1}
-                <ActionButton variant="danger" onclick={() => removeDay(tagIndex)}>
-                  Tag entfernen
-                </ActionButton>
-              {/if}
-            </div>
-          </div>
+          <h3 id={`tag-${tag.datum}-titel`} class="font-semibold text-brand-900">
+            {tagTitel(tag.datum)}
+            {#if aktionsTage.size > 0 && !aktionsTage.has(tag.datum)}
+              <span class="ml-1 text-xs font-normal text-warning">außerhalb der Aktion</span>
+            {/if}
+          </h3>
 
           <ul
             class="mt-2 space-y-2 {dragged && tag.bloecke.length === 0
@@ -707,40 +685,19 @@
             {/each}
           </ul>
 
-          {#if tag.datum in quick}
-            <label class="mt-3 block">
-              <span class="form-label">Mehrere Blöcke, einer pro Zeile</span>
-              <textarea
-                id={`tag-${tag.datum}-zeilen`}
-                class="form-input min-h-28 font-mono text-sm"
-                rows="5"
-                value={quick[tag.datum]}
-                oninput={(e) => (quick[tag.datum] = e.currentTarget.value)}
-                placeholder={ZEILEN_BEISPIEL}></textarea>
-            </label>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <ActionButton
-                variant="primary"
-                disabled={!quick[tag.datum]?.trim()}
-                onclick={() => applyQuick(tagIndex, tag.datum)}>Blöcke übernehmen</ActionButton
-              >
-              <ActionButton variant="secondary" onclick={() => toggleQuick(tag.datum)}
-                >Abbrechen</ActionButton
-              >
-            </div>
-          {:else}
-            <div class="mt-2 flex flex-wrap gap-2">
-              <ActionButton
-                id={`tag-${tag.datum}-neu`}
-                variant="secondary"
-                disabled={tag.bloecke.length >= MAX_ZEITBLOECKE_PRO_TAG}
-                onclick={() => addBlock(tagIndex)}>Block hinzufügen</ActionButton
-              >
-              <ActionButton variant="secondary" onclick={() => toggleQuick(tag.datum)}
-                >Mehrere Zeilen einfügen</ActionButton
-              >
-            </div>
-          {/if}
+          <ZeitplanTagAktionen
+            {tag}
+            {vortag}
+            tageAnzahl={tage.length}
+            zeilen={tag.datum in quick ? quick[tag.datum] : undefined}
+            onzeilen={(text) => (quick[tag.datum] = text)}
+            onaddblock={() => addBlock(tagIndex)}
+            ontoggle={() => toggleQuick(tag.datum)}
+            onapply={() => applyQuick(tagIndex, tag.datum)}
+            onsort={() => sortDay(tagIndex)}
+            oncopy={() => copyPreviousDay(tagIndex)}
+            onremove={() => removeDay(tagIndex)}
+          />
         </section>
       {/each}
     </div>

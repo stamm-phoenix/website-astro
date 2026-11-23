@@ -2,6 +2,7 @@
   import FormField from '../pflege/FormField.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
   import { isIch } from '../../lib/ichStore.svelte';
   import { abrechnungPersonen } from '../../lib/abrechnungStore.svelte';
@@ -270,50 +271,47 @@
 
 <div class="space-y-6">
   <section aria-labelledby="tn-liste-titel" class="surface p-4 sm:p-6">
-    <div class="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h2 id="tn-liste-titel" class="font-serif text-lg font-semibold text-brand-900">
-          Teilnehmende der Abrechnung
-        </h2>
-        <p class="mt-1 text-sm text-neutral-700" data-testid="tn-zusammenfassung">
-          {counts.total} von {allPersons.length} Personen werden abgerechnet: {counts.teilnehmende}
-          Teilnehmende, {counts.betreuende} Betreuer*innen{zuschussfaehig
-            ? `, ${counts.subsidised} bezuschusst`
-            : ''}.
+    <div>
+      <h2 id="tn-liste-titel" class="font-serif text-lg font-semibold text-brand-900">
+        Teilnehmende der Abrechnung
+      </h2>
+      <p class="mt-1 text-sm text-neutral-700" data-testid="tn-zusammenfassung">
+        {counts.total} von {allPersons.length} Personen werden abgerechnet: {counts.teilnehmende}
+        Teilnehmende, {counts.betreuende} Betreuer*innen{zuschussfaehig
+          ? `, ${counts.subsidised} bezuschusst`
+          : ''}.
+      </p>
+      {#if zuschussfaehig}
+        <p class="mt-1 text-sm text-neutral-700">
+          <button
+            type="button"
+            class="font-semibold text-brand-900 underline hover:no-underline"
+            onclick={onShowKjrListe}
+          >
+            Zur KJR-Teilnahmeliste
+          </button>
         </p>
-        {#if zuschussfaehig}
-          <p class="mt-1 text-sm text-neutral-700">
-            <button
-              type="button"
-              class="font-semibold text-brand-900 underline hover:no-underline"
-              onclick={onShowKjrListe}
-            >
-              Zur KJR-Teilnahmeliste
-            </button>
-          </p>
-        {/if}
-      </div>
-      <div class="flex flex-wrap gap-2">
-        {#if excludedCount > 0}
-          <ActionButton variant="secondary" type="button" onclick={includeAll}>
-            Alle einbeziehen
-          </ActionButton>
-        {/if}
-        {#if changed}
-          <ActionButton variant="secondary" type="button" onclick={reset}>
-            Zurücksetzen
-          </ActionButton>
-        {/if}
-        <ActionButton
-          variant="primary"
-          type="button"
-          disabled={pdfBusy || activePersons.length === 0}
-          onclick={exportPdf}
-        >
-          {pdfBusy ? 'PDF wird erstellt …' : 'Als PDF herunterladen'}
-        </ActionButton>
-      </div>
+      {/if}
     </div>
+    <Aktionsraster class="mt-4">
+      <ActionButton
+        class="col-span-2"
+        variant="primary"
+        type="button"
+        disabled={pdfBusy || activePersons.length === 0}
+        onclick={exportPdf}
+      >
+        {pdfBusy ? 'PDF wird erstellt …' : 'Als PDF herunterladen'}
+      </ActionButton>
+      {#if excludedCount > 0}
+        <ActionButton variant="secondary" type="button" onclick={includeAll}>
+          Alle einbeziehen
+        </ActionButton>
+      {/if}
+      {#if changed}
+        <ActionButton variant="secondary" type="button" onclick={reset}>Zurücksetzen</ActionButton>
+      {/if}
+    </Aktionsraster>
     <StatusNotice class="mt-3" kind="error" message={pdfError} />
     <StatusNotice
       class="mt-3"

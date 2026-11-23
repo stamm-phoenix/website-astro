@@ -2,7 +2,6 @@
   import { scrollBehavior } from '../../lib/motion';
   import ReloadAction from '../ui/ReloadAction.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import InfoHint from '../ui/InfoHint.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import { onMount, tick } from 'svelte';
   import {
@@ -10,9 +9,7 @@
     abrechnungKey,
     abrechnungPersonen,
     abrechnungSession,
-    abrechnungSessionChanged,
     abrechnungStore,
-    clearAbrechnungSession,
     fetchAbrechnung,
     fetchKostenstellen,
     kostenstellenStore,
@@ -21,7 +18,6 @@
     loadAbrechnungSession,
     refreshAbrechnungSession,
     abrechnungSessionReusable,
-    saveAbrechnungSession,
     rescueAbrechnungSession,
     restoreAbrechnungRescue,
     offeneZeitplanZeilen,
@@ -30,11 +26,9 @@
   } from '../../lib/abrechnungStore.svelte';
   import type { AbrechnungSession } from '../../lib/abrechnungStore.svelte';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
-  import { confirmAction } from '../../lib/confirm';
   import { authStore, fetchPrincipal } from '../../lib/authStore.svelte';
   import { setRescueContext } from '../../lib/geretteteEingaben';
-  import { formatDateTime, formatEuro, todayIso } from '../../lib/format';
-  import StatusNotice from '../pflege/StatusNotice.svelte';
+  import { formatEuro, todayIso } from '../../lib/format';
   import { formatDate, formatEventRange } from '../../lib/campflowFields';
   import { kjrAbgabefrist, kjrFristStand, kjrRestzeit } from '../../lib/kjrFristen';
   import { abrechnungLoeschdatum } from '../../lib/abrechnungAblage';
@@ -52,6 +46,7 @@
   import AbrechnungNachweise from './AbrechnungNachweise.svelte';
   import AbrechnungLeihgebuehren from './AbrechnungLeihgebuehren.svelte';
   import AbrechnungKurzbeschreibung from './AbrechnungKurzbeschreibung.svelte';
+  import AbrechnungEingabenSpeichern from './AbrechnungEingabenSpeichern.svelte';
   import AktionZuschussSchalter from '../AktionZuschussSchalter.svelte';
 
   const TABS = [
@@ -181,10 +176,6 @@
       deleteAfter: null,
     }
   );
-  /** Result of the last „Eingaben zurücksetzen“, shown next to the button. */
-  let resetResult = $state<'done' | 'failed' | null>(null);
-  let ablageText = $state<HTMLElement | null>(null);
-
   onMount(() => {
     if (eventId) void fetchAbrechnung(eventId, kostenstelle);
     // The account the drafts of the Abrechnung are saved for
@@ -235,19 +226,6 @@
   $effect(() => {
     if (session) storeAbrechnungSession(eventId);
   });
-
-  async function resetEntries(title: string): Promise<void> {
-    const confirmed = await confirmAction({
-      title: 'Eingaben zurücksetzen?',
-      message: `Alle Eingaben zur Abrechnung „${title}“ für deinen Account auf allen Geräten zurücksetzen? Die Daten aus CampFlow bleiben erhalten.`,
-      confirmLabel: 'Eingaben zurücksetzen',
-    });
-    if (!confirmed) return;
-    resetResult = (await clearAbrechnungSession(eventId)) ? 'done' : 'failed';
-    // The button disappears with the entries: keep the focus next to it
-    await tick();
-    ablageText?.focus();
-  }
 
   function updateUrl(): void {
     const url = new URL(window.location.href);
@@ -440,62 +418,17 @@
             zuschussfaehig={abrechnung.event.zuschussfaehig}
             keineAktion={abrechnung.event.keineAktion}
           />
-          <div class="mt-4 space-y-2 text-sm text-neutral-700" data-testid="eingaben-ablage">
-            <p bind:this={ablageText} tabindex="-1" role="status">
-              {datumFehlt
-                ? 'Diese Aktion hat noch kein Datum in CampFlow. Du kannst die Abrechnung ansehen und bearbeiten. Zum Speichern deiner Eingaben trage zuerst das Aktionsdatum in CampFlow ein und lade die Seite neu. Bis dahin bleiben Eingaben nur auf dieser geöffneten Seite erhalten.'
-                : aufbewahrungVorbei
-                  ? 'Die Aufbewahrungsfrist ist abgelaufen. Speichern ist deshalb gesperrt. Neue Eingaben bleiben nur auf dieser geöffneten Seite erhalten; lade benötigte Unterlagen vor dem Verlassen herunter.'
-                  : ablage.saving
-                    ? 'Eingaben werden gespeichert …'
-                    : ablage.dirty
-                      ? 'Ungespeicherte Änderungen. Tippe auf „Eingaben speichern“.'
-                      : ablage.savedAt
-                        ? `Gespeichert am ${formatDateTime(ablage.savedAt)} Uhr. Auf allen deinen Geräten verfügbar.`
-                        : 'Deine Eingaben werden mit „Eingaben speichern“ für deinen Account auf allen Geräten gespeichert.'}
-            </p>
-            {#if restored}<StatusNotice
-                message="Deine Eingaben wurden nach der Anmeldung wiederhergestellt. Prüfe sie und speichere sie anschließend."
-              />{/if}
-            <StatusNotice message={ablage.error} kind="error" />
-            <div class="flex flex-wrap gap-2">
-              <ActionButton
-                variant="primary"
-                disabled={ablage.saving ||
-                  !ablage.dirty ||
-                  ablage.conflict ||
-                  aufbewahrungVorbei ||
-                  datumFehlt}
-                onclick={() => saveAbrechnungSession(eventId)}>Eingaben speichern</ActionButton
-              >
-              {#if ablage.conflict}<ActionButton
-                  onclick={async () => {
-                    if (
-                      await confirmAction({
-                        title: 'Gespeicherte Eingaben laden?',
-                        message:
-                          'Deine ungespeicherten Änderungen werden verworfen. Kopiere sie vorher, wenn du sie behalten möchtest.',
-                        confirmLabel: 'Gespeicherte Fassung laden',
-                      })
-                    )
-                      await loadAbrechnungSession(eventId);
-                  }}>Gespeicherte Fassung laden</ActionButton
-                >{/if}
-              {#if ablage.savedAt && abrechnungSessionChanged(session!)}<ActionButton
-                  disabled={ablage.saving}
-                  onclick={() => resetEntries(abrechnung.event.title)}
-                  >Eingaben zurücksetzen</ActionButton
-                >{/if}
-              <InfoHint label="Deine Eingaben" class="self-center">
-                Teilnehmende, Rollen, Zusatztag, geänderte Beträge, Leihgebühren, Deckblatt und
-                Kurzbeschreibung gehören zu dir und stehen auf all deinen Geräten bereit. {ablage.deleteAfter
-                  ? `Nach dem ${formatDate(ablage.deleteAfter)} werden sie gelöscht.`
-                  : ''} Beim Neu laden bleiben sie erhalten. Ältere Eingaben von diesem Gerät übernimmst
-                du mit „Eingaben speichern“.
-              </InfoHint>
-            </div>
-            {#if resetResult === 'done'}<StatusNotice message="Eingaben zurückgesetzt." />{/if}
-          </div>
+          {#if session}
+            <AbrechnungEingabenSpeichern
+              {eventId}
+              {session}
+              title={abrechnung.event.title}
+              {ablage}
+              {datumFehlt}
+              {aufbewahrungVorbei}
+              {restored}
+            />
+          {/if}
         </header>
 
         <div
