@@ -308,7 +308,7 @@
     // The days read replace the shown ones; lines not taken over must not lose their day
     if (Object.values(quick).some((text) => text.trim() !== '')) {
       say(
-        'Übernimm oder verwirf zuerst die Zeilen unter „Mehrere Zeilen einfügen“ und versuche es dann noch einmal.',
+        'Übernimm oder verwirf zuerst die Zeilen unter „Zeilen einfügen“ und versuche es dann noch einmal.',
         'warning'
       );
       return false;

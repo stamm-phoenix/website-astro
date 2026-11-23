@@ -15,7 +15,7 @@ const entry: ChangelogEntry = {
       text: 'Im Blog stehen „Als Entwurf speichern“ und der nächste Schritt untereinander. Gefüllt ist, was gerade dran ist: Speichern bei Änderungen, sonst zum Beispiel „Zur Prüfung einreichen“. „Mit Rückmeldung zurückgeben“ heißt jetzt „Zurückgeben“.',
       href: '/leitendenbereich/blog',
     },
-    'Neue, kürzere Namen: „Anderen zuweisen“ im Postfach, „Ausgabeliste als PDF“ und „Bestellungen als CSV“ bei den Sammelbestellungen, „Weitere hochladen“ und „In SharePoint“ nach dem Hochladen von Fotos.',
+    'Neue, kürzere Namen: „Anderen zuweisen“ im Postfach, „Ausgabeliste als PDF“ und „Bestellungen als CSV“ bei den Sammelbestellungen, „Weitere hochladen“ und „In SharePoint“ nach dem Hochladen von Fotos, „Zeilen einfügen“ im Zeitplan der Abrechnung.',
     'Bei den Sammelbestellungen steht der Stand einer Bestellung jetzt über ihren Knöpfen statt unter der Artikelliste.',
   ],
 };

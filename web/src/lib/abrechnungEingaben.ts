@@ -235,7 +235,7 @@ export async function refreshEingaben(
     state.deleteAfter = saved.deleteAfter;
     return;
   }
-  // Lines typed under „Mehrere Zeilen einfügen“ count as unsaved input: their day must stay
+  // Lines typed under „Zeilen einfügen“ count as unsaved input: their day must stay
   if (
     !registry.openDrafts[eventId] &&
     !offeneZeitplanZeilen(registry, eventId) &&
