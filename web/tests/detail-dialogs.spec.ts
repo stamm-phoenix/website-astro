@@ -100,7 +100,7 @@ test('the Fahrten person dialog closes on the backdrop, not after selecting text
   await expect(passenger).toBeFocused();
 
   await passenger.click();
-  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Fertig', exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await expect(passenger).toBeFocused();
 });

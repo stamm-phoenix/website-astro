@@ -147,7 +147,7 @@
           onclick={() => onanpassungen(withRemoved(anpassungen, current.id, true))}
           >Nicht einplanen</ActionButton
         >
-        <ActionButton onclick={onclose}>Schließen</ActionButton>
+        <ActionButton onclick={onclose}>Fertig</ActionButton>
       </div>
     </div>
   {/if}
