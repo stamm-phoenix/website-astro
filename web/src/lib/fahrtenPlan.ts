@@ -1,5 +1,7 @@
 import { formatName, formatValue, personStatus } from './campflowFields';
 import { mapGroupToStufe } from './campflowGroups';
+import { prioritaetRang } from './fahrtenPrioritaet';
+import type { FahrerPrioritaeten } from './fahrtenPrioritaet';
 import type { CampflowColumn, CampflowPerson } from '../../../api/lib/campflow';
 
 export type Fahrt = 'hin' | 'rueck';
@@ -17,6 +19,8 @@ export interface FahrtPerson {
   plaetze: Record<Fahrt, number>;
   /** Phone numbers from the registration, e.g. „0176 123 (Mama)“. */
   telefon?: string;
+  /** Whether the registration has an e-mail address, so a driver can be told by mail. */
+  hatEmail?: boolean;
 }
 
 export interface Auto {
@@ -110,6 +114,7 @@ export function fahrtPersonen(
           rueck: parseSeats(columnValue(person, rueck)),
         },
         telefon: formatValue(person.phone_numbers, 'phone_numbers'),
+        hatEmail: typeof person.primary_email === 'string' && person.primary_email.includes('@'),
       };
     });
 }
@@ -219,14 +224,16 @@ function joinSinglePassengers(autos: Auto[], pinned: Set<string>): void {
 }
 
 /**
- * Plans one direction: as few drivers as possible, larger cars first, then Leitende before
- * Rover before the other Stufen. Leitende ride with Leitende, otherwise with the oldest Stufe.
- * Everyone appears exactly once: as driver, passenger, without seat or removed.
+ * Plans one direction: as few drivers as possible, those who drive first („zuerst“) before the
+ * others and those who drive only if needed („notfalls“) last; within that larger cars first,
+ * then Leitende before Rover before the other Stufen. Leitende ride with Leitende, otherwise with
+ * the oldest Stufe. Everyone appears exactly once: as driver, passenger, without seat or removed.
  */
 export function planFahrt(
   personen: FahrtPerson[],
   fahrt: Fahrt,
-  anpassungen: FahrtAnpassungen = KEINE_ANPASSUNGEN
+  anpassungen: FahrtAnpassungen = KEINE_ANPASSUNGEN,
+  prioritaeten: FahrerPrioritaeten = {}
 ): FahrtPlan {
   const removed = new Set(anpassungen.entfernt);
   const forced = new Set(anpassungen.fahrer);
@@ -246,11 +253,17 @@ export function planFahrt(
     .filter((person) => person.plaetze[fahrt] > 0 && !notDriving.has(person.id))
     .sort(
       (a, b) =>
-        b.plaetze[fahrt] - a.plaetze[fahrt] || tier(a) - tier(b) || a.name.localeCompare(b.name)
+        prioritaetRang(prioritaeten[a.id]) - prioritaetRang(prioritaeten[b.id]) ||
+        b.plaetze[fahrt] - a.plaetze[fahrt] ||
+        tier(a) - tier(b) ||
+        a.name.localeCompare(b.name)
     );
-  // Leitende who offered seats always drive, even alone; families only as many as needed
+  // Leitende who offered seats always drive, even alone, unless they drive only if needed;
+  // families only as many as needed
   const mustDrive = (person: FahrtPerson): boolean =>
-    forced.has(person.id) || targets.has(person.id) || isLeitende(person);
+    forced.has(person.id) ||
+    targets.has(person.id) ||
+    (isLeitende(person) && prioritaeten[person.id] !== 'notfalls');
   const drivers = candidates.filter(mustDrive);
   let seats = drivers.reduce((sum, person) => sum + person.plaetze[fahrt], 0);
   for (const person of candidates) {
@@ -353,53 +366,4 @@ export function withRemoved(
 ): FahrtAnpassungen {
   const without = anpassungen.entfernt.filter((id) => id !== personId);
   return { ...anpassungen, entfernt: removed ? [...without, personId] : without };
-}
-
-const PARAM = {
-  fahrer: 'fahrer',
-  keinFahrer: 'kein-fahrer',
-  entfernt: 'entfernt',
-  verschoben: 'mit',
-} as const;
-
-function param(name: string, fahrt: Fahrt): string {
-  return `${name}-${fahrt}`;
-}
-
-function idList(value: string | null): string[] {
-  return (value ?? '').split(',').filter(Boolean);
-}
-
-/** Reads the changes of a direction from the URL, so a plan can be shared as a link. */
-export function readAnpassungen(params: URLSearchParams, fahrt: Fahrt): FahrtAnpassungen {
-  return {
-    fahrer: idList(params.get(param(PARAM.fahrer, fahrt))),
-    keinFahrer: idList(params.get(param(PARAM.keinFahrer, fahrt))),
-    entfernt: idList(params.get(param(PARAM.entfernt, fahrt))),
-    verschoben: idList(params.get(param(PARAM.verschoben, fahrt))).map((entry) => {
-      const [person, fahrer = '-'] = entry.split(':');
-      return [person, fahrer === '-' ? null : fahrer];
-    }),
-  };
-}
-
-/** Writes the changes of a direction into the URL parameters; empty lists are left out. */
-export function writeAnpassungen(
-  params: URLSearchParams,
-  fahrt: Fahrt,
-  anpassungen: FahrtAnpassungen
-): void {
-  const lists: [string, string[]][] = [
-    [PARAM.fahrer, anpassungen.fahrer],
-    [PARAM.keinFahrer, anpassungen.keinFahrer],
-    [PARAM.entfernt, anpassungen.entfernt],
-    [
-      PARAM.verschoben,
-      anpassungen.verschoben.map(([person, fahrer]) => `${person}:${fahrer ?? '-'}`),
-    ],
-  ];
-  for (const [name, values] of lists) {
-    if (values.length > 0) params.set(param(name, fahrt), values.join(','));
-    else params.delete(param(name, fahrt));
-  }
 }

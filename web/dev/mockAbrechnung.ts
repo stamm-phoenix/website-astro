@@ -39,6 +39,31 @@ route('GET', '/api/intern/nami-abgleich', () => {
   return json(namiAbgleichData());
 });
 
+// Like the API, but nothing is sent: everyone with an address counts as sent
+route('POST', '/api/intern/aktionen/:id/fahrten-mail', (req) => {
+  const detail = campflowDetail(req.params.id);
+  if (!detail) return notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
+  const body = req.json as { fahrten?: Record<string, { fahrer?: unknown }[]> } | null;
+  const ids = new Set(
+    Object.values(body?.fahrten ?? {}).flatMap((autos) =>
+      Array.isArray(autos) ? autos.map((auto) => String(auto.fahrer)) : []
+    )
+  );
+  if (ids.size === 0)
+    return error(400, 'VALIDATION', 'Im Plan fährt niemand. Es gibt niemanden zu informieren.');
+  const fahrer = detail.persons.filter((person) => ids.has(person.id));
+  const name = (person: (typeof fahrer)[number]): string => {
+    const n = person.name as { first_name?: string; last_name?: string } | undefined;
+    return [n?.first_name, n?.last_name].filter(Boolean).join(' ');
+  };
+  return json({
+    gesendet: fahrer.filter((p) => p.primary_email).map(name),
+    ohneAdresse: fahrer.filter((p) => !p.primary_email).map(name),
+    fehlgeschlagen: [],
+    vorschau: false,
+  });
+});
+
 route('GET', '/api/intern/aktionen/:id/beitraege', (req) => {
   const beitraege = aktionBeitraegeFor(req.params.id, req.query.get('refresh') === 'true');
   return beitraege ? json(beitraege) : notFound('Diese Aktion gibt es in CampFlow nicht (mehr).');
