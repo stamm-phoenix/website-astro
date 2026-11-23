@@ -3,6 +3,7 @@
   import BlogWorkflowControls from './BlogWorkflowControls.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import { onMount } from 'svelte';
   import { navigate } from 'astro:transitions/client';
   import { ApiError, errorMessage, sendApi } from '../../lib/api';
@@ -304,42 +305,24 @@
         </p>
       {/if}
 
-      <div class="flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-4">
+      {#snippet speichern()}
         <ActionButton
-          variant="primary"
+          variant={dirty || !postId ? 'primary' : 'secondary'}
           type="submit"
+          class="col-span-2"
           disabled={busy || workflowBusy || imageBusy !== null}
         >
-          {busy
-            ? 'Wird gespeichert …'
-            : published
-              ? 'Als Entwurf speichern'
-              : postId
-                ? 'Als Entwurf speichern'
-                : 'Als Entwurf anlegen'}
+          {busy ? 'Wird gespeichert …' : postId ? 'Als Entwurf speichern' : 'Als Entwurf anlegen'}
         </ActionButton>
-        {#if postId}<BlogWorkflowControls
-            id={postId}
-            {etag}
-            disabled={dirty || busy || imageBusy !== null}
-            {workflow}
-            bind:busy={workflowBusy}
-            bind:feedback
-            onchanged={(result, text) => {
-              etag = result.etag;
-              workflow = result.workflow;
-              published = workflow.state === 'published';
-              form!.published = published;
-              saved = JSON.stringify(form);
-              notify(text);
-            }}
-          />{/if}
-        {#if dirty}
-          <span class="text-sm text-neutral-700">Ungespeicherte Änderungen</span>
-        {/if}
-        <span class="flex-1"></span>
+      {/snippet}
+      {#snippet danach()}
         {#if postId && published}
-          <a href={getBlogPostUrl(postId)} class="btn-secondary" target="_blank" rel="noopener">
+          <a
+            href={getBlogPostUrl(postId)}
+            class="btn-secondary col-span-2"
+            target="_blank"
+            rel="noopener"
+          >
             Auf der Website ansehen
           </a>
         {/if}
@@ -361,7 +344,35 @@
             Löschen
           </ActionButton>
         {/if}
-      </div>
+      {/snippet}
+      {#if postId}
+        <BlogWorkflowControls
+          id={postId}
+          {etag}
+          disabled={dirty || busy || imageBusy !== null}
+          {dirty}
+          {workflow}
+          bind:busy={workflowBusy}
+          bind:feedback
+          {speichern}
+          {danach}
+          onchanged={(result, text) => {
+            etag = result.etag;
+            workflow = result.workflow;
+            published = workflow.state === 'published';
+            form!.published = published;
+            saved = JSON.stringify(form);
+            notify(text);
+          }}
+        />
+      {:else}
+        <div class="space-y-3 border-t border-neutral-200 pt-4">
+          <Aktionsraster>
+            {@render speichern()}
+          </Aktionsraster>
+          {#if dirty}<p class="text-sm text-neutral-700">Ungespeicherte Änderungen</p>{/if}
+        </div>
+      {/if}
     </div>
 
     <div inert={busy || workflowBusy}>
