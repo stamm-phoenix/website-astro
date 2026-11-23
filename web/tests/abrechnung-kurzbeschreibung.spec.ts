@@ -47,7 +47,9 @@ test('the Zeitplan starts with the days of the Aktion and blocks are added, move
   await expect(page.getByText('2 Blöcke übernommen.').first()).toBeVisible();
   await samstag.getByRole('button', { name: 'Nach Uhrzeit sortieren' }).click();
   await expect(samstag.getByLabel('Programmpunkt').first()).toHaveValue('Morgenrunde');
-  await sonntag.getByRole('button', { name: 'Ablauf vom Sa übernehmen' }).click();
+  // Copying the day before is a rare step behind „Mehr“ of the day
+  await sonntag.getByRole('button', { name: 'Mehr', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Ablauf vom Sa übernehmen' }).click();
   await expect(sonntag.getByLabel('Programmpunkt')).toHaveCount(4);
 
   // The last block of Saturday moves on to Sunday
