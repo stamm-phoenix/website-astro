@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import PersonSuche from '../ui/PersonSuche.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import { errorMessage } from '../../lib/api';
@@ -101,34 +102,35 @@
 </script>
 
 <section aria-label="Zuständigkeit" class="surface-muted p-3">
-  <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-    <p class="min-w-0">
-      {#if zustaendig}
-        <span class="font-semibold text-brand-900"
-          >{meins ? 'Du bist zuständig' : `Zuständig: ${zustaendig.name}`}</span
-        >
-      {:else}
-        <span class="font-semibold text-warning">Noch niemand zuständig</span>
-      {/if}
-    </p>
-    <div class="flex flex-wrap gap-2">
-      {#if !meins}
-        <ActionButton
-          variant="primary"
-          disabled={busy}
-          onclick={() => setze({ login: ich, name: '' })}>Ich kümmere mich</ActionButton
-        >
-      {/if}
-      <ActionButton disabled={busy} aria-expanded={auswahl} onclick={oeffneAuswahl}
-        >{zustaendig ? 'Jemand anderem zuweisen' : 'Jemandem zuweisen'}</ActionButton
+  <p class="min-w-0">
+    {#if zustaendig}
+      <span class="font-semibold text-brand-900"
+        >{meins ? 'Du bist zuständig' : `Zuständig: ${zustaendig.name}`}</span
       >
-      {#if zustaendig}
-        <ActionButton disabled={busy} onclick={() => setze(null)}
-          >{meins ? 'Nicht mehr zuständig' : 'Zuständigkeit entfernen'}</ActionButton
-        >
-      {/if}
-    </div>
-  </div>
+    {:else}
+      <span class="font-semibold text-warning">Noch niemand zuständig</span>
+    {/if}
+  </p>
+  <Aktionsraster class="mt-2">
+    {#if !meins}
+      <ActionButton
+        variant="primary"
+        disabled={busy}
+        onclick={() => setze({ login: ich, name: '' })}>Ich kümmere mich</ActionButton
+      >
+    {/if}
+    <ActionButton
+      class={meins ? 'col-span-2' : ''}
+      disabled={busy}
+      aria-expanded={auswahl}
+      onclick={oeffneAuswahl}>{zustaendig ? 'Anderen zuweisen' : 'Jemandem zuweisen'}</ActionButton
+    >
+    {#if zustaendig}
+      <ActionButton class="col-span-2" disabled={busy} onclick={() => setze(null)}
+        >{meins ? 'Nicht mehr zuständig' : 'Zuständigkeit entfernen'}</ActionButton
+      >
+    {/if}
+  </Aktionsraster>
 
   {#if auswahl}
     <div class="mt-3">
