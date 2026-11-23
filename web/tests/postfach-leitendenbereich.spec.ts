@@ -31,7 +31,7 @@ test('a Leitende:r reads a mail of the Kontakt-Postfach, hands it on and finds t
     /^https:\/\/outlook\.office\.com\/mail\/kontakt%40stamm-phoenix\.de\/inbox\/id\//
   );
 
-  await mail.getByRole('button', { name: 'Jemand anderem zuweisen' }).click();
+  await mail.getByRole('button', { name: 'Anderen zuweisen' }).click();
   await mail.getByLabel('Wer soll sich kümmern?').fill('Tom');
   await page.getByRole('option', { name: /Tom Test/ }).click();
   await expect(

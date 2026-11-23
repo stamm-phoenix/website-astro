@@ -1,5 +1,7 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
+  import MehrAktionen from '../ui/MehrAktionen.svelte';
   import PersonSuche from '../ui/PersonSuche.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import { errorMessage } from '../../lib/api';
@@ -188,16 +190,7 @@
           onclick={onaufheben}>Auswahl aufheben</button
         >
       </div>
-      <div class="flex flex-wrap gap-2" role="group" aria-label="Stand für die Auswahl">
-        <ActionButton disabled={busy} onclick={() => void stand('erledigt')}
-          >Erledigt und archivieren</ActionButton
-        >
-        <ActionButton disabled={busy} onclick={() => void stand('handlungsbedarf')}
-          >Handlungsbedarf</ActionButton
-        >
-        <ActionButton disabled={busy} onclick={() => void stand('neu')}>Wieder neu</ActionButton>
-      </div>
-      <div class="flex flex-wrap gap-2" role="group" aria-label="Zuständigkeit für die Auswahl">
+      <Aktionsraster>
         <ActionButton
           variant="primary"
           disabled={busy}
@@ -206,10 +199,24 @@
         <ActionButton disabled={busy} aria-expanded={auswahl} onclick={oeffneAuswahl}
           >Jemandem zuweisen</ActionButton
         >
-        <ActionButton disabled={busy} onclick={() => void zuweisen(null)}
-          >Zuständigkeit entfernen</ActionButton
+        <ActionButton class="col-span-2" disabled={busy} onclick={() => void stand('erledigt')}
+          >Erledigt und archivieren</ActionButton
         >
-      </div>
+        <ActionButton disabled={busy} onclick={() => void stand('handlungsbedarf')}
+          >Handlungsbedarf</ActionButton
+        >
+        <MehrAktionen
+          title="Weitere Aktionen für die Auswahl"
+          aktionen={[
+            { label: 'Wieder neu', disabled: busy, onclick: () => void stand('neu') },
+            {
+              label: 'Zuständigkeit entfernen',
+              disabled: busy,
+              onclick: () => void zuweisen(null),
+            },
+          ]}
+        />
+      </Aktionsraster>
       {#if auswahl}
         <div>
           <label for="mehrfach-zustaendig" class="text-sm font-semibold text-brand-900"

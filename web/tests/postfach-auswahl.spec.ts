@@ -25,10 +25,12 @@ async function waehleBeide(page: Page) {
 /** The projects share the demo server: both start new and without a responsible person. */
 async function zuruecksetzen(page: Page) {
   const aktionen = await waehleBeide(page);
-  await aktionen.getByRole('button', { name: 'Wieder neu' }).click();
+  await aktionen.getByRole('button', { name: 'Mehr' }).click();
+  await page.getByRole('button', { name: 'Wieder neu' }).click();
   await expect(aktionen.getByText(/wieder als neu markiert/)).toBeVisible();
   await waehleBeide(page);
-  await aktionen.getByRole('button', { name: 'Zuständigkeit entfernen' }).click();
+  await aktionen.getByRole('button', { name: 'Mehr' }).click();
+  await page.getByRole('button', { name: 'Zuständigkeit entfernen' }).click();
   await expect(aktionen.getByText(/Zuständigkeit für 2 E-Mails entfernt/)).toBeVisible();
 }
 
