@@ -5,9 +5,10 @@
   import LoadState from './ui/LoadState.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
   import Toast from './ui/Toast.svelte';
-  import ModalDialog from './ui/ModalDialog.svelte';
   import InfoHint from './ui/InfoHint.svelte';
   import FahrtenExport from './aktionen/FahrtenExport.svelte';
+  import FahrtenMailDialog from './aktionen/FahrtenMailDialog.svelte';
+  import FahrtPersonDialog from './aktionen/FahrtPersonDialog.svelte';
   import {
     campflowDetailStore,
     campflowEventsStore,
@@ -26,27 +27,25 @@
     freiePlaetze,
     guessSeatColumn,
     planFahrt,
-    readAnpassungen,
-    withDriver,
-    withMove,
     withRemoved,
-    writeAnpassungen,
   } from '../lib/fahrtenPlan';
-  import type { Auto, Fahrt, FahrtAnpassungen, FahrtPerson } from '../lib/fahrtenPlan';
+  import type { Fahrt, FahrtAnpassungen, FahrtPerson } from '../lib/fahrtenPlan';
+  import { PRIORITAET_MARKE, withPrioritaet } from '../lib/fahrtenPrioritaet';
+  import type { FahrerPrioritaet } from '../lib/fahrtenPrioritaet';
+  import {
+    readAnpassungen,
+    readPrioritaeten,
+    writeAnpassungen,
+    writePrioritaeten,
+  } from '../lib/fahrtenUrl';
   import { GROUP_CONFIG, STUFE_TO_KEY } from '../lib/types/stufen';
   import { confirmAction } from '../lib/confirm';
   import { isIchCampflow } from '../lib/ichStore.svelte';
 
-  /** A person picked in the plan, with the car they sit in (`null` without a seat). */
-  interface Auswahl {
-    person: FahrtPerson;
-    auto: Auto | null;
-    isDriver: boolean;
-  }
-
   /** The URL holds the whole plan, so reloading keeps it and a link shares it. */
   let search = $state(window.location.search);
-  let auswahl = $state<Auswahl | null>(null);
+  /** The person picked in the plan. */
+  let auswahl = $state<FahrtPerson | null>(null);
   let toast = $state<{ message: string; kind: 'success' | 'error' } | null>(null);
 
   const params = $derived(new URLSearchParams(search));
@@ -71,15 +70,18 @@
     hin: readAnpassungen(params, 'hin'),
     rueck: readAnpassungen(params, 'rueck'),
   });
+  const prioritaeten = $derived(readPrioritaeten(params));
   const plans = $derived({
-    hin: planFahrt(personen, 'hin', anpassungen.hin),
-    rueck: planFahrt(personen, 'rueck', anpassungen.rueck),
+    hin: planFahrt(personen, 'hin', anpassungen.hin, prioritaeten),
+    rueck: planFahrt(personen, 'rueck', anpassungen.rueck, prioritaeten),
   });
   const plan = $derived(plans[fahrt]);
   const changed = $derived(
-    FAHRTEN.some(
-      (f) => params.has(`spalte-${f}`) || Object.values(anpassungen[f]).some((list) => list.length)
-    )
+    Object.keys(prioritaeten).length > 0 ||
+      FAHRTEN.some(
+        (f) =>
+          params.has(`spalte-${f}`) || Object.values(anpassungen[f]).some((list) => list.length)
+      )
   );
 
   const today = localDate();
@@ -106,6 +108,11 @@
     auswahl = null;
   }
 
+  /** Applies to Hin- and Rückfahrt; the dialog stays open and shows the new seat. */
+  function setPrioritaet(personId: string, prioritaet: FahrerPrioritaet): void {
+    update((p) => writePrioritaeten(p, withPrioritaet(prioritaeten, personId, prioritaet)));
+  }
+
   function setSeatColumn(f: Fahrt, column: string): void {
     update((p) => p.set(`spalte-${f}`, column));
   }
@@ -114,7 +121,8 @@
     if (
       !(await confirmAction({
         title: 'Änderungen verwerfen?',
-        message: 'Spaltenwahl und alle Änderungen an Hin- und Rückfahrt verwerfen?',
+        message:
+          'Spaltenwahl, wer gern oder nur wenn nötig fährt, und alle Änderungen an Hin- und Rückfahrt verwerfen?',
         confirmLabel: 'Änderungen verwerfen',
       }))
     )
@@ -124,6 +132,7 @@
         p.delete(`spalte-${f}`);
         writeAnpassungen(p, f, KEINE_ANPASSUNGEN);
       }
+      writePrioritaeten(p, {});
     });
     toast = { message: 'Die automatische Planung gilt wieder.', kind: 'success' };
   }
@@ -149,17 +158,13 @@
   function groupName(gruppe: string): string {
     return gruppe.replace(/^[^\p{L}]+/u, '');
   }
-
-  function seatsText(count: number): string {
-    return count === 1 ? '1 Platz' : `${count} Plätze`;
-  }
 </script>
 
-{#snippet person(p: FahrtPerson, auto: Auto | null, isDriver = false)}
+{#snippet person(p: FahrtPerson, isDriver = false)}
   <button
     type="button"
     class="flex min-h-11 w-full items-center gap-2 py-2 text-left hover:text-brand-900 hover:underline"
-    onclick={() => (auswahl = { person: p, auto, isDriver })}
+    onclick={() => (auswahl = p)}
   >
     <span
       aria-hidden="true"
@@ -169,6 +174,9 @@
     <span class={isDriver ? 'font-semibold text-brand-900' : ''}>{p.name}</span>
     {#if ichIds.has(p.id)}<span class="text-neutral-700">(ich)</span>{/if}
     {#if p.gruppe}<span class="text-sm text-neutral-700">{groupName(p.gruppe)}</span>{/if}
+    {#if prioritaeten[p.id]}<span class="text-sm text-neutral-700"
+        >· {PRIORITAET_MARKE[prioritaeten[p.id]]}</span
+      >{/if}
     <span class="ml-auto shrink-0 text-sm text-link underline underline-offset-2">ändern</span>
   </button>
 {/snippet}
@@ -290,8 +298,15 @@
                 Planung
               </h2>
               <InfoHint label="Planung" class="ml-1">
-                <p>Leitende, die Plätze angeboten haben, fahren immer, notfalls allein.</p>
-                <p>Von den Familien fahren so wenige Autos wie nötig, große zuerst.</p>
+                <p>
+                  Leitende, die Plätze angeboten haben, fahren immer, notfalls allein, außer bei
+                  „Nur wenn nötig“.
+                </p>
+                <p>
+                  Von den Familien fahren so wenige Autos wie nötig: zuerst wer gern fährt, zuletzt
+                  wer nur fährt, wenn nötig, und große Autos vor kleinen. Das stellst du ein, wenn
+                  du auf einen Namen tippst.
+                </p>
                 <p>
                   Geschwister fahren im Familienauto, Leitende sonst bei Leitenden oder den ältesten
                   Kindern.
@@ -305,6 +320,7 @@
                 plans={[plans.hin, plans.rueck]}
                 onresult={(result) => (toast = result)}
               />
+              <FahrtenMailDialog eventId={id} {plans} onresult={(result) => (toast = result)} />
               <ActionButton onclick={copyLink}>Link kopieren</ActionButton>
               {#if changed}
                 <ActionButton variant="danger" onclick={reset}>Änderungen verwerfen</ActionButton>
@@ -359,11 +375,11 @@
                       {auto.plaetze === 1 ? 'Platz' : 'Plätzen'} belegt
                     </span>
                   </div>
-                  {@render person(auto.fahrer, auto, true)}
+                  {@render person(auto.fahrer, true)}
                   {#if auto.mitfahrende.length > 0}
                     <ul class="ml-4 border-l border-neutral-200 pl-3">
                       {#each auto.mitfahrende as p (p.id)}
-                        <li>{@render person(p, auto)}</li>
+                        <li>{@render person(p)}</li>
                       {/each}
                     </ul>
                   {/if}
@@ -384,7 +400,7 @@
             {:else}
               <ul class="mt-1">
                 {#each plan.ohnePlatz as p (p.id)}
-                  <li>{@render person(p, null)}</li>
+                  <li>{@render person(p)}</li>
                 {/each}
               </ul>
             {/if}
@@ -417,90 +433,16 @@
         </section>
       </div>
 
-      <ModalDialog
-        open={auswahl !== null}
-        title={auswahl?.person.name ?? ''}
-        size="narrow"
-        dismissOnBackdrop
+      <FahrtPersonDialog
+        person={auswahl}
+        {fahrt}
+        {plan}
+        anpassungen={anpassungen[fahrt]}
+        prioritaet={auswahl ? (prioritaeten[auswahl.id] ?? 'normal') : 'normal'}
+        onanpassungen={setAnpassungen}
+        onprioritaet={(next) => auswahl && setPrioritaet(auswahl.id, next)}
         onclose={() => (auswahl = null)}
-      >
-        {#if auswahl}
-          {@const current = auswahl}
-          {@const seats = current.person.plaetze[fahrt]}
-          {@const targets = plan.autos.filter((a) => a !== current.auto && freiePlaetze(a) > 0)}
-          <div class="space-y-4 overflow-y-auto px-5 py-4">
-            <p class="text-sm text-neutral-700">
-              {FAHRT_LABEL[fahrt]} ·
-              {current.isDriver
-                ? `fährt, ${seatsText(seats)}`
-                : current.auto
-                  ? `fährt bei ${current.auto.fahrer.name} mit`
-                  : 'ohne Platz'}
-            </p>
-
-            {#if !current.isDriver}
-              <div>
-                <h3 class="form-label">Mitfahren bei</h3>
-                {#if targets.length === 0}
-                  <p class="text-sm text-neutral-700">In keinem anderen Auto ist ein Platz frei.</p>
-                {:else}
-                  <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
-                    {#each targets as target (target.fahrer.id)}
-                      <li>
-                        <button
-                          type="button"
-                          class="flex min-h-11 w-full items-center justify-between gap-3 py-2 text-left hover:underline"
-                          onclick={() =>
-                            setAnpassungen(
-                              withMove(anpassungen[fahrt], current.person.id, target.fahrer.id)
-                            )}
-                        >
-                          <span class="font-semibold text-brand-900">{target.fahrer.name}</span>
-                          <span class="text-sm tabular-nums text-neutral-700"
-                            >{freiePlaetze(target)} frei</span
-                          >
-                        </button>
-                      </li>
-                    {/each}
-                  </ul>
-                {/if}
-              </div>
-            {/if}
-
-            <div class="flex flex-wrap gap-2">
-              {#if !current.isDriver && current.auto}
-                <ActionButton
-                  onclick={() =>
-                    setAnpassungen(withMove(anpassungen[fahrt], current.person.id, null))}
-                  >Ohne Platz</ActionButton
-                >
-              {/if}
-              {#if !current.isDriver && seats > 0}
-                <ActionButton
-                  variant="primary"
-                  onclick={() =>
-                    setAnpassungen(withDriver(anpassungen[fahrt], current.person.id, true))}
-                  >Fahren lassen ({seatsText(seats)})</ActionButton
-                >
-              {/if}
-              {#if current.isDriver}
-                <ActionButton
-                  onclick={() =>
-                    setAnpassungen(withDriver(anpassungen[fahrt], current.person.id, false))}
-                  >Fährt nicht</ActionButton
-                >
-              {/if}
-              <ActionButton
-                variant="danger"
-                onclick={() =>
-                  setAnpassungen(withRemoved(anpassungen[fahrt], current.person.id, true))}
-                >Nicht einplanen</ActionButton
-              >
-              <ActionButton onclick={() => (auswahl = null)}>Abbrechen</ActionButton>
-            </div>
-          </div>
-        {/if}
-      </ModalDialog>
+      />
     {/snippet}
   </LoadState>
 {/if}
