@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import { ApiError } from '../../lib/api';
   import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
@@ -279,11 +280,11 @@
         {:else}
           <p class="text-sm text-neutral-700">Das Gericht hat keine Zutaten mit Menge.</p>
         {/if}
-        {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
-        <div class="flex flex-wrap gap-2">
+        <Aktionsraster>
           <ActionButton
             type="button"
             variant="primary"
+            class="col-span-2"
             disabled={speichert || kontext.busy || !bearbeiten}
             onclick={() => void setzen('gekocht')}
             >{einplanung.status === 'gekocht' ? 'Verbrauch speichern' : 'Gekocht'}</ActionButton
@@ -303,11 +304,12 @@
             >
           {/if}
           {#if geaendert}
-            <ActionButton type="button" disabled={speichert} onclick={fuelle}
+            <ActionButton type="button" class="col-span-2" disabled={speichert} onclick={fuelle}
               >Eingaben verwerfen</ActionButton
             >
           {/if}
-        </div>
+        </Aktionsraster>
+        {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
       </div>
     {/if}
   </details>
