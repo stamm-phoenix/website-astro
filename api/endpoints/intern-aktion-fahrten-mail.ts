@@ -3,7 +3,7 @@ import type { CampflowEvent, CampflowPerson } from '../lib/campflow';
 import { CAMPFLOW_EVENT_ID_PATTERN, campflowGetAll, getCampflowEvents } from '../lib/campflow';
 import { campflowErrorResponse } from '../lib/campflow-api';
 import { fahrtenMails, sendFahrtenMails } from '../lib/fahrten-mail';
-import type { FahrtenMailErgebnis } from '../lib/fahrten-mail';
+import type { FahrtenMailErgebnis } from '../lib/fahrten-mail-model';
 import { ok } from '../lib/pflege-api';
 import { errorResponse, readJsonBody } from '../lib/response-utils';
 import { getPrincipalFirstName, isPreviewDeployment } from '../lib/staff-auth';

@@ -182,6 +182,12 @@ export const ROUTES: RegisteredRoute[] = [
     route: 'intern/aktionen/{id}/beitraege',
   },
   {
+    name: 'internAktionFahrtenMail',
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'intern/aktionen/{id}/fahrten-mail',
+  },
+  {
     name: 'internKostenstellen',
     methods: ['GET'],
     authLevel: 'anonymous',

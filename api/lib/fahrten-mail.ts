@@ -5,16 +5,7 @@ import type { MailReplyTo } from './mail';
 import { mailLayout, mailMessageBlock } from './mail-template';
 import { ValidationError } from './validation/errors';
 import type { FahrtenMailInput } from './validation/fahrten';
-
-/** Who got a mail, who has no address in CampFlow and whose mail failed, by name. */
-export interface FahrtenMailErgebnis {
-  gesendet: string[];
-  ohneAdresse: string[];
-  /** Drivers whose mail did not go out, so the browser can send theirs again. */
-  fehlgeschlagen: { id: string; name: string }[];
-  /** In a PR preview nothing is sent; `gesendet` names who would have got a mail. */
-  vorschau: boolean;
-}
+import type { FahrtenMailErgebnis } from './fahrten-mail-model';
 
 /** One mail to the family or Leitende behind a driving registration. */
 export interface FahrtenMail {

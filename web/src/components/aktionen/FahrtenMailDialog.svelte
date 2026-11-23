@@ -7,7 +7,7 @@
   import { FAHRT_LABEL } from '../../lib/fahrtenPlan';
   import type { Fahrt, FahrtPlan } from '../../lib/fahrtenPlan';
   import { fahrtenMailBody, mailFahrer, namensListe } from '../../lib/fahrtenMail';
-  import type { FahrtenMailErgebnis } from '../../../../api/lib/fahrten-mail';
+  import type { FahrtenMailErgebnis } from '../../../../api/lib/fahrten-mail-model';
 
   interface Props {
     /** CampFlow id of the Aktion. */
