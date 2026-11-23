@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import FormField from './FormField.svelte';
   import BelegStatusLabel from './BelegStatusLabel.svelte';
   import BelegCampflowTransfer from './BelegCampflowTransfer.svelte';
@@ -19,9 +20,7 @@
 {#if form.id}
   <fieldset class="space-y-4 rounded-md border border-neutral-200 p-4">
     <legend class="form-label px-1">Prüfung durch die Kasse</legend>
-    <p class="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-      Status: <BelegStatusLabel status={form.status} />
-    </p>
+    <BelegStatusLabel status={form.status} />
     {#if !reviewer}
       {#if form.reviewNote}
         <p class="text-sm text-neutral-800">
@@ -30,12 +29,15 @@
         </p>
       {/if}
       {#if form.status === 'Abgelehnt'}
-        <ActionButton
-          variant="secondary"
-          type="button"
-          disabled={busy}
-          onclick={() => onsave('Eingereicht')}>Erneut einreichen</ActionButton
-        >
+        <Aktionsraster>
+          <ActionButton
+            class="col-span-2"
+            variant="primary"
+            type="button"
+            disabled={busy}
+            onclick={() => onsave('Eingereicht')}>Erneut einreichen</ActionButton
+          >
+        </Aktionsraster>
       {/if}
     {:else}
       <FormField
@@ -53,9 +55,10 @@
             bind:value={form!.reviewNote}></textarea>
         {/snippet}
       </FormField>
-      <div class="flex flex-wrap gap-2">
+      <Aktionsraster>
         {#if form.status !== 'Angenommen'}
           <ActionButton
+            class={form.status === 'Abgelehnt' ? 'col-span-2' : ''}
             variant="primary"
             type="button"
             disabled={busy}
@@ -64,6 +67,7 @@
         {:else}
           <!-- An accepted receipt keeps its details; taking it back opens them again -->
           <ActionButton
+            class="col-span-2"
             variant="secondary"
             type="button"
             disabled={busy}
@@ -79,13 +83,14 @@
           >
         {:else}
           <ActionButton
+            class="col-span-2"
             variant="secondary"
             type="button"
             disabled={busy}
             onclick={() => onsave('Eingereicht')}>Erneut einreichen</ActionButton
           >
         {/if}
-      </div>
+      </Aktionsraster>
     {/if}
     {#if reviewer && form.status === 'Angenommen'}
       <BelegCampflowTransfer {form} {busy} {ontransfer} />
