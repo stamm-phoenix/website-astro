@@ -56,6 +56,7 @@ export const CONFIG: ApiConfig = {
     nikolausSender: 'nikolaus@stamm-phoenix.de',
     sammelbestellungSender: 'bestellungen@stamm-phoenix.de',
     belegeSender: 'kontakt@stamm-phoenix.de',
+    fahrtenSender: 'kontakt@stamm-phoenix.de',
   },
   taskDirectory: {
     groupId: TEAM_LEITENDE,

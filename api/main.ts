@@ -36,6 +36,7 @@ import './endpoints/intern-nikolaus-bookings';
 import './endpoints/intern-aktionen';
 import './endpoints/intern-aktion';
 import './endpoints/intern-aktion-beitraege';
+import './endpoints/intern-aktion-fahrten-mail';
 import './endpoints/intern-abrechnung-kostenstellen';
 import './endpoints/intern-abrechnung-eingabe';
 import './endpoints/intern-abrechnung-zeitplan';
