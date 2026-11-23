@@ -42,6 +42,8 @@ export interface ApiConfig {
      * without it no mail is sent.
      */
     belegeSender?: string;
+    /** Mailbox that tells the drivers of an Aktion their cars; replies go to the sending leader. */
+    fahrtenSender: string;
   };
   taskDirectory: { groupId: string; domain: string; shortNames: Record<string, readonly string[]> };
   taskReminders: {
