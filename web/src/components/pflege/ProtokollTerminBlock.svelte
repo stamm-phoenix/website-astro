@@ -1,6 +1,7 @@
 <script lang="ts">
   import { formatDay, formatDateTime } from '../../lib/format';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import EditDialog from './EditDialog.svelte';
   import FormField from './FormField.svelte';
   import { createDialogForm } from '../../lib/dialogForm.svelte';
@@ -66,6 +67,10 @@
   );
   /** Manual decisions also work before the first model call. */
   const mayDecide = $derived(!stale && !protokoll.changedSinceApproval);
+  /** The button to recognize the date again (or to reset it) is part of the block. */
+  const zeigtErkennen = $derived(
+    mayRecognize && (decision === 'offen' || decision === 'abgelehnt' || stale)
+  );
   const anyBusy = $derived(busy !== null);
   const headingId = $derived(`protokoll-termin-${protokoll.id}`);
   /**
@@ -241,6 +246,27 @@
   }
 </script>
 
+{#snippet erkennen(spaltenbreit: boolean)}
+  <ActionButton
+    variant="secondary"
+    type="button"
+    class={spaltenbreit ? 'col-span-2' : ''}
+    disabled={anyBusy}
+    aria-busy={busy === 'erkennen'}
+    onclick={() => terminAction(protokoll, 'erkennen')}
+  >
+    {busy === 'erkennen'
+      ? recognitionConfigured
+        ? 'Wird erkannt …'
+        : 'Wird zurückgesetzt …'
+      : !recognitionConfigured
+        ? 'Termin zurücksetzen'
+        : extraction === null || extraction === 'nicht ausgefuehrt'
+          ? 'Termin erkennen'
+          : 'Erneut erkennen'}
+  </ActionButton>
+{/snippet}
+
 <section aria-labelledby={headingId} class="space-y-2 border-l-2 border-neutral-300 py-1 pl-4">
   <h3 id={headingId} class="text-sm font-semibold text-brand-900">
     Nächste Leitendenrunde<span class="sr-only"> laut {protokoll.title}</span>
@@ -259,26 +285,29 @@
         ? ` am ${formatDateTime(termin.decidedAt)}`
         : ''}
     </p>
-    {#if mayDecide}
-      <div class="flex flex-wrap gap-2">
-        <ActionButton
-          variant="secondary"
-          type="button"
-          disabled={anyBusy}
-          onclick={() => startTermin(protokoll, false)}
-        >
-          Ändern<span class="sr-only"> (nächste Leitendenrunde)</span>
-        </ActionButton>
-        <ActionButton
-          variant="secondary"
-          type="button"
-          disabled={anyBusy}
-          aria-busy={busy === 'ablehnen'}
-          onclick={() => terminAction(protokoll, 'ablehnen')}
-        >
-          {busy === 'ablehnen' ? 'Wird gespeichert …' : 'Kein Termin'}
-        </ActionButton>
-      </div>
+    {#if mayDecide || zeigtErkennen}
+      <Aktionsraster>
+        {#if mayDecide}
+          <ActionButton
+            variant="secondary"
+            type="button"
+            disabled={anyBusy}
+            onclick={() => startTermin(protokoll, false)}
+          >
+            Ändern<span class="sr-only"> (nächste Leitendenrunde)</span>
+          </ActionButton>
+          <ActionButton
+            variant="secondary"
+            type="button"
+            disabled={anyBusy}
+            aria-busy={busy === 'ablehnen'}
+            onclick={() => terminAction(protokoll, 'ablehnen')}
+          >
+            {busy === 'ablehnen' ? 'Wird gespeichert …' : 'Kein Termin'}
+          </ActionButton>
+        {/if}
+        {#if zeigtErkennen}{@render erkennen(true)}{/if}
+      </Aktionsraster>
     {/if}
   {:else if termin && decision === 'abgelehnt'}
     <p class="text-sm text-neutral-800">Kein nächster Termin eingetragen.</p>
@@ -289,17 +318,20 @@
           : ''}
       </p>
     {/if}
-    {#if mayDecide}
-      <div class="flex flex-wrap gap-2">
-        <ActionButton
-          variant="secondary"
-          type="button"
-          disabled={anyBusy}
-          onclick={() => startTermin(protokoll, false)}
-        >
-          Neu eintragen<span class="sr-only"> (nächste Leitendenrunde)</span>
-        </ActionButton>
-      </div>
+    {#if mayDecide || zeigtErkennen}
+      <Aktionsraster>
+        {#if mayDecide}
+          <ActionButton
+            variant="secondary"
+            type="button"
+            disabled={anyBusy}
+            onclick={() => startTermin(protokoll, false)}
+          >
+            Neu eintragen<span class="sr-only"> (nächste Leitendenrunde)</span>
+          </ActionButton>
+        {/if}
+        {#if zeigtErkennen}{@render erkennen(false)}{/if}
+      </Aktionsraster>
     {/if}
   {:else}
     {#if termin && hasSuggestion}
@@ -327,57 +359,41 @@
       <p class="text-sm text-neutral-800">Noch kein Termin erkannt oder eingetragen.</p>
     {/if}
 
-    {#if mayDecide}
-      <div class="flex flex-wrap gap-2">
-        {#if hasSuggestion}
-          <ActionButton
-            variant="primary"
-            type="button"
-            disabled={anyBusy}
-            onclick={() => startTermin(protokoll, true)}
-          >
-            Bestätigen<span class="sr-only"> (nächste Leitendenrunde)</span>
-          </ActionButton>
-        {:else}
+    {#if mayDecide || zeigtErkennen}
+      <Aktionsraster>
+        {#if mayDecide}
+          {#if hasSuggestion}
+            <ActionButton
+              variant="primary"
+              type="button"
+              disabled={anyBusy}
+              onclick={() => startTermin(protokoll, true)}
+            >
+              Bestätigen<span class="sr-only"> (nächste Leitendenrunde)</span>
+            </ActionButton>
+          {:else}
+            <ActionButton
+              variant="secondary"
+              type="button"
+              disabled={anyBusy}
+              onclick={() => startTermin(protokoll, false)}
+            >
+              Termin eintragen
+            </ActionButton>
+          {/if}
           <ActionButton
             variant="secondary"
             type="button"
             disabled={anyBusy}
-            onclick={() => startTermin(protokoll, false)}
+            aria-busy={busy === 'ablehnen'}
+            onclick={() => terminAction(protokoll, 'ablehnen')}
           >
-            Termin eintragen
+            {busy === 'ablehnen' ? 'Wird gespeichert …' : 'Kein Termin'}
           </ActionButton>
         {/if}
-        <ActionButton
-          variant="secondary"
-          type="button"
-          disabled={anyBusy}
-          aria-busy={busy === 'ablehnen'}
-          onclick={() => terminAction(protokoll, 'ablehnen')}
-        >
-          {busy === 'ablehnen' ? 'Wird gespeichert …' : 'Kein Termin'}
-        </ActionButton>
-      </div>
+        {#if zeigtErkennen}{@render erkennen(true)}{/if}
+      </Aktionsraster>
     {/if}
-  {/if}
-  {#if mayRecognize && (decision === 'offen' || decision === 'abgelehnt' || stale)}
-    <ActionButton
-      variant="secondary"
-      type="button"
-      disabled={anyBusy}
-      aria-busy={busy === 'erkennen'}
-      onclick={() => terminAction(protokoll, 'erkennen')}
-    >
-      {busy === 'erkennen'
-        ? recognitionConfigured
-          ? 'Wird erkannt …'
-          : 'Wird zurückgesetzt …'
-        : !recognitionConfigured
-          ? 'Termin zurücksetzen'
-          : extraction === null || extraction === 'nicht ausgefuehrt'
-            ? 'Termin erkennen'
-            : 'Erneut erkennen'}
-    </ActionButton>
   {/if}
 </section>
 

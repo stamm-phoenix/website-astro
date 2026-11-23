@@ -13,6 +13,7 @@
   import LoadState from '../ui/LoadState.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
 
+  import ProtokollKarteAktionen from './ProtokollKarteAktionen.svelte';
   import ProtokollTerminBlock from './ProtokollTerminBlock.svelte';
   import ReloadButton from './ReloadButton.svelte';
   import StatusNotice from './StatusNotice.svelte';
@@ -454,133 +455,30 @@
                   </p>
                 {/if}
 
-                <div class="flex flex-wrap gap-2">
-                  {#if protokoll.webUrl}
-                    <a
-                      class="btn-secondary"
-                      href={protokoll.webUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {protokoll.fileName.toLowerCase().endsWith('.docx')
-                        ? `In Word ${isDone(protokoll) ? 'öffnen' : 'bearbeiten'}`
-                        : 'Datei öffnen'}<span class="sr-only">
-                        ({protokoll.title}, neues Fenster)</span
-                      >
-                    </a>
-                    <ActionButton
-                      variant="secondary"
-                      type="button"
-                      onclick={() => copyLink(protokoll)}
-                    >
-                      Link kopieren<span class="sr-only"> ({protokoll.title})</span>
-                    </ActionButton>
-                  {/if}
-                  <ActionButton
-                    variant="secondary"
-                    type="button"
-                    disabled={busy}
-                    onclick={() => downloadPdf(protokoll)}
-                  >
-                    {protokoll.fileName.toLowerCase().endsWith('.txt') ? 'TXT' : 'PDF'}<span
-                      class="sr-only"
-                    >
-                      von {protokoll.title} herunterladen</span
-                    >
-                  </ActionButton>
-                  <ActionButton
-                    variant="secondary"
-                    type="button"
-                    aria-expanded={preview?.id === protokoll.id}
-                    aria-controls="protokoll-preview-{protokoll.id}"
-                    onclick={() => togglePreview(protokoll)}
-                  >
-                    {preview?.id === protokoll.id ? 'Vorschau schließen' : 'Vorschau'}<span
-                      class="sr-only"
-                    >
-                      ({protokoll.title})</span
-                    >
-                  </ActionButton>
-
-                  {#if protokoll.status === 'Entwurf'}
-                    <ActionButton
-                      variant="primary"
-                      type="button"
-                      disabled={busy}
-                      aria-busy={busy}
-                      onclick={() => changeState(protokoll, 'review')}
-                    >
-                      Zur Prüfung geben
-                    </ActionButton>
-                    <ActionButton
-                      variant="secondary"
-                      type="button"
-                      disabled={busy}
-                      onclick={() => {
-                        approving = protokoll;
-                        approveError = null;
-                      }}
-                    >
-                      Freigeben
-                    </ActionButton>
-                  {:else if protokoll.status === 'Review'}
-                    <ActionButton
-                      variant="primary"
-                      type="button"
-                      disabled={busy}
-                      onclick={() => {
-                        approving = protokoll;
-                        approveError = null;
-                      }}
-                    >
-                      Freigeben
-                    </ActionButton>
-                    <ActionButton
-                      variant="secondary"
-                      type="button"
-                      disabled={busy}
-                      onclick={() => {
-                        rejecting = { protokoll, note: '' };
-                      }}
-                    >
-                      Zurückgeben
-                    </ActionButton>
-                  {:else if protokoll.status === 'Freigegeben'}
-                    {#if data.sendingConfigured && !protokoll.changedSinceApproval}
-                      <ActionButton
-                        variant={protokoll.delivery ? 'danger' : 'primary'}
-                        type="button"
-                        disabled={busy}
-                        aria-busy={busy}
-                        onclick={() => startSend(protokoll, protokoll.delivery !== null)}
-                      >
-                        {protokoll.delivery ? 'Erneut senden' : 'Protokoll verschicken'}
-                      </ActionButton>
-                    {/if}
-                    {#if !protokoll.delivery}
-                      <ActionButton
-                        variant="secondary"
-                        type="button"
-                        disabled={busy}
-                        onclick={() => changeState(protokoll, 'reopen')}
-                      >
-                        Wieder bearbeiten
-                      </ActionButton>
-                    {/if}
-                  {/if}
-                  {#if mayDelete(protokoll)}
-                    <ActionButton
-                      variant="danger"
-                      type="button"
-                      disabled={busy}
-                      onclick={() => {
-                        deleting = protokoll;
-                      }}
-                    >
-                      Löschen<span class="sr-only"> ({protokoll.title})</span>
-                    </ActionButton>
-                  {/if}
-                </div>
+                <ProtokollKarteAktionen
+                  {protokoll}
+                  {busy}
+                  sendingConfigured={data.sendingConfigured}
+                  previewOpen={preview?.id === protokoll.id}
+                  done={isDone(protokoll)}
+                  mayDelete={mayDelete(protokoll)}
+                  onreview={() => changeState(protokoll, 'review')}
+                  onapprove={() => {
+                    approving = protokoll;
+                    approveError = null;
+                  }}
+                  onreject={() => {
+                    rejecting = { protokoll, note: '' };
+                  }}
+                  onsend={() => startSend(protokoll, protokoll.delivery !== null)}
+                  onreopen={() => changeState(protokoll, 'reopen')}
+                  oncopylink={() => copyLink(protokoll)}
+                  onpdf={() => downloadPdf(protokoll)}
+                  onpreview={() => togglePreview(protokoll)}
+                  ondelete={() => {
+                    deleting = protokoll;
+                  }}
+                />
                 {#if preview?.id === protokoll.id}
                   <div id="protokoll-preview-{protokoll.id}">
                     {#if preview.error}

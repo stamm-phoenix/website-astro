@@ -9,6 +9,7 @@
   import ProtokollAnsicht from './ProtokollAnsicht.svelte';
   import ProtokollKopfEditor from './ProtokollKopfEditor.svelte';
   import ProtokollFreigabeDialog from './ProtokollFreigabeDialog.svelte';
+  import ProtokollPunktHinzufuegen from './ProtokollPunktHinzufuegen.svelte';
   import ProtokollReview from './ProtokollReview.svelte';
   import ProtokollTagesordnung from './ProtokollTagesordnung.svelte';
   import ProtokollTextModusWahl from './ProtokollTextModusWahl.svelte';
@@ -678,26 +679,11 @@
             {textModus}
             onactive={(punkt) => session.setActive(punkt)}
           />
-          <div class="flex flex-wrap gap-2 border-t border-neutral-200 pt-4">
-            <ActionButton
-              onclick={addPunkt}
-              disabled={session.stand.inhalt.punkte.length >= MAX_PUNKTE}
-            >
-              + Tagesordnungspunkt
-            </ActionButton>
-            <ActionButton
-              onclick={() => (aktionOpen = 'Planung')}
-              disabled={session.stand.inhalt.punkte.length >= MAX_PUNKTE}
-            >
-              + Planungskapitel aus Aktion
-            </ActionButton>
-            <ActionButton
-              onclick={() => (aktionOpen = 'Reflexion')}
-              disabled={session.stand.inhalt.punkte.length >= MAX_PUNKTE}
-            >
-              + Reflexionskapitel aus Aktion
-            </ActionButton>
-          </div>
+          <ProtokollPunktHinzufuegen
+            disabled={session.stand.inhalt.punkte.length >= MAX_PUNKTE}
+            onpunkt={addPunkt}
+            onaktion={(art) => (aktionOpen = art)}
+          />
         </section>
 
         <section class="space-y-4" aria-labelledby="naechste-titel">
