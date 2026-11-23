@@ -1,7 +1,9 @@
 <script lang="ts">
   import { ApiError, sendApi, errorMessage } from '../../lib/api';
   import type { BlogWorkflow } from '../../../../api/lib/blog-workflow-model';
+  import type { Snippet } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { blogPflege } from '../../lib/pflegeStore.svelte';
@@ -10,8 +12,14 @@
     etag: string;
     disabled: boolean;
     workflow: BlogWorkflow;
+    /** There are changes that were not saved yet: the next step waits for the save. */
+    dirty: boolean;
     busy?: boolean;
     feedback?: string;
+    /** First button of the block (save), in the block's grid. */
+    speichern: Snippet;
+    /** Last buttons of the block (website, delete), in the block's grid. */
+    danach: Snippet;
     onchanged: (result: { etag: string; workflow: BlogWorkflow }, message: string) => void;
   }
   let {
@@ -19,8 +27,11 @@
     etag,
     disabled,
     workflow,
+    dirty,
     busy = $bindable(false),
     feedback = $bindable(''),
+    speichern,
+    danach,
     onchanged,
   }: Props = $props();
   let error = $state('');
@@ -100,31 +111,49 @@
           bind:value={feedback}></textarea></label
       >
     {/if}
-    <div class="flex flex-wrap gap-2">
+    <Aktionsraster>
+      {@render speichern()}
       {#if workflow.state === 'draft'}
-        <ActionButton type="button" disabled={disabled || busy} onclick={() => act('submit')}
-          >Zur Prüfung einreichen</ActionButton
+        <ActionButton
+          type="button"
+          variant={dirty ? 'secondary' : 'primary'}
+          class="col-span-2"
+          disabled={disabled || busy}
+          onclick={() => act('submit')}>Zur Prüfung einreichen</ActionButton
         >
       {:else if workflow.state === 'review'}
-        <ActionButton type="button" disabled={disabled || busy} onclick={() => act('approve')}
-          >Freigeben</ActionButton
+        <ActionButton
+          type="button"
+          variant={dirty ? 'secondary' : 'primary'}
+          class="col-span-2"
+          disabled={disabled || busy}
+          onclick={() => act('approve')}>Freigeben</ActionButton
         >
         <ActionButton
           type="button"
           disabled={disabled || busy || !feedback.trim()}
-          onclick={() => act('return')}>Mit Rückmeldung zurückgeben</ActionButton
+          onclick={() => act('return')}>Zurückgeben</ActionButton
         >
       {:else if workflow.state === 'approved'}
-        <ActionButton type="button" disabled={disabled || busy} onclick={() => act('publish')}
-          >Veröffentlichen</ActionButton
+        <ActionButton
+          type="button"
+          variant={dirty ? 'secondary' : 'primary'}
+          class="col-span-2"
+          disabled={disabled || busy}
+          onclick={() => act('publish')}>Veröffentlichen</ActionButton
         >
       {:else}
-        <ActionButton type="button" disabled={disabled || busy} onclick={() => act('unpublish')}
-          >Veröffentlichung zurücknehmen</ActionButton
+        <ActionButton
+          type="button"
+          class="col-span-2"
+          disabled={disabled || busy}
+          onclick={() => act('unpublish')}>Veröffentlichung zurücknehmen</ActionButton
         >
       {/if}
-    </div>
+      {@render danach()}
+    </Aktionsraster>
   {/if}
+  {#if dirty}<p class="text-sm text-neutral-700">Ungespeicherte Änderungen</p>{/if}
   {#if disabled}<p class="text-sm text-neutral-700">Änderungen zuerst speichern.</p>{/if}
   {#if busy}<p role="status">Wird geändert …</p>{/if}
   {#if error}<p role="alert" class="text-danger"><MessageText text={error} /></p>{/if}

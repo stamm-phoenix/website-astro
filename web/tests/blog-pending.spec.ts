@@ -30,7 +30,7 @@ for (const status of [500, 401]) {
     });
     await page.goto('/leitendenbereich/blog/beitrag?id=700');
     await page.getByLabel('Rückmeldung bei Rückgabe').fill('Bitte Datum prüfen.');
-    await page.getByRole('button', { name: 'Mit Rückmeldung zurückgeben', exact: true }).click();
+    await page.getByRole('button', { name: 'Zurückgeben', exact: true }).click();
     await expect(page.getByText('Wird geändert …', { exact: true })).toBeVisible();
     expect(await page.locator('#blog-title').evaluate((node) => !!node.closest('[inert]'))).toBe(
       true
