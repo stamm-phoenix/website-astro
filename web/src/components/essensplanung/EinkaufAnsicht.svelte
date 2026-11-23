@@ -1,13 +1,15 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
+  import StatusLabel from '../ui/StatusLabel.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import { confirmAction } from '../../lib/confirm';
   import type { EinkaufListe, EinkaufListenPosten } from '../../lib/essensplanungEinkaeufe';
   import { herkunft, type PostenHerkunft } from '../../lib/essensplanungHerkunft';
   import { einkaufInfo } from './einkaufInfo';
   import HerkunftUmschalter from './HerkunftUmschalter.svelte';
-  import { KNOPF, herkunftAnzeige } from './einkaufHerkunft.svelte';
+  import { herkunftAnzeige } from './einkaufHerkunft.svelte';
   import { einkaufStand } from '../../../../api/lib/essen-einkaeufe-model';
   import EinkaufForm from './EinkaufForm.svelte';
   import EinkaufListeAnsicht from './EinkaufListe.svelte';
@@ -179,10 +181,7 @@
       >
         {einkauf.name}
       </h3>
-      {#if einkauf.abgeschlossen}<span
-          class="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-700"
-          >abgeschlossen</span
-        >{/if}
+      {#if einkauf.abgeschlossen}<StatusLabel label="Abgeschlossen" />{/if}
       <span class="text-sm text-neutral-700">{info}</span>
     </div>
     <div class="flex items-center gap-2">
@@ -213,48 +212,48 @@
         />
       {/if}
       <HerkunftUmschalter />
-      <span class="flex flex-wrap gap-1">
-        <PdfKnopf
-          {kontext}
-          label="Einkauf als PDF"
-          ariaLabel="{einkauf.name} als PDF"
-          class={KNOPF}
-          disabled={!katalogGeladen}
-          erstellen={async () => {
-            const { downloadEinkaufPdf } = await import('../../lib/essensplanungPdf');
-            await downloadEinkaufPdf(ansicht, liste, info);
-          }}
-        />
-        {#if bearbeiten}
-          <ActionButton
-            type="button"
-            class={KNOPF}
-            aria-expanded={aendernOffen}
-            aria-label="{einkauf.name} ändern"
-            onclick={() => {
-              formular = true;
-              aendernOffen = !aendernOffen;
-            }}>Ändern</ActionButton
-          >
-          <ActionButton
-            type="button"
-            class={KNOPF}
-            disabled={kontext.busy}
-            aria-label="{einkauf.name} {einkauf.abgeschlossen ? 'wieder öffnen' : 'abschließen'}"
-            onclick={() => void abschliessen(!einkauf.abgeschlossen)}
-            >{einkauf.abgeschlossen ? 'Wieder öffnen' : 'Abschließen'}</ActionButton
-          >
-          <ActionButton
-            type="button"
-            variant="danger"
-            class={KNOPF}
-            disabled={kontext.busy}
-            aria-label="{einkauf.name} löschen"
-            onclick={() => void loeschen()}>Löschen</ActionButton
-          >
-        {/if}
-      </span>
     </div>
+    <Aktionsraster>
+      {#if bearbeiten}
+        <ActionButton
+          type="button"
+          variant={einkauf.abgeschlossen ? 'secondary' : 'primary'}
+          class="col-span-2"
+          disabled={kontext.busy}
+          aria-label="{einkauf.name} {einkauf.abgeschlossen ? 'wieder öffnen' : 'abschließen'}"
+          onclick={() => void abschliessen(!einkauf.abgeschlossen)}
+          >{einkauf.abgeschlossen ? 'Wieder öffnen' : 'Abschließen'}</ActionButton
+        >
+      {/if}
+      <PdfKnopf
+        {kontext}
+        label="Einkauf als PDF"
+        ariaLabel="{einkauf.name} als PDF"
+        disabled={!katalogGeladen}
+        erstellen={async () => {
+          const { downloadEinkaufPdf } = await import('../../lib/essensplanungPdf');
+          await downloadEinkaufPdf(ansicht, liste, info);
+        }}
+      />
+      {#if bearbeiten}
+        <ActionButton
+          type="button"
+          aria-expanded={aendernOffen}
+          aria-label="{einkauf.name} ändern"
+          onclick={() => {
+            formular = true;
+            aendernOffen = !aendernOffen;
+          }}>Ändern</ActionButton
+        >
+        <ActionButton
+          type="button"
+          variant="danger"
+          disabled={kontext.busy}
+          aria-label="{einkauf.name} löschen"
+          onclick={() => void loeschen()}>Löschen</ActionButton
+        >
+      {/if}
+    </Aktionsraster>
   </div>
   {#if formular}
     <div hidden={!aendernOffen}>

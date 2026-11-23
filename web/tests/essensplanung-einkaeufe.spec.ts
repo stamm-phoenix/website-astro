@@ -115,7 +115,7 @@ test('two shop at once in the live mode; a rest goes to the next trip and into t
   // Finishing Monday keeps what was bought
   await oeffnen(page, 'Montag');
   await montag.getByRole('button', { name: 'Montag abschließen' }).click();
-  await expect(montag).toContainText('abgeschlossen');
+  await expect(montag).toContainText('Abgeschlossen');
   await expect(montag.getByRole('button', { name: 'Liste anpassen' })).toHaveCount(0);
   await oeffnen(page, 'Mittwoch', 'liste');
   await expect(page.getByRole('list', { name: 'Mittwoch: Teigware' })).toContainText(
