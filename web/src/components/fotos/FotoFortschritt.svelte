@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import MessageText from '../ui/MessageText.svelte';
   import FotoBenachrichtigung from './FotoBenachrichtigung.svelte';
   import FotoPfad from './FotoPfad.svelte';
@@ -249,27 +250,28 @@
     {/if}
 
     {#if !running}
-      <div class="flex flex-wrap gap-2">
+      <Aktionsraster>
         {#if count.failed || count.waiting}
-          <ActionButton variant="primary" onclick={retryFotoUpload}>
+          <ActionButton variant="primary" class="col-span-2" onclick={retryFotoUpload}>
             {phase === 'cancelled' ? 'Weiter hochladen' : 'Fehlgeschlagene erneut versuchen'}
           </ActionButton>
         {/if}
         {#if fotoUpload.target}
           <ActionButton
             variant={count.failed || count.waiting ? 'secondary' : 'primary'}
+            class="col-span-2"
             onclick={() => fotoUpload.target && onshow(fotoUpload.target.path)}
           >
             Fotos ansehen
           </ActionButton>
         {/if}
-        <ActionButton onclick={() => resetFotoUpload()}>Weitere Fotos hochladen</ActionButton>
+        <ActionButton onclick={() => resetFotoUpload()}>Weitere hochladen</ActionButton>
         {#if fotoUpload.target?.webUrl}
           <a class="btn-secondary" href={fotoUpload.target.webUrl} target="_blank" rel="noopener"
-            >In SharePoint öffnen<span class="sr-only"> (öffnet neuen Tab)</span></a
+            >In SharePoint<span class="sr-only"> öffnen (öffnet neuen Tab)</span></a
           >
         {/if}
-      </div>
+      </Aktionsraster>
     {/if}
 
     <details bind:open={showAll}>

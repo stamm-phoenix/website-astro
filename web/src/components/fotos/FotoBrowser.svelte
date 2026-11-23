@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import FotoDetail from './FotoDetail.svelte';
@@ -180,12 +181,14 @@
     </nav>
 
     <!-- Same height while loading, so nothing jumps when the link arrives -->
-    <div class="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2">
+    <div class="space-y-1">
       {#if path}
-        <ActionButton onclick={() => onupload(path)}>Hierher hochladen</ActionButton>
-        <ActionButton onclick={() => void copyLink()}>
-          <span aria-live="polite">{copied ? 'Link kopiert ✓' : 'Link kopieren'}</span>
-        </ActionButton>
+        <Aktionsraster>
+          <ActionButton onclick={() => onupload(path)}>Hierher hochladen</ActionButton>
+          <ActionButton onclick={() => void copyLink()}>
+            <span aria-live="polite">{copied ? 'Link kopiert ✓' : 'Link kopieren'}</span>
+          </ActionButton>
+        </Aktionsraster>
       {/if}
       {#if data?.webUrl}
         <a
