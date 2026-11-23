@@ -129,7 +129,8 @@ test('a Word approval after a conflict loads the current version and asks again'
   });
   await page.goto('/leitendenbereich/protokolle');
   const item = page.locator('#protokoll-prot-2');
-  await item.getByRole('button', { name: 'Freigeben', exact: true }).click();
+  await item.getByRole('button', { name: 'Mehr' }).click();
+  await page.getByRole('button', { name: 'Ohne Prüfung freigeben' }).click();
   const approve = page.getByRole('dialog', { name: '„Stavo-Sitzung“ freigeben?' });
   const tick = approve.getByRole('checkbox', { name: /ohne zweite Person/ });
   await tick.check();
