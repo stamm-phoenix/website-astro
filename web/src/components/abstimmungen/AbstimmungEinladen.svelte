@@ -1,5 +1,6 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import StatusNotice from '../pflege/StatusNotice.svelte';
   import ProtokollEmpfaenger from '../protokolle/ProtokollEmpfaenger.svelte';
@@ -260,9 +261,10 @@
   }
 </script>
 
-<div class="flex flex-wrap gap-2">
+<Aktionsraster>
   <ActionButton
     variant="primary"
+    class="col-span-2"
     disabled={loading || busy || fortschritt !== null || abstimmung.geschlossen}
     aria-busy={loading}
     onclick={() => void start()}
@@ -271,6 +273,7 @@
   {#if erinnerbar > 0}
     <ActionButton
       variant="secondary"
+      class="col-span-2"
       disabled={busy || fortschritt !== null || abstimmung.geschlossen}
       onclick={() => void remind()}>An Abstimmung erinnern</ActionButton
     >
@@ -278,11 +281,12 @@
   {#if offeneMails > 0 && fortschritt === null}
     <ActionButton
       variant="secondary"
+      class="col-span-2"
       disabled={busy || abstimmung.geschlossen}
       onclick={() => void deliver('Mails')}>Restliche Mails verschicken</ActionButton
     >
   {/if}
-</div>
+</Aktionsraster>
 
 {#if fortschritt}
   <p role="status" class="mt-2 text-sm text-neutral-800">

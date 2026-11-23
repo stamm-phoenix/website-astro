@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { navigate } from 'astro:transitions/client';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import PdfDownloadButton from '../ui/PdfDownloadButton.svelte';
   import LoadState from '../ui/LoadState.svelte';
   import ReloadAction from '../ui/ReloadAction.svelte';
@@ -244,29 +245,36 @@
               </p>
             {/if}
           </div>
-          <div class="flex flex-wrap items-center gap-2">
-            {#if abstimmung.eigene}
-              <ActionButton variant="secondary" disabled={busy} onclick={() => (bearbeiten = true)}
-                >Bearbeiten</ActionButton
-              >
-              <ActionButton
-                variant="secondary"
-                disabled={busy}
-                onclick={() => void setGeschlossen(!abstimmung.geschlossen)}
-                >{abstimmung.geschlossen ? 'Wieder öffnen' : 'Abstimmung beenden'}</ActionButton
-              >
-            {/if}
-            <PdfDownloadButton
-              download={async () => {
-                const shown = abstimmung;
-                await (await import('../../lib/abstimmungPdf')).downloadAbstimmungPdf(shown);
-              }}
-              errorText="Das PDF des Ergebnisses konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal."
-              onresult={(kind, text) => {
-                messageKind = kind;
-                message = text;
-              }}
-            />
+          <div class="w-full space-y-2 sm:w-auto sm:min-w-80">
+            <Aktionsraster>
+              {#if abstimmung.eigene}
+                <ActionButton
+                  variant="secondary"
+                  disabled={busy}
+                  onclick={() => (bearbeiten = true)}>Bearbeiten</ActionButton
+                >
+              {/if}
+              <PdfDownloadButton
+                download={async () => {
+                  const shown = abstimmung;
+                  await (await import('../../lib/abstimmungPdf')).downloadAbstimmungPdf(shown);
+                }}
+                errorText="Das PDF des Ergebnisses konnte nicht erstellt werden. Lade die Seite neu und versuche es noch einmal."
+                onresult={(kind, text) => {
+                  messageKind = kind;
+                  message = text;
+                }}
+              />
+              {#if abstimmung.eigene}
+                <ActionButton
+                  variant="secondary"
+                  class="col-span-2"
+                  disabled={busy}
+                  onclick={() => void setGeschlossen(!abstimmung.geschlossen)}
+                  >{abstimmung.geschlossen ? 'Wieder öffnen' : 'Abstimmung beenden'}</ActionButton
+                >
+              {/if}
+            </Aktionsraster>
             <ReloadAction
               disabled={store.loading}
               aria-busy={store.loading}
