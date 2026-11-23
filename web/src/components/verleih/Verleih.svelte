@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import LoadState from '../ui/LoadState.svelte';
@@ -195,17 +196,18 @@
             </div>
           </details>
           {#if v.status === 'ausgegeben'}
-            <div class="flex flex-wrap gap-2">
+            <Aktionsraster>
               <ActionButton
-                type="button"
-                variant="secondary"
-                onclick={() => (eintrag = { vorgang: v })}>Ausleihe bearbeiten</ActionButton
-              >
-              <ActionButton
+                class="col-span-2"
                 type="button"
                 variant="primary"
                 onclick={() => (aktion = { vorgang: v, aktion: 'rueckgabe' })}
                 >Rückgabe erfassen</ActionButton
+              >
+              <ActionButton
+                type="button"
+                variant="secondary"
+                onclick={() => (eintrag = { vorgang: v })}>Ausleihe bearbeiten</ActionButton
               >
               {#if v.positionen.every((p) => p.zurueck === 0)}<ActionButton
                   type="button"
@@ -213,7 +215,7 @@
                   onclick={() => (aktion = { vorgang: v, aktion: 'stornieren' })}
                   >Ausleihe absagen</ActionButton
                 >{/if}
-            </div>
+            </Aktionsraster>
           {/if}
           {#if v.mailOffen}
             <p role="status" class="text-warning">
