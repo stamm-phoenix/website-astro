@@ -107,7 +107,7 @@ export type { AbrechnungAblage } from './abrechnungEingaben';
 
 export const abrechnungSessions = $state<Record<string, AbrechnungSession>>({});
 /**
- * Lines typed under „Mehrere Zeilen einfügen“ of the Kurzbeschreibung and not taken over yet, by
+ * Lines typed under „Zeilen einfügen“ of the Kurzbeschreibung and not taken over yet, by
  * Aktion and day. Kept here so they survive a change of tab, and guarded like unsaved entries.
  */
 export const zeitplanZeilen = $state<Record<string, Record<string, string>>>({});

@@ -86,7 +86,7 @@
     >
       Block hinzufügen
     </ActionButton>
-    <ActionButton onclick={ontoggle}>Mehrere Zeilen einfügen</ActionButton>
+    <ActionButton onclick={ontoggle}>Zeilen einfügen</ActionButton>
   {/if}
   {#if !istNachUhrzeit(tag.bloecke)}
     <ActionButton onclick={onsort}>Nach Uhrzeit sortieren</ActionButton>
