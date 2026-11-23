@@ -1,0 +1,134 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "## Nutzung des Leitendenbereichs\nAufrufe der Module und gespeicherte Änderungen, nur Produktion. „Leitende“ zählt verschiedene Personen über ein Pseudonym, ohne Namen (docs/nutzungsstatistik.md)."
+      },
+      "name": "title"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "b6f4c0a2-5d1e-4f7a-9c3b-2e8d7a1f0c55",
+            "version": "KqlParameterItem/1.0",
+            "name": "Zeitraum",
+            "label": "Zeitraum",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 2592000000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                },
+                {
+                  "durationMs": 7776000000
+                }
+              ],
+              "allowCustom": true
+            }
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name in ('StaffModuleOpened', 'StaffAction') and tostring(customDimensions.environment) == 'production'\n| summarize ['Module geöffnet'] = countif(name == 'StaffModuleOpened'), ['Gespeicherte Änderungen'] = countif(name == 'StaffAction'), ['Aktive Leitende'] = dcountif(user_Id, isnotempty(user_Id))",
+        "size": 0,
+        "title": "Überblick",
+        "timeContextFromParameter": "Zeitraum",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "summary"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name == 'StaffModuleOpened' and tostring(customDimensions.environment) == 'production'\n| extend Modul = replace_string(tostring(customDimensions.module), '/leitendenbereich/', '')\n| summarize Aufrufe = count(), Leitende = dcountif(user_Id, isnotempty(user_Id)), ['Zuletzt geöffnet'] = max(timestamp) by Modul\n| order by Aufrufe desc",
+        "size": 0,
+        "title": "Aufrufe pro Modul",
+        "timeContextFromParameter": "Zeitraum",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "modules"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name == 'StaffModuleOpened' and tostring(customDimensions.environment) == 'production'\n| extend Modul = replace_string(tostring(customDimensions.module), '/leitendenbereich/', '')\n| summarize Aufrufe = count() by Modul\n| top 15 by Aufrufe",
+        "size": 0,
+        "title": "Meistgenutzte Module",
+        "timeContextFromParameter": "Zeitraum",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "barchart"
+      },
+      "name": "modules-chart"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let top = customEvents\n  | where name == 'StaffModuleOpened' and tostring(customDimensions.environment) == 'production'\n  | extend Modul = replace_string(tostring(customDimensions.module), '/leitendenbereich/', '')\n  | summarize count() by Modul\n  | top 8 by count_\n  | project Modul;\ncustomEvents\n| where name == 'StaffModuleOpened' and tostring(customDimensions.environment) == 'production'\n| extend Modul = replace_string(tostring(customDimensions.module), '/leitendenbereich/', '')\n| where Modul in (top)\n| summarize Aufrufe = count() by Modul, bin(timestamp, 1d)",
+        "size": 0,
+        "title": "Verlauf der acht meistgenutzten Module (pro Tag)",
+        "timeContextFromParameter": "Zeitraum",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "name": "modules-trend"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name in ('StaffModuleOpened', 'StaffAction') and tostring(customDimensions.environment) == 'production' and isnotempty(user_Id)\n| summarize ['Aktive Leitende'] = dcount(user_Id) by Woche = startofweek(timestamp)",
+        "size": 0,
+        "title": "Aktive Leitende pro Woche",
+        "timeContextFromParameter": "Zeitraum",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "barchart"
+      },
+      "name": "leaders-trend"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "customEvents\n| where name == 'StaffAction' and tostring(customDimensions.environment) == 'production'\n| summarize ['Änderungen'] = count(), Leitende = dcountif(user_Id, isnotempty(user_Id)) by Bereich = tostring(customDimensions.area)\n| order by ['Änderungen'] desc",
+        "size": 0,
+        "title": "Gespeicherte Änderungen pro Bereich",
+        "timeContextFromParameter": "Zeitraum",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "name": "actions"
+    }
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
