@@ -2,9 +2,9 @@
   import { freigabeErwaehnte, freigabeMeldung } from '../../lib/protokollFreigabe';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
-  import { tick } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import ActionSheet from '../ui/ActionSheet.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
+  import MehrAktionen, { type MehrAktion } from '../ui/MehrAktionen.svelte';
   import Schalter from '../ui/Schalter.svelte';
   import ProtokollFreigabeDialog from './ProtokollFreigabeDialog.svelte';
   import ProtokollKorrektur from './ProtokollKorrektur.svelte';
@@ -62,10 +62,15 @@
   let rejecting = $state<{ note: string } | null>(null);
   let rejectError = $state<string | null>(null);
   let rejectFieldError = $state<string | null>(null);
-  let mehrOpen = $state(false);
 
   const korrigierbar = $derived(detail.status === 'entwurf' || detail.status === 'review');
-  const ohnePruefung = $derived(detail.status === 'entwurf' && canFinish);
+  /** Versions, and in a draft that nobody else writes also approving without a review. */
+  const mehr = $derived<MehrAktion[]>([
+    { label: 'Versionen', onclick: onversionen },
+    ...(detail.status === 'entwurf' && canFinish
+      ? [{ label: 'Ohne Prüfung freigeben', onclick: () => onfinish('approve') }]
+      : []),
+  ]);
   const own = $derived(login !== '' && detail.createdBy.toLowerCase() === login.toLowerCase());
   const draftPdf = $derived(detail.status === 'entwurf' || detail.status === 'review');
 
@@ -163,13 +168,6 @@
       busy = false;
     }
   }
-
-  /** Closes „Mehr“ first, so its dialog does not stay under the next one. */
-  async function ausMehr(action: () => void): Promise<void> {
-    mehrOpen = false;
-    await tick();
-    action();
-  }
 </script>
 
 <section class="space-y-3 border-b border-neutral-200 pb-4" aria-label="Aktionen zum Protokoll">
@@ -208,7 +206,7 @@
     </p>
   {/if}
 
-  <div class="grid max-w-xl grid-cols-2 gap-2">
+  <Aktionsraster>
     {#if detail.status === 'entwurf'}
       {#if canFinish}
         <ActionButton class="col-span-2" onclick={() => onfinish('review')}>
@@ -218,7 +216,6 @@
     {:else if detail.status === 'review'}
       <ActionButton
         variant="primary"
-        class="w-full"
         disabled={busy}
         onclick={() => {
           approving = true;
@@ -228,7 +225,6 @@
         Freigeben
       </ActionButton>
       <ActionButton
-        class="w-full"
         disabled={busy}
         onclick={() => {
           rejecting = { note: '' };
@@ -241,35 +237,28 @@
     {:else if detail.sendingConfigured}
       <ProtokollVersand class="col-span-2" {detail} {onchanged} {notify} />
     {/if}
-    <ActionButton class="w-full" disabled={busy} onclick={downloadPdf}>
+    <ActionButton disabled={busy} onclick={downloadPdf}>
       {draftPdf ? 'PDF-Vorschau' : 'PDF herunterladen'}
     </ActionButton>
-    <ActionButton class="w-full" onclick={onpraesentation}>Präsentation</ActionButton>
-  </div>
+    <ActionButton onclick={onpraesentation}>Präsentation</ActionButton>
+  </Aktionsraster>
 
-  {#snippet mehr()}
-    <!-- „Mehr“ only when it holds more than the versions -->
-    {#if ohnePruefung}
-      <ActionButton class="w-full" aria-haspopup="dialog" onclick={() => (mehrOpen = true)}>
-        <span aria-hidden="true">⋯</span> Mehr
-      </ActionButton>
-    {:else}
-      <ActionButton class="w-full" onclick={onversionen}>Versionen</ActionButton>
-    {/if}
+  {#snippet nebenan()}
+    <MehrAktionen aktionen={mehr} title="Weitere Aktionen zum Protokoll" />
   {/snippet}
   {#if korrigierbar}
     <!-- Hidden, not removed, while writing: the proposals stay for after the writing -->
     <div hidden={writing}>
-      <ProtokollKorrektur {detail} {onchanged} nebenan={mehr} />
+      <ProtokollKorrektur {detail} {onchanged} {nebenan} />
     </div>
   {/if}
   {#if !korrigierbar || writing}
-    <div class="grid max-w-xl grid-cols-2 gap-2">
+    <Aktionsraster>
       {#if writing}
-        <ActionButton class="w-full" onclick={onleseansicht}>Leseansicht</ActionButton>
+        <ActionButton onclick={onleseansicht}>Leseansicht</ActionButton>
       {:else if detail.ablage?.webUrl}
         <a
-          class="btn-secondary w-full"
+          class="btn-secondary"
           href={detail.ablage.webUrl}
           target="_blank"
           rel="noopener noreferrer"
@@ -277,23 +266,14 @@
           Im Ordner öffnen<span class="sr-only"> (Protokoll-Ordner, neues Fenster)</span>
         </a>
       {/if}
-      {@render mehr()}
-    </div>
+      {@render nebenan()}
+    </Aktionsraster>
   {/if}
 
   {#if !writing}
     <Schalter label="Mitlesen" bind:checked={follow} />
   {/if}
 </section>
-
-<ActionSheet open={mehrOpen} title="Weitere Aktionen" onclose={() => (mehrOpen = false)}>
-  <div class="grid gap-3">
-    <ActionButton onclick={() => void ausMehr(onversionen)}>Versionen</ActionButton>
-    <ActionButton onclick={() => void ausMehr(() => onfinish('approve'))}>
-      Ohne Prüfung freigeben
-    </ActionButton>
-  </div>
-</ActionSheet>
 
 <ProtokollFreigabeDialog
   open={approving}

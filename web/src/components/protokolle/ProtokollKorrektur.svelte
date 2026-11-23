@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import Aktionsraster from '../ui/Aktionsraster.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import { ApiError, errorMessage, postApi } from '../../lib/api';
   import { textGeaendert, vorschlagBezug, vorschlagOrt } from '../../lib/protokollKorrektur';
@@ -118,17 +119,12 @@
 </script>
 
 <div class="space-y-3">
-  <div class="grid max-w-xl grid-cols-2 gap-2">
-    <ActionButton
-      class="w-full"
-      disabled={pruefend || uebernehmend}
-      aria-busy={pruefend}
-      onclick={pruefen}
-    >
+  <Aktionsraster>
+    <ActionButton disabled={pruefend || uebernehmend} aria-busy={pruefend} onclick={pruefen}>
       {pruefend ? 'Wird geprüft …' : 'Korrekturen prüfen'}
     </ActionButton>
     {@render nebenan?.()}
-  </div>
+  </Aktionsraster>
   <p class="text-sm" role="status" aria-live="polite">
     {#if fehler}
       <span class="text-danger">{fehler}</span>
