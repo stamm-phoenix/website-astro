@@ -165,3 +165,41 @@ test('anonymous and non-staff requests cannot read or change totals', async () =
     }
   }
 });
+
+dbTest('opening a module also sends one pseudonymous usage event', async (t) => {
+  const previous = process.env.USAGE_INSIGHTS_CONNECTION_STRING;
+  process.env.USAGE_INSIGHTS_CONNECTION_STRING = 'InstrumentationKey=test-key';
+  t.after(() => {
+    if (previous === undefined) delete process.env.USAGE_INSIGHTS_CONNECTION_STRING;
+    else process.env.USAGE_INSIGHTS_CONNECTION_STRING = previous;
+  });
+  const events: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+    events.push(String(init.body));
+    return new Response('{}');
+  });
+  const principal = {
+    identityProvider: 'aad',
+    userId: 'staff-user',
+    userDetails: 'staff@example.test',
+    userRoles: ['authenticated', 'team_leitende'],
+  };
+  const response = await StaffUsage(
+    new HttpRequest({
+      url: 'http://localhost/api/intern/haeufig',
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-ms-client-principal': Buffer.from(JSON.stringify(principal)).toString('base64'),
+      },
+      body: { string: JSON.stringify({ module: '/leitendenbereich/belege' }) },
+    }),
+    new InvocationContext()
+  );
+  assert.equal(response.status ?? 200, 200);
+  assert.equal(events.length, 1);
+  assert.match(events[0], /"name":"StaffModuleOpened"/);
+  assert.match(events[0], /"module":"\/leitendenbereich\/belege"/);
+  assert.ok(!events[0].includes('staff@example.test'));
+  assert.deepEqual(await getStaffUsage(), { '/leitendenbereich/belege': 1 });
+});

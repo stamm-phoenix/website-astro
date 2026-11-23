@@ -6,6 +6,7 @@ import { MaintenanceError, getErrorStatus, maintenanceResponse } from './respons
 import { CONFLICT, NOT_FOUND } from './pflege-api';
 import { ValidationError } from './validation/errors';
 import { requestSiteRebuild } from './site-rebuild';
+import { STAFF_ACTION, trackStaffEvent } from './usage-telemetry';
 
 /**
  * The pipeline of every endpoint: `publicHandler` for anonymous routes and `staffHandler` for
@@ -139,13 +140,16 @@ export function staffHandler(
       const work = () => handler(request, context, principal);
       const response = gate?.run ? await gate.run(work) : await work();
       if (!readOnly && request.method !== 'GET' && (response.status ?? 200) < 400) {
+        let tracked: Promise<void> | undefined;
         if (!quiet) {
           context.log(
             `[pflege] ${principal.userDetails} ${request.method} ${area} ${request.params.id ?? ''}`.trim()
           );
+          tracked = trackStaffEvent(STAFF_ACTION, principal, { area, method: request.method });
         }
         // The public pages are baked at build time; changes to their content start a build
         await requestSiteRebuild(area, context);
+        await tracked;
       }
       return response;
     } catch (error: unknown) {
