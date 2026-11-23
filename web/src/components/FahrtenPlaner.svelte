@@ -2,6 +2,7 @@
   import ReloadAction from './ui/ReloadAction.svelte';
   import { onMount } from 'svelte';
   import ActionButton from './ui/ActionButton.svelte';
+  import Aktionsraster from './ui/Aktionsraster.svelte';
   import LoadState from './ui/LoadState.svelte';
   import FilterTabs from './ui/FilterTabs.svelte';
   import Toast from './ui/Toast.svelte';
@@ -289,7 +290,7 @@
         </section>
 
         <section aria-labelledby="fahrten-plan-heading" class="space-y-4">
-          <div class="flex flex-wrap items-end justify-between gap-4">
+          <div class="space-y-3">
             <div class="flex items-center gap-1">
               <h2
                 id="fahrten-plan-heading"
@@ -313,19 +314,26 @@
                 </p>
               </InfoHint>
             </div>
-            <div class="flex flex-wrap gap-2">
+            <Aktionsraster>
               <FahrtenExport
                 title={event.title}
                 range={formatEventRange(event)}
                 plans={[plans.hin, plans.rueck]}
                 onresult={(result) => (toast = result)}
               />
-              <FahrtenMailDialog eventId={id} {plans} onresult={(result) => (toast = result)} />
+              <FahrtenMailDialog
+                class="col-span-2"
+                eventId={id}
+                {plans}
+                onresult={(result) => (toast = result)}
+              />
               <ActionButton onclick={copyLink}>Link kopieren</ActionButton>
               {#if changed}
-                <ActionButton variant="danger" onclick={reset}>Änderungen verwerfen</ActionButton>
+                <ActionButton class="col-span-2" variant="danger" onclick={reset}
+                  >Änderungen verwerfen</ActionButton
+                >
               {/if}
-            </div>
+            </Aktionsraster>
           </div>
 
           <FilterTabs
