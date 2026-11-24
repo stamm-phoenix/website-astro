@@ -172,7 +172,7 @@ jobs:
         id: codex
         if: steps.files.outputs.review == 'true'
         # v1.13, pinned to the commit because the action gets the Azure key
-        uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675
+        uses: openai/codex-action@306c6a196a99dcc6582530c396a19d2672d5e9ec
         with:
           openai-api-key: ${{ secrets.AZURE_OPENAI_REVIEW_KEY }}
           # The rate limit proxy, which forwards to https://website-astro-openai.openai.azure.com
