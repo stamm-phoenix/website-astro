@@ -97,9 +97,9 @@
           {texts.action}<span class="sr-only"> (öffnet in neuem Tab)</span>
         </a>
       {:else}
-        <ActionButton variant="primary" type="button" onclick={playVideo}
-          >{texts.action}</ActionButton
-        >
+        <ActionButton variant="primary" type="button" onclick={playVideo}>
+          {texts.action}
+        </ActionButton>
       {/if}
     </div>
   </div>

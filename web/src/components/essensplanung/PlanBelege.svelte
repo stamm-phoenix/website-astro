@@ -137,13 +137,17 @@
         variant="primary"
         class="min-h-8 any-pointer-coarse:min-h-11"
         disabled={erfassen !== null && erfassen.belegId === null && !erfassen.ohneFoto}
-        onclick={() => void oeffnen(false)}>Beleg mit Foto</ActionButton
+        onclick={() => void oeffnen(false)}
       >
+        Beleg mit Foto
+      </ActionButton>
       <ActionButton
         class="min-h-8 any-pointer-coarse:min-h-11"
         disabled={erfassen !== null && erfassen.belegId === null && erfassen.ohneFoto}
-        onclick={() => void oeffnen(true)}>Ohne Foto eintragen</ActionButton
+        onclick={() => void oeffnen(true)}
       >
+        Ohne Foto eintragen
+      </ActionButton>
     {/if}
     <PdfKnopf
       {kontext}
@@ -213,9 +217,9 @@
                     <th scope="col" class={kopf}>Erstattet</th>
                     <th scope="col" class={kopf}>Notiz</th>
                     <th scope="col" class={kopf}>Foto</th>
-                    {#if bearbeiten}<th scope="col" class={kopf}
-                        ><span class="sr-only">Aktionen</span></th
-                      >{/if}
+                    {#if bearbeiten}<th scope="col" class={kopf}>
+                        <span class="sr-only">Aktionen</span>
+                      </th>{/if}
                   </tr>
                 </thead>
                 <tbody>

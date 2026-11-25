@@ -612,9 +612,9 @@
 
 <StaffPageHead href="/leitendenbereich/belege">
   {#snippet actions()}
-    <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}
-      >Beleg einreichen</ActionButton
-    >
+    <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}>
+      Beleg einreichen
+    </ActionButton>
     <a href="/leitendenbereich/eigenbeleg" class="btn-secondary">Eigenbeleg erstellen</a>
     <BelegePdfButton
       eintraege={visible}

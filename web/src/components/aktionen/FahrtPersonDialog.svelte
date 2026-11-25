@@ -114,9 +114,9 @@
                       onanpassungen(withMove(anpassungen, current.id, target.fahrer.id))}
                   >
                     <span class="font-semibold text-brand-900">{target.fahrer.name}</span>
-                    <span class="text-sm tabular-nums text-neutral-700"
-                      >{freiePlaetze(target)} frei</span
-                    >
+                    <span class="text-sm tabular-nums text-neutral-700">
+                      {freiePlaetze(target)} frei
+                    </span>
                   </button>
                 </li>
               {/each}
@@ -131,28 +131,32 @@
             variant="primary"
             class="col-span-2"
             onclick={() => onanpassungen(withDriver(anpassungen, current.id, true))}
-            >Fahren lassen ({seatsText(seats)})</ActionButton
           >
+            Fahren lassen ({seatsText(seats)})
+          </ActionButton>
         {/if}
         {#if !isDriver && auto}
           <ActionButton
             class="col-span-2"
             onclick={() => onanpassungen(withMove(anpassungen, current.id, null))}
-            >Ohne Platz</ActionButton
           >
+            Ohne Platz
+          </ActionButton>
         {/if}
         {#if isDriver}
           <ActionButton
             class="col-span-2"
             onclick={() => onanpassungen(withDriver(anpassungen, current.id, false))}
-            >Fährt nicht</ActionButton
           >
+            Fährt nicht
+          </ActionButton>
         {/if}
         <ActionButton
           variant="danger"
           onclick={() => onanpassungen(withRemoved(anpassungen, current.id, true))}
-          >Nicht einplanen</ActionButton
         >
+          Nicht einplanen
+        </ActionButton>
         <ActionButton onclick={onclose}>Fertig</ActionButton>
       </Aktionsraster>
     </div>

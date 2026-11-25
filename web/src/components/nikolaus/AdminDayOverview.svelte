@@ -77,8 +77,10 @@
               >
                 <span
                   class="block text-xs font-semibold text-neutral-700 sm:hidden"
-                  aria-hidden="true">Bestätigt</span
+                  aria-hidden="true"
                 >
+                  Bestätigt
+                </span>
                 {day.confirmed}
               </td>
               <td
@@ -86,8 +88,10 @@
               >
                 <span
                   class="block text-xs font-semibold text-neutral-700 sm:hidden"
-                  aria-hidden="true">Ausstehend</span
+                  aria-hidden="true"
                 >
+                  Ausstehend
+                </span>
                 {day.pending}
               </td>
               <td
@@ -95,8 +99,10 @@
               >
                 <span
                   class="block text-xs font-semibold text-neutral-700 sm:hidden"
-                  aria-hidden="true">Frei</span
+                  aria-hidden="true"
                 >
+                  Frei
+                </span>
                 {day.free}<span class="text-sm font-normal text-neutral-700">/{day.capacity}</span>
               </td>
               <td
@@ -104,8 +110,10 @@
               >
                 <span
                   class="block text-xs font-semibold text-neutral-700 sm:hidden"
-                  aria-hidden="true">Kinder</span
+                  aria-hidden="true"
                 >
+                  Kinder
+                </span>
                 {day.children}
               </td>
             </tr>

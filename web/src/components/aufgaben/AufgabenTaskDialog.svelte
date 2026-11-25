@@ -176,15 +176,15 @@
       : 'Aufgabe anlegen'}
 >
   <div class="space-y-4">
-    <FormField name="title" id="task-title" label="Titel" error={fields.title}
-      >{#snippet children(attrs)}<input
+    <FormField name="title" id="task-title" label="Titel" error={fields.title}>
+      {#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
           bind:value={draft.title}
           maxlength="200"
           required
-        />{/snippet}</FormField
-    >
+        />{/snippet}
+    </FormField>
     {#if target?.state === 'vorschlag' && draft.assignees?.some((person) => person.login)}
       <p class="text-sm text-neutral-700">
         Zuordnungsvorschlag: {target.suggestedAssigneeName || target.assignee} → {taskAssigneeNames(
@@ -202,12 +202,13 @@
       label="Beschreibung"
       optional
       error={fields.description}
-      >{#snippet children(attrs)}<textarea
+    >
+      {#snippet children(attrs)}<textarea
           {...attrs}
           class="form-input"
           bind:value={draft.description}
-          maxlength="2000"></textarea>{/snippet}</FormField
-    >
+          maxlength="2000"></textarea>{/snippet}
+    </FormField>
     <TaskAssigneeField
       id="task-assignee"
       bind:people={draft.assignees}
@@ -229,26 +230,29 @@
       optional
       info="Erinnerung per Mail am Vortag und am Fälligkeitstag, nur an Stammes-Adressen (@stamm-phoenix.de)."
       error={fields.dueDate}
-      >{#snippet children(attrs)}<GermanDateInput
+    >
+      {#snippet children(attrs)}<GermanDateInput
           {...attrs}
           value={draft.dueDate ?? ''}
           onchange={(value) => (draft.dueDate = value || null)}
-        />{/snippet}</FormField
-    >
-    <FormField name="projectId" id="task-project" label="Projekt" optional error={fields.projectId}
-      >{#snippet children(attrs)}
+        />{/snippet}
+    </FormField>
+    <FormField name="projectId" id="task-project" label="Projekt" optional error={fields.projectId}>
+      {#snippet children(attrs)}
         <select
           {...attrs}
           class="form-input"
           bind:value={draft.projectId}
           disabled={createSuggestedProject}
-          ><option value={null}>Ohne Projekt</option
-          >{#each data?.projects ?? [] as project (project.id)}<option value={project.id}
-              >{project.title}</option
-            >{/each}</select
         >
-      {/snippet}</FormField
-    >
+          <option value={null}>
+            Ohne Projekt
+          </option>{#each data?.projects ?? [] as project (project.id)}<option value={project.id}>
+              {project.title}
+            </option>{/each}
+        </select>
+      {/snippet}
+    </FormField>
     {#if target?.state === 'vorschlag'}{#if target?.suggestedProjectTitle}
         <fieldset class="surface-muted rounded-sm p-3 space-y-3">
           <legend class="font-semibold">Projektvorschlag</legend>

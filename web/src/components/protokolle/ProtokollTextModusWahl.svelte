@@ -53,8 +53,9 @@
       <p><code>Zeitraum: 12.07.2026 – 19.07.2026</code></p>
       <p><code>Aufgabe: Zelte prüfen; zuständig: Lea, Tom; bis: 20.11.2026</code></p>
       <p>
-        <code>Termin: Arbeitseinsatz; am: 22.11.2026; um: 10:00; in: Pfarrheim; zuständig: Lea</code
-        >
+        <code>
+          Termin: Arbeitseinsatz; am: 22.11.2026; um: 10:00; in: Pfarrheim; zuständig: Lea
+        </code>
       </p>
       <p>
         Mit <code>@</code> wählst du Namen aus. Aktion, Projekt und offene Aufgaben des Punkts, in dem

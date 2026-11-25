@@ -74,8 +74,9 @@
         <span
           aria-hidden="true"
           class="flex size-6 items-center justify-center rounded-full bg-black/60 text-sm text-white"
-          >×</span
         >
+          ×
+        </span>
       </button>
     </li>
   {/each}

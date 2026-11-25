@@ -187,12 +187,9 @@
           type="button"
           disabled={fragt || kontext.ansicht.wartung}
           onclick={() => void vorschlagHolen()}
-          >{fragt
-            ? 'KI überlegt …'
-            : ki
-              ? 'Neu vorschlagen (KI)'
-              : 'Vorschlag der KI'}</ActionButton
         >
+          {fragt ? 'KI überlegt …' : ki ? 'Neu vorschlagen (KI)' : 'Vorschlag der KI'}
+        </ActionButton>
         <InfoHint
           label="Einheiten vereinheitlichen"
           text="Die KI schlägt eine Einheit in Haushaltsmengen vor und schätzt, wie viel jede andere Einheit davon ist. An die KI gehen nur der Name der Zutat, ihre Mengen mit Einheit und die Namen der Gerichte. Du kannst alles ändern; übernommen wird erst, was du bestätigst."
@@ -246,9 +243,9 @@
                 <td class="py-1 pr-3 [overflow-wrap:anywhere]">{zeile.wo}</td>
                 <td class="py-1 pr-3 whitespace-nowrap tabular-nums">{zeile.vorher}</td>
                 <td class="py-1 whitespace-nowrap tabular-nums">
-                  {#if zeile.nachher}→ {zeile.nachher}{:else}<span class="text-warning"
-                      >Umrechnung fehlt</span
-                    >{/if}
+                  {#if zeile.nachher}→ {zeile.nachher}{:else}<span class="text-warning">
+                      Umrechnung fehlt
+                    </span>{/if}
                 </td>
               </tr>
             {/each}
@@ -262,10 +259,9 @@
           type="submit"
           variant="primary"
           disabled={!ziel || fehlt || !neu.length || kontext.busy || kontext.ansicht.wartung}
-          >{neu.length === 1
-            ? 'Eine Menge umrechnen'
-            : `${neu.length} Mengen umrechnen`}</ActionButton
         >
+          {neu.length === 1 ? 'Eine Menge umrechnen' : `${neu.length} Mengen umrechnen`}
+        </ActionButton>
       </div>
     </fieldset>
   </form>

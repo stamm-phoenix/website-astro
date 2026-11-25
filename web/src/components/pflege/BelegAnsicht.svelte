@@ -54,8 +54,9 @@
             laden={(signal) => ladePdf(beleg, signal)}
             class="h-auto w-full rounded-md bg-neutral-100 object-contain"
           />
-          <a class="btn-secondary" href="{photoUrl(beleg)}&download=1" download>PDF herunterladen</a
-          >
+          <a class="btn-secondary" href="{photoUrl(beleg)}&download=1" download>
+            PDF herunterladen
+          </a>
         {/if}
       {/if}
     </div>

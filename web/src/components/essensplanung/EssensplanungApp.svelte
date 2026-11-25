@@ -322,8 +322,10 @@
                 ? 'border-brand-900 text-brand-900'
                 : 'border-transparent text-neutral-700 hover:border-neutral-400 hover:text-brand-900'}"
               onclick={() => (bereich = eintrag.id)}
-              onkeydown={bereichTaste}>{eintrag.label}</button
+              onkeydown={bereichTaste}
             >
+              {eintrag.label}
+            </button>
           {/each}
         </div>
       {/if}

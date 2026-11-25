@@ -51,9 +51,9 @@
         Lasst die Seite während der Fahrt geöffnet; neu laden klappt im selben Tab auch ohne
         Verbindung.
       </p>
-      <ActionButton variant="secondary" type="button" class="mt-2" onclick={remove}
-        >Route von diesem Gerät löschen</ActionButton
-      >
+      <ActionButton variant="secondary" type="button" class="mt-2" onclick={remove}>
+        Route von diesem Gerät löschen
+      </ActionButton>
     {:else}
       <p>
         Die Daten bleiben bis zu zwölf Stunden auf diesem Gerät – nur auf dem eigenen oder dem
@@ -65,8 +65,9 @@
         class="mt-2"
         disabled={offline}
         onclick={() => saveNikolausRoute(teamInfo.name)}
-        >Route für Funklöcher speichern</ActionButton
       >
+        Route für Funklöcher speichern
+      </ActionButton>
     {/if}
   </section>
 {/if}
@@ -103,8 +104,10 @@
                 })
               )
                 void discardNikolausVisit(entry.operationId);
-            }}>Markierung verwerfen</button
+            }}
           >
+            Markierung verwerfen
+          </button>
         </li>
       {/each}
     </ul>
@@ -113,7 +116,9 @@
       type="button"
       class="mt-2"
       disabled={nikolausFahrtStore.syncing}
-      onclick={refresh}>Jetzt abgleichen</ActionButton
+      onclick={refresh}
     >
+      Jetzt abgleichen
+    </ActionButton>
   </section>
 {/if}

@@ -90,7 +90,8 @@
       type="button"
       disabled={busy || (!locked && (!kostenstelle || !kategorie || !!stand?.archiviert))}
       onclick={ontransfer}
-      >{transfer ? 'Erneut übertragen' : 'Nach CampFlow übertragen'}</ActionButton
     >
+      {transfer ? 'Erneut übertragen' : 'Nach CampFlow übertragen'}
+    </ActionButton>
   {/if}
 </div>

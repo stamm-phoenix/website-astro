@@ -152,8 +152,10 @@
               aria-label="Für {zeile.original} stattdessen {vorschauText(
                 zeile.alternative
               )} übernehmen"
-              onclick={() => tausche(zeile)}>⇄ {vorschauText(zeile.alternative)}</ActionButton
+              onclick={() => tausche(zeile)}
             >
+              ⇄ {vorschauText(zeile.alternative)}
+            </ActionButton>
           {/if}
         </div>
         <div>

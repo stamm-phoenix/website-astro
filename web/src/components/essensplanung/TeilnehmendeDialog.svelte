@@ -219,9 +219,9 @@
         {:else if katalogFehler}
           <p class="text-sm text-danger" role="alert">
             {katalogFehler}
-            <button type="button" class="min-h-11 font-semibold underline" onclick={onkatalog}
-              >Noch einmal versuchen</button
-            >
+            <button type="button" class="min-h-11 font-semibold underline" onclick={onkatalog}>
+              Noch einmal versuchen
+            </button>
           </p>
         {:else}
           <p class="text-sm text-neutral-700">Die Liste wird geladen …</p>

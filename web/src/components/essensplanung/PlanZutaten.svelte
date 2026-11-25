@@ -190,16 +190,20 @@
               type="button"
               aria-label="{zutat.name} ändern"
               disabled={!katalog}
-              onclick={() => oeffne(zutat)}>Ändern</ActionButton
+              onclick={() => oeffne(zutat)}
             >
+              Ändern
+            </ActionButton>
             {#if zutat.zeilen === 0}
               <ActionButton
                 type="button"
                 variant="danger"
                 aria-label="{zutat.name} löschen"
                 disabled={kontext.busy}
-                onclick={() => void loeschen(zutat)}>Löschen</ActionButton
+                onclick={() => void loeschen(zutat)}
               >
+                Löschen
+              </ActionButton>
             {/if}
           </div>
         {/if}
@@ -240,9 +244,9 @@
           {#snippet children(attrs)}
             <select {...attrs} class="form-input" bind:value={form.kategorieId}>
               {#if zentrale}
-                <option value={null}
-                  >wie in der Liste ({kategorien.get(zentrale.kategorieId)})</option
-                >
+                <option value={null}>
+                  wie in der Liste ({kategorien.get(zentrale.kategorieId)})
+                </option>
               {:else}
                 <option value={null}>Bitte wählen</option>
               {/if}
@@ -261,9 +265,9 @@
           {#snippet children(attrs)}
             <select {...attrs} class="form-input" bind:value={form.einheitenart}>
               {#if zentrale}
-                <option value={null}
-                  >wie in der Liste ({EINHEITENART_LABELS[zentrale.einheitenart]})</option
-                >
+                <option value={null}>
+                  wie in der Liste ({EINHEITENART_LABELS[zentrale.einheitenart]})
+                </option>
               {:else}
                 <option value={null}>Bitte wählen</option>
               {/if}
@@ -298,9 +302,9 @@
         {/if}
         <div class="flex flex-wrap justify-end gap-2 pt-2">
           <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
-          <ActionButton type="submit" variant="primary" disabled={kontext.busy}
-            >Speichern</ActionButton
-          >
+          <ActionButton type="submit" variant="primary" disabled={kontext.busy}>
+            Speichern
+          </ActionButton>
         </div>
       </fieldset>
     </form>

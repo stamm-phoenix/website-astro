@@ -93,9 +93,9 @@
   }
 </script>
 
-<ActionButton class={className} onclick={show} disabled={fahrer.length === 0}
-  >Fahrende per Mail informieren</ActionButton
->
+<ActionButton class={className} onclick={show} disabled={fahrer.length === 0}>
+  Fahrende per Mail informieren
+</ActionButton>
 
 <EditDialog
   {open}

@@ -80,14 +80,16 @@
           <option value={eintrag.mass}>{eintrag.label}</option>
         {/each}
       </select>
-      <span class="tabular-nums" aria-live="polite"
-        >{gramm === null ? '' : `≈ ${mengeFeld(gramm)} g`}</span
-      >
+      <span class="tabular-nums" aria-live="polite">
+        {gramm === null ? '' : `≈ ${mengeFeld(gramm)} g`}
+      </span>
       <ActionButton
         type="button"
         disabled={gramm === null || gramm <= 0}
-        onclick={() => gramm !== null && gramm > 0 && onuebernehmen(gramm)}>Übernehmen</ActionButton
+        onclick={() => gramm !== null && gramm > 0 && onuebernehmen(gramm)}
       >
+        Übernehmen
+      </ActionButton>
     </div>
   </fieldset>
 {/if}

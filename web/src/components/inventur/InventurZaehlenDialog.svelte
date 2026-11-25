@@ -98,8 +98,9 @@
         <label
           for={`zaehlen-${index}`}
           class="font-semibold text-brand-900 [overflow-wrap:anywhere]"
-          >{zeile.bezeichnung || current.bezeichnung}</label
         >
+          {zeile.bezeichnung || current.bezeichnung}
+        </label>
         <input
           id={`zaehlen-${index}`}
           class="form-input"

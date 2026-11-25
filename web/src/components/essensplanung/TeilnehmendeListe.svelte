@@ -74,16 +74,20 @@
       type="button"
       class={KNOPF}
       aria-label="{zeileName(zeile)} ändern"
-      onclick={() => onbearbeiten(zeile.id)}>Ändern</ActionButton
+      onclick={() => onbearbeiten(zeile.id)}
     >
+      Ändern
+    </ActionButton>
     <ActionButton
       type="button"
       variant="danger"
       class={KNOPF}
       disabled={kontext.busy}
       aria-label="{zeileName(zeile)} entfernen"
-      onclick={() => void entfernen(zeile)}>Entfernen</ActionButton
+      onclick={() => void entfernen(zeile)}
     >
+      Entfernen
+    </ActionButton>
   </span>
 {/snippet}
 
@@ -104,16 +108,18 @@
       <ActionButton
         type="button"
         class="ml-auto print:hidden {KNOPF}"
-        onclick={() => onbearbeiten(null)}>Teilnehmende hinzufügen</ActionButton
+        onclick={() => onbearbeiten(null)}
       >
+        Teilnehmende hinzufügen
+      </ActionButton>
     {/if}
   </div>
   {#if katalogFehler}
     <p class="text-sm text-danger print:hidden" role="alert">
       {katalogFehler}
-      <button type="button" class="min-h-11 font-semibold underline" onclick={onkatalog}
-        >Noch einmal versuchen</button
-      >
+      <button type="button" class="min-h-11 font-semibold underline" onclick={onkatalog}>
+        Noch einmal versuchen
+      </button>
     </p>
   {/if}
   {#if !ansicht.teilnehmende.length}

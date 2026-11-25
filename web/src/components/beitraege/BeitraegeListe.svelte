@@ -102,8 +102,10 @@
   <a
     href="?"
     class="inline-flex min-h-11 items-center text-sm text-link underline underline-offset-4"
-    onclick={back}>← Alle Sammlungen</a
+    onclick={back}
   >
+    ← Alle Sammlungen
+  </a>
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h2 id="beitraege-liste" tabindex="-1" class="outline-none font-serif text-2xl text-brand-900">
       {title}
@@ -113,8 +115,9 @@
       type="button"
       disabled={pdfBusy || visible.length === 0}
       onclick={() => void exportPdf()}
-      >{pdfBusy ? 'Erstellt PDF …' : 'PDF herunterladen'}</ActionButton
     >
+      {pdfBusy ? 'Erstellt PDF …' : 'PDF herunterladen'}
+    </ActionButton>
   </div>
   <StatusNotice message={pdfNotice?.text ?? null} kind={pdfNotice?.kind} popup />
 

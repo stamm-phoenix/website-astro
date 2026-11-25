@@ -145,8 +145,10 @@
       <button
         type="button"
         class="min-h-11 font-semibold underline"
-        onclick={() => void katalogLaden()}>Noch einmal versuchen</button
+        onclick={() => void katalogLaden()}
       >
+        Noch einmal versuchen
+      </button>
     </p>
   {/if}
 
@@ -249,14 +251,14 @@
             <summary
               class="flex min-h-11 cursor-pointer list-none flex-wrap items-baseline gap-x-3 px-4 py-3 [&::-webkit-details-marker]:hidden"
             >
-              <span class="font-serif text-lg font-bold text-brand-900 [overflow-wrap:anywhere]"
-                >{gericht.name}</span
-              >
-              <span class="text-sm text-neutral-700"
-                >{gericht.zutaten.length} Zutaten{gericht.personen === null
+              <span class="font-serif text-lg font-bold text-brand-900 [overflow-wrap:anywhere]">
+                {gericht.name}
+              </span>
+              <span class="text-sm text-neutral-700">
+                {gericht.zutaten.length} Zutaten{gericht.personen === null
                   ? ' · feste Mengen'
-                  : ` · für ${gericht.personen} Personen`}</span
-              >
+                  : ` · für ${gericht.personen} Personen`}
+              </span>
               <AufklappPfeil class="ml-auto self-center" />
             </summary>
             <div class="px-4 pb-4">

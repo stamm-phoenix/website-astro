@@ -63,5 +63,7 @@
   aria-label={ariaLabel}
   aria-busy={laeuft}
   disabled={disabled || laeuft || kontext.busy}
-  onclick={() => void klick()}>{laeuft ? 'PDF wird erstellt …' : label}</ActionButton
+  onclick={() => void klick()}
 >
+  {laeuft ? 'PDF wird erstellt …' : label}
+</ActionButton>

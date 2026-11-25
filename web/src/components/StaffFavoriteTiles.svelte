@@ -82,8 +82,10 @@
     stroke-width="1.8"
     stroke-linecap="round"
     stroke-linejoin="round"
-    aria-hidden="true"><path d={module.icon} /></svg
+    aria-hidden="true"
   >
+    <path d={module.icon} />
+  </svg>
   <span class="max-w-full break-words hyphens-auto">{@render moduleTitle(module)}</span>
 {/snippet}
 
@@ -150,8 +152,10 @@
                   fill="currentColor"
                   stroke="currentColor"
                   stroke-width="1.8"
-                  stroke-linejoin="round"><path d={FAVORITE_STAR_PATH} /></svg
+                  stroke-linejoin="round"
                 >
+                  <path d={FAVORITE_STAR_PATH} />
+                </svg>
                 Entfernen
               </button>
             {/if}

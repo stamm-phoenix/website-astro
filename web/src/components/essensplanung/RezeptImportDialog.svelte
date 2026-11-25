@@ -380,19 +380,19 @@
           <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
           {#if rezept && text.trim() === erkannt.trim()}
             <!-- The same text: back to the preview with the member's changes -->
-            <ActionButton type="button" onclick={() => (schritt = 'vorschau')}
-              >Zur Vorschau</ActionButton
-            >
+            <ActionButton type="button" onclick={() => (schritt = 'vorschau')}>
+              Zur Vorschau
+            </ActionButton>
           {/if}
-          <ActionButton type="submit" variant="primary" disabled={!bearbeiten}
-            >{generieren
+          <ActionButton type="submit" variant="primary" disabled={!bearbeiten}>
+            {generieren
               ? liest
                 ? 'KI schreibt das Gericht …'
                 : 'Gericht generieren'
               : liest
                 ? 'KI liest das Rezept …'
-                : 'Zutaten erkennen'}</ActionButton
-          >
+                : 'Zutaten erkennen'}
+          </ActionButton>
         </div>
       </fieldset>
     </form>
@@ -427,11 +427,11 @@
           </label>
         {/if}
         {#if personenNeu !== undefined}
-          <ActionButton type="button" onclick={umrechnen}
-            >{personenNeu === null
+          <ActionButton type="button" onclick={umrechnen}>
+            {personenNeu === null
               ? 'Mengen wie im Rezept übernehmen'
-              : `Mengen auf ${personenNeu} Personen umrechnen`}</ActionButton
-          >
+              : `Mengen auf ${personenNeu} Personen umrechnen`}
+          </ActionButton>
         {/if}
         <RezeptVorschau bind:zeilen {katalog} {ansicht} {vorschlaege} />
         {#if generieren}
@@ -450,19 +450,20 @@
           />
         {/if}
         <div class="flex flex-wrap justify-end gap-2">
-          <ActionButton type="button" onclick={() => (schritt = 'text')}
-            >{generieren ? 'Zurück zur Beschreibung' : 'Zurück zum Text'}</ActionButton
-          >
+          <ActionButton type="button" onclick={() => (schritt = 'text')}>
+            {generieren ? 'Zurück zur Beschreibung' : 'Zurück zum Text'}
+          </ActionButton>
           <ActionButton
             type="submit"
             variant="primary"
             disabled={!bearbeiten || (!gewaehlt.length && !kopf) || kontext.busy}
-            >{generieren
+          >
+            {generieren
               ? 'Gericht übernehmen'
               : gewaehlt.length === 1
                 ? 'Eine Zutat übernehmen'
-                : `${gewaehlt.length} Zutaten übernehmen`}</ActionButton
-          >
+                : `${gewaehlt.length} Zutaten übernehmen`}
+          </ActionButton>
         </div>
       </fieldset>
     </form>

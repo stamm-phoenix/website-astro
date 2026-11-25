@@ -114,9 +114,9 @@
           text="Auch Bearbeitende laden ein, entziehen Zugänge und erzeugen die gemeinsamen Links. Besitzer:innen ernennen und löschen dürfen weiter nur Besitzer:innen."
         />
       </div>
-      <ActionButton variant="primary" type="submit" disabled={kontext.busy || !entwurf}
-        >Speichern</ActionButton
-      >
+      <ActionButton variant="primary" type="submit" disabled={kontext.busy || !entwurf}>
+        Speichern
+      </ActionButton>
     </form>
 
     <section aria-labelledby="loeschen-heading" class="surface max-w-xl space-y-2 p-5">
@@ -127,8 +127,10 @@
         type="button"
         variant="danger"
         disabled={kontext.busy}
-        onclick={() => void loeschen()}>Planung löschen</ActionButton
+        onclick={() => void loeschen()}
       >
+        Planung löschen
+      </ActionButton>
     </section>
   {:else if ansicht.zugang === 'bearbeiten'}
     <p class="text-sm text-neutral-700">Name und Löschen der Planung ändern die Besitzer:innen.</p>

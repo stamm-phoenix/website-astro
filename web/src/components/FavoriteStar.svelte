@@ -39,12 +39,13 @@
       stroke="currentColor"
       stroke-width="1.8"
       stroke-linejoin="round"
-      ><path d={STAR} /><path
+    >
+      <path d={STAR} /><path
         class={['star-fill', active && 'active']}
         d={STAR}
         fill="currentColor"
-      /></svg
-    >
+      />
+    </svg>
   </button>
 {/if}
 

@@ -153,9 +153,9 @@
 
 <AufgabenLadestatus />
 <StatusNotice kind="error" message={rejectTarget ? null : actions.state.error} popup />
-<a class="inline-flex min-h-11 items-center text-link" href="/leitendenbereich/aufgaben"
-  >Zur Aufgabenliste</a
->
+<a class="inline-flex min-h-11 items-center text-link" href="/leitendenbereich/aufgaben">
+  Zur Aufgabenliste
+</a>
 {#if data}
   <section aria-labelledby="recognize-heading" class="my-5 surface-muted rounded-lg p-4">
     <h2
@@ -173,9 +173,9 @@
       class="ml-1"
     />
     <StatusNotice kind="error" message={aufgabenStore.protocolError} />
-    {#if aufgabenStore.protocolError}<ActionButton onclick={loadTaskProtocols}
-        >Protokolle neu laden</ActionButton
-      >{/if}
+    {#if aufgabenStore.protocolError}<ActionButton onclick={loadTaskProtocols}>
+        Protokolle neu laden
+      </ActionButton>{/if}
     <FormField id="task-protocol-search" label="Protokoll suchen" optional class="mt-3">
       {#snippet children(attrs)}<input
           {...attrs}
@@ -185,26 +185,29 @@
           bind:value={protocolSearch}
         />{/snippet}
     </FormField>
-    <FormField id="task-protocol" label="Protokoll"
-      >{#snippet children(attrs)}
-        <select {...attrs} class="form-input" bind:value={sourceId} onchange={clearRecognition}
-          ><option value="">Protokoll wählen …</option
-          >{#each protocolOptions as protocol (protocol.id)}<option value={protocol.id}
-              >{protocolLabel(protocol.date)} · {protocol.title
+    <FormField id="task-protocol" label="Protokoll">
+      {#snippet children(attrs)}
+        <select {...attrs} class="form-input" bind:value={sourceId} onchange={clearRecognition}>
+          <option value="">
+            Protokoll wählen …
+          </option>{#each protocolOptions as protocol (protocol.id)}<option value={protocol.id}>
+              {protocolLabel(protocol.date)} · {protocol.title
                 .replace(/^(?:\d{4}-\d{2}-\d{2}|YYYY-MM-DD)[_ -]+/, '')
-                .replace(/_/g, ' ')} · {protocol.status} · {protocol.fileName}</option
-            >{/each}</select
-        >
-      {/snippet}</FormField
-    >
+                .replace(/_/g, ' ')} · {protocol.status} · {protocol.fileName}
+            </option>{/each}
+        </select>
+      {/snippet}
+    </FormField>
     {#if data.extractionConfigured}
       <ActionButton
         type="button"
         class="mt-3"
         onclick={recognize}
         disabled={busy || !source}
-        aria-busy={busy}>{busy ? 'Wird verarbeitet …' : 'Aufgaben erkennen'}</ActionButton
+        aria-busy={busy}
       >
+        {busy ? 'Wird verarbeitet …' : 'Aufgaben erkennen'}
+      </ActionButton>
     {:else}<p class="mt-2 text-sm text-neutral-700">
         Die automatische Erkennung ist nicht eingerichtet. Aufgaben kannst du selbst anlegen.
       </p>{/if}
@@ -220,8 +223,10 @@
             type="button"
             class="ml-auto min-h-11 min-w-11 shrink-0 text-neutral-700"
             aria-label="Erkennungsergebnis ausblenden"
-            onclick={clearRecognition}>×</button
+            onclick={clearRecognition}
           >
+            ×
+          </button>
         </div>
       {/if}
     </div>

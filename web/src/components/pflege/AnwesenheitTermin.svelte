@@ -426,8 +426,9 @@
           {#if termin.cancelled}
             Die Gruppenstunde ist ausgefallen.
           {:else}
-            {#each countParts as part, index (part)}<span class="whitespace-nowrap">{part}</span
-              >{index < countParts.length - 1 ? ', ' : ''}{/each}
+            {#each countParts as part, index (part)}<span class="whitespace-nowrap">
+                {part}
+              </span>{index < countParts.length - 1 ? ', ' : ''}{/each}
           {/if}
           {#if busy.length > 0}
             <span class="ml-2">Wird gespeichert …</span>
@@ -509,8 +510,9 @@
                       aria-busy={removingGuest === guest.id}
                       aria-label="{guest.name} entfernen"
                       onclick={() => removeGuest(guest)}
-                      >{removingGuest === guest.id ? 'Wird entfernt …' : 'Entfernen'}</ActionButton
                     >
+                      {removingGuest === guest.id ? 'Wird entfernt …' : 'Entfernen'}
+                    </ActionButton>
                   {/if}
                 </li>
               {/each}

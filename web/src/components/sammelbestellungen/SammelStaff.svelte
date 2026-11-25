@@ -197,8 +197,10 @@
     class="btn-secondary"
     href={view?.campaign.archived
       ? '/leitendenbereich/sammelbestellungen?archiv=1'
-      : '/leitendenbereich/sammelbestellungen'}>Zur Übersicht</a
+      : '/leitendenbereich/sammelbestellungen'}
   >
+    Zur Übersicht
+  </a>
 </div>
 <header class="mt-6 border-b border-neutral-200 pb-6">
   <h1 class="font-serif text-3xl font-semibold text-brand-900 md:text-4xl">
@@ -215,8 +217,10 @@
         variant="secondary"
         class="mt-3"
         disabled={loading || busy}
-        onclick={() => void loadSelected()}>Erneut laden</ActionButton
-      >{/if}
+        onclick={() => void loadSelected()}
+      >
+        Erneut laden
+      </ActionButton>{/if}
   </div>{/if}
 <StatusNotice {message} class="mt-5" popup />
 {#if selected}<div class="mt-6">
@@ -309,9 +313,9 @@
               {priceErrors === 1 ? 'Artikel' : 'Artikel'} fehlgeschlagen. Die Bestellungen sind gespeichert.
               Prüfe die Preise im Shop oder lade sie noch einmal.
             </p>
-            <ActionButton disabled={pricesLoading} onclick={() => view && loadPrices(view)}
-              >Preise erneut laden</ActionButton
-            >
+            <ActionButton disabled={pricesLoading} onclick={() => view && loadPrices(view)}>
+              Preise erneut laden
+            </ActionButton>
           </div>
         {/if}
         <SammelCombinedList

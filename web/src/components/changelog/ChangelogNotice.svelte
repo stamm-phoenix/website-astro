@@ -22,8 +22,10 @@
       <span aria-hidden="true">·</span>
       <a
         href="/leitendenbereich/neuigkeiten"
-        class="inline-flex min-h-11 items-center font-semibold text-link">Neuigkeiten lesen</a
+        class="inline-flex min-h-11 items-center font-semibold text-link"
       >
+        Neuigkeiten lesen
+      </a>
     </p>
   {/if}
 </div>

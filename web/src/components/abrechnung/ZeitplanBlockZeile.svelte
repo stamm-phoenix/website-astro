@@ -124,8 +124,10 @@
       title={index === 0 && vortag
         ? `Auf ${kurzerWochentag(vortag.datum)} verschieben`
         : 'Nach oben'}
-      onclick={() => move(tagIndex, index, -1)}>{@render arrow('up')}</button
+      onclick={() => move(tagIndex, index, -1)}
     >
+      {@render arrow('up')}
+    </button>
     <button
       type="button"
       id={`block-${block.id}-runter`}
@@ -137,8 +139,10 @@
       title={index === anzahl - 1 && nachtag
         ? `Auf ${kurzerWochentag(nachtag.datum)} verschieben`
         : 'Nach unten'}
-      onclick={() => move(tagIndex, index, 1)}>{@render arrow('down')}</button
+      onclick={() => move(tagIndex, index, 1)}
     >
+      {@render arrow('down')}
+    </button>
     <button
       type="button"
       class="zeitplan-icon text-danger"

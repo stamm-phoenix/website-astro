@@ -106,16 +106,20 @@
       class="mt-0.5 min-h-8 w-full justify-start truncate px-2 py-0.5 text-left text-sm any-pointer-coarse:min-h-11"
       aria-labelledby="packliste-neu-wer-label packliste-neu-wer"
       disabled={speichert}
-      onclick={() => (waehlt = true)}>{werText}</ActionButton
+      onclick={() => (waehlt = true)}
     >
+      {werText}
+    </ActionButton>
   </div>
   <ActionButton
     type="button"
     variant="primary"
     class="min-h-8 px-3 py-1 text-xs whitespace-nowrap any-pointer-coarse:min-h-11"
     disabled={speichert || !text.trim() || kontext.ansicht.wartung}
-    onclick={() => void hinzufuegen()}>Auf die Packliste</ActionButton
+    onclick={() => void hinzufuegen()}
   >
+    Auf die Packliste
+  </ActionButton>
   {#if fehler}
     <p id="packliste-neu-fehler" class="basis-full text-sm text-danger md:col-span-3" role="alert">
       {fehler}

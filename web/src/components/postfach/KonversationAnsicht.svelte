@@ -167,10 +167,11 @@
               href={data.outlookUrl ?? outlookPostfach}
               target="_blank"
               rel="noopener noreferrer"
-              >In Outlook öffnen<span aria-hidden="true">↗</span><span class="sr-only">
-                (öffnet neuen Tab)</span
-              ></a
             >
+              In Outlook öffnen<span aria-hidden="true">↗</span><span class="sr-only">
+                (öffnet neuen Tab)
+              </span>
+            </a>
           </div>
           {#if ladeFehler}<p role="alert" class="text-sm text-danger">
               <MessageText text={ladeFehler} />
@@ -226,14 +227,14 @@
                 aria-expanded={aufgeklappt}
                 onclick={() => umschalten(nachricht.id)}
               >
-                <span class="min-w-0 font-semibold break-words text-brand-900"
-                  >{absender(nachricht)}</span
-                >
+                <span class="min-w-0 font-semibold break-words text-brand-900">
+                  {absender(nachricht)}
+                </span>
                 <span class="text-sm text-neutral-700">{mailZeitLang(nachricht.am)}</span>
                 {#if !aufgeklappt}
-                  <span class="block w-full truncate text-sm text-neutral-700"
-                    >{nachricht.vorschau || 'Antippen zum Lesen'}</span
-                  >
+                  <span class="block w-full truncate text-sm text-neutral-700">
+                    {nachricht.vorschau || 'Antippen zum Lesen'}
+                  </span>
                 {/if}
               </button>
               {#if aufgeklappt}
@@ -260,9 +261,9 @@
                               download={anhang.name}
                             >
                               <!-- Long file names without spaces break instead of being cut off -->
-                              <span class="min-w-0 font-semibold break-all text-brand-900"
-                                >{anhang.name}</span
-                              >
+                              <span class="min-w-0 font-semibold break-all text-brand-900">
+                                {anhang.name}
+                              </span>
                               <span class="text-neutral-700">{dateiGroesse(anhang.groesse)}</span>
                             </a>
                           {:else}
@@ -274,12 +275,12 @@
                               rel="noopener noreferrer"
                             >
                               <!-- Long file names without spaces break instead of being cut off -->
-                              <span class="min-w-0 font-semibold break-all text-brand-900"
-                                >{anhang.name}</span
-                              >
-                              <span class="text-neutral-700"
-                                >in Outlook öffnen<span aria-hidden="true">↗</span></span
-                              >
+                              <span class="min-w-0 font-semibold break-all text-brand-900">
+                                {anhang.name}
+                              </span>
+                              <span class="text-neutral-700">
+                                in Outlook öffnen<span aria-hidden="true">↗</span>
+                              </span>
                             </a>
                           {/if}
                         </li>

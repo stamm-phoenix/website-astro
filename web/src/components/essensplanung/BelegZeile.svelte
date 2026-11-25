@@ -293,9 +293,9 @@
     onblur={() => void feldSpeichern(feld)}
   />
   {#if fehler[feld]}
-    <span id="beleg-{beleg.id}-{feld}-fehler" class="mt-0.5 block text-xs text-danger"
-      >{fehler[feld]}</span
-    >
+    <span id="beleg-{beleg.id}-{feld}-fehler" class="mt-0.5 block text-xs text-danger">
+      {fehler[feld]}
+    </span>
   {/if}
 {/snippet}
 
@@ -308,9 +308,9 @@
   {#if bearbeiten}
     <td class={zelle}>{@render textFeld('datum', 'Datum', 'w-[8.5rem]', 'date')}</td>
     <td class={zelle}>{@render textFeld('haendler', 'Händler oder was', 'w-full md:min-w-36')}</td>
-    <td class="{zelle} text-right"
-      >{@render textFeld('betrag', 'Betrag in €', 'w-24 text-right')}</td
-    >
+    <td class="{zelle} text-right">
+      {@render textFeld('betrag', 'Betrag in €', 'w-24 text-right')}
+    </td>
     <td class="{zelle} md:min-w-44">
       <BezahltVonFeld
         id="beleg-{beleg.id}-bezahlt"
@@ -341,21 +341,22 @@
           disabled={speichert}
           onchange={(event) => void erstatten(event.currentTarget)}
         />
-        <span class={beleg.erstattet ? 'text-success' : 'text-neutral-700'}
-          >{beleg.erstattet ? 'erstattet' : 'offen'}</span
-        >
+        <span class={beleg.erstattet ? 'text-success' : 'text-neutral-700'}>
+          {beleg.erstattet ? 'erstattet' : 'offen'}
+        </span>
       </label>
     </td>
     <td class={zelle}>{@render textFeld('notiz', 'Notiz', 'w-full md:min-w-32', 'text', 500)}</td>
   {:else}
     <td class="{zelle} whitespace-nowrap">{formatIsoDate(beleg.datum)}</td>
     <td class="{zelle} [overflow-wrap:anywhere]">{beleg.haendler || '–'}</td>
-    <td class="{zelle} text-right whitespace-nowrap tabular-nums">{formatEuro(beleg.betragCent)}</td
-    >
+    <td class="{zelle} text-right whitespace-nowrap tabular-nums">
+      {formatEuro(beleg.betragCent)}
+    </td>
     <td class={zelle}>{beleg.bezahltVon}</td>
-    <td class="{zelle} {beleg.erstattet ? 'text-success' : 'text-neutral-700'}"
-      >{beleg.erstattet ? 'erstattet' : 'offen'}</td
-    >
+    <td class="{zelle} {beleg.erstattet ? 'text-success' : 'text-neutral-700'}">
+      {beleg.erstattet ? 'erstattet' : 'offen'}
+    </td>
     <td class="{zelle} [overflow-wrap:anywhere]">{beleg.notiz}</td>
   {/if}
   <td class={zelle}>
@@ -367,8 +368,10 @@
       <ActionButton
         class="min-h-8 px-2 py-0.5 text-xs any-pointer-coarse:min-h-11"
         aria-label="Foto hinzufügen, Beleg vom {formatIsoDate(beleg.datum)}"
-        onclick={onfoto}>+ Foto</ActionButton
+        onclick={onfoto}
       >
+        + Foto
+      </ActionButton>
     {:else}
       <span class="text-xs text-neutral-700">ohne</span>
     {/if}
@@ -380,16 +383,20 @@
           <ActionButton
             class="min-h-8 px-2 py-0.5 text-xs any-pointer-coarse:min-h-11"
             aria-label="Foto ersetzen, Beleg vom {formatIsoDate(beleg.datum)}"
-            onclick={onfoto}>Foto ändern</ActionButton
+            onclick={onfoto}
           >
+            Foto ändern
+          </ActionButton>
         {/if}
         <ActionButton
           variant="danger"
           class="min-h-8 px-2 py-0.5 text-xs any-pointer-coarse:min-h-11"
           aria-label="Beleg vom {formatIsoDate(beleg.datum)} löschen"
           disabled={speichert || kontext.busy}
-          onclick={() => void loeschen()}>Löschen</ActionButton
+          onclick={() => void loeschen()}
         >
+          Löschen
+        </ActionButton>
       </div>
     </td>
   {/if}

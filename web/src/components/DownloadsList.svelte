@@ -100,9 +100,9 @@
 {:else if view.data && view.data.length > 0}
   <div class="mb-4 space-y-3">
     <div>
-      <label for="downloads-search" class="mb-1 block text-sm font-semibold text-brand-900"
-        >Datei suchen</label
-      >
+      <label for="downloads-search" class="mb-1 block text-sm font-semibold text-brand-900">
+        Datei suchen
+      </label>
       <input
         id="downloads-search"
         type="search"

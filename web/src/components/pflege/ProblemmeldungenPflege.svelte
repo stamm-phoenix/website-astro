@@ -355,9 +355,9 @@
       value={view}
       onselect={(value) => (view = value)}
     />
-    <ReloadAction type="button" disabled={store.loading || busy} onclick={() => void reload()}
-      >Neu laden</ReloadAction
-    >
+    <ReloadAction type="button" disabled={store.loading || busy} onclick={() => void reload()}>
+      Neu laden
+    </ReloadAction>
   </div>
 
   <StatusNotice message={actions.message} kind={actions.kind} popup />
@@ -400,8 +400,10 @@
             type="button"
             class="shrink-0"
             aria-label={`Ansehen: Meldung PM-${item.id}`}
-            onclick={() => openItem(item)}>Ansehen</ActionButton
+            onclick={() => openItem(item)}
           >
+            Ansehen
+          </ActionButton>
         </li>
       {/each}
     </ul>
@@ -429,14 +431,18 @@
         variant="danger"
         type="button"
         disabled={busy || selected?.github.pending === true}
-        onclick={() => (discarding = true)}>Verwerfen</ActionButton
+        onclick={() => (discarding = true)}
       >
+        Verwerfen
+      </ActionButton>
       <ActionButton
         variant="secondary"
         type="button"
         disabled={busy || github?.unavailable === 'preview'}
-        onclick={() => void startSend()}>An GitHub senden</ActionButton
+        onclick={() => void startSend()}
       >
+        An GitHub senden
+      </ActionButton>
     {/if}
   {/snippet}
   {#if selected}
@@ -452,8 +458,10 @@
             class="text-link inline-flex min-h-11 items-center font-semibold"
             href={selected.github.url}
             target="_blank"
-            rel="noopener noreferrer">Eintrag #{selected.github.number} auf GitHub öffnen</a
+            rel="noopener noreferrer"
           >
+            Eintrag #{selected.github.number} auf GitHub öffnen
+          </a>
         {/if}
       </div>
 
@@ -491,8 +499,10 @@
           <p>
             <a
               class="text-link [overflow-wrap:anywhere]"
-              href={`mailto:${encodeURIComponent(selected.contact)}`}>{selected.contact}</a
+              href={`mailto:${encodeURIComponent(selected.contact)}`}
             >
+              {selected.contact}
+            </a>
           </p>
         {/if}
       </section>
@@ -528,8 +538,10 @@
             variant="secondary"
             type="button"
             disabled={busy}
-            onclick={() => void assess()}>Noch einmal einschätzen</ActionButton
+            onclick={() => void assess()}
           >
+            Noch einmal einschätzen
+          </ActionButton>
         {/if}
       </section>
 
@@ -606,9 +618,9 @@
   onconfirm={() => void discard()}
 >
   <div class="form-field">
-    <label class="form-label" for="pm-discard-reason"
-      >Grund <span class="font-normal">(optional)</span></label
-    >
+    <label class="form-label" for="pm-discard-reason">
+      Grund <span class="font-normal">(optional)</span>
+    </label>
     <textarea
       id="pm-discard-reason"
       class="form-input"

@@ -56,8 +56,9 @@
   <ActionButton onclick={bookmark}>Als Lesezeichen speichern</ActionButton>
 </div>
 <p role="status" class="mt-2 text-sm empty:hidden">
-  {#if copyState === 'copied'}<span class="text-success">Der Link ist in der Zwischenablage.</span
-    >{:else if copyState === 'failed'}<span class="text-danger"
-      >Kopieren ging nicht. Kopieren Sie den Link bitte aus der Adresszeile.</span
-    >{:else if bookmarkHint}{bookmarkHint}{/if}
+  {#if copyState === 'copied'}<span class="text-success">
+      Der Link ist in der Zwischenablage.
+    </span>{:else if copyState === 'failed'}<span class="text-danger">
+      Kopieren ging nicht. Kopieren Sie den Link bitte aus der Adresszeile.
+    </span>{:else if bookmarkHint}{bookmarkHint}{/if}
 </p>

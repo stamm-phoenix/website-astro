@@ -82,10 +82,11 @@
                 {@const state = statusLabel(fee)}
                 <li>
                   <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span class="font-semibold tabular-nums text-brand-900"
-                      >{#if fee.status === 'cancelled'}<s>{beitragBetrag(fee)}</s
-                        >{:else}{beitragBetrag(fee)}{/if}</span
-                    >
+                    <span class="font-semibold tabular-nums text-brand-900">
+                      {#if fee.status === 'cancelled'}<s>
+                          {beitragBetrag(fee)}
+                        </s>{:else}{beitragBetrag(fee)}{/if}
+                    </span>
                     <StatusLabel label={state.label} tone={state.tone} dot />
                   </p>
                   <p class="text-neutral-700">
@@ -122,8 +123,10 @@
                   class="text-link underline"
                   href={link.href}
                   target={link.href.startsWith('http') ? '_blank' : undefined}
-                  rel="noopener noreferrer">{link.text}</a
+                  rel="noopener noreferrer"
                 >
+                  {link.text}
+                </a>
               {/each}
             {:else}
               {field.text}

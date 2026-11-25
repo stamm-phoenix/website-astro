@@ -155,8 +155,10 @@
 >
   <span
     class="pt-1 font-mono text-xs font-semibold text-brand-900"
-    title="Mahlzeit-ID: Tag_Mahlzeit">{mahlzeit.kennung}</span
+    title="Mahlzeit-ID: Tag_Mahlzeit"
   >
+    {mahlzeit.kennung}
+  </span>
   {#if bearbeiten}
     <span class="hidden print:inline">{name}</span>
     <label class="sr-only" for="mahlzeit-name-{mahlzeit.id}">Name von {mahlzeit.kennung}</label>
@@ -175,8 +177,9 @@
       }}
     />
   {:else}
-    <span class="pt-0.5 font-semibold text-brand-900 [overflow-wrap:anywhere]">{mahlzeit.name}</span
-    >
+    <span class="pt-0.5 font-semibold text-brand-900 [overflow-wrap:anywhere]">
+      {mahlzeit.name}
+    </span>
   {/if}
   <!-- Sorting and deleting: small symbols at the end of the row -->
   <span class="flex justify-end gap-0.5 md:order-last print:hidden">
@@ -187,16 +190,20 @@
         disabled={erste || kontext.busy}
         title="Nach oben"
         aria-label="{mahlzeit.name} nach oben"
-        onclick={() => void speichern(mahlzeit.position - 1)}>↑</button
+        onclick={() => void speichern(mahlzeit.position - 1)}
       >
+        ↑
+      </button>
       <button
         type="button"
         class={SYMBOL}
         disabled={letzte || kontext.busy}
         title="Nach unten"
         aria-label="{mahlzeit.name} nach unten"
-        onclick={() => void speichern(mahlzeit.position + 1)}>↓</button
+        onclick={() => void speichern(mahlzeit.position + 1)}
       >
+        ↓
+      </button>
       <button
         type="button"
         class="{SYMBOL} hover:text-danger"
@@ -204,15 +211,18 @@
         title="Mahlzeit löschen"
         aria-label="{mahlzeit.name} löschen"
         onclick={() => void loeschen()}
-        ><svg
+      >
+        <svg
           viewBox="0 0 24 24"
           class="size-4"
           fill="none"
           stroke="currentColor"
           stroke-width="2"
-          aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg
-        ></button
-      >
+          aria-hidden="true"
+        >
+          <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+        </svg>
+      </button>
     {/if}
   </span>
   <!-- The dishes; the whole cell takes a dragged dish -->
@@ -265,9 +275,10 @@
           ? `alle außer ${ohne.join(', ')}`
           : 'alle'}"
         onclick={() => ongruppen(mahlzeit.id)}
-        >{ohne.length ? `alle außer ${ohne.join(', ')}` : 'alle'}
-        <span aria-hidden="true">✎</span></button
       >
+        {ohne.length ? `alle außer ${ohne.join(', ')}` : 'alle'}
+        <span aria-hidden="true">✎</span>
+      </button>
     {:else}
       <span class="text-neutral-900">{ohne.length ? `alle außer ${ohne.join(', ')}` : 'alle'}</span>
     {/if}

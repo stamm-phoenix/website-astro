@@ -118,8 +118,10 @@
         stroke="currentColor"
         stroke-width="2"
         stroke-linecap="round"
-        stroke-linejoin="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5" /></svg
+        stroke-linejoin="round"
       >
+        <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5" />
+      </svg>
     </button>
   {:else}
     <label for="{id}-input" class="sr-only">Bereich finden</label>
@@ -137,8 +139,10 @@
         stroke="currentColor"
         stroke-width="2"
         stroke-linecap="round"
-        stroke-linejoin="round"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5" /></svg
+        stroke-linejoin="round"
       >
+        <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-5-5" />
+      </svg>
       <input
         bind:this={input}
         bind:value={query}
@@ -154,8 +158,9 @@
       {#if variant === 'sidebar' && !searching}
         <kbd
           class="hidden shrink-0 border border-neutral-300 px-1.5 text-xs text-neutral-700 pointer-fine:inline"
-          >Strg K</kbd
         >
+          Strg K
+        </kbd>
       {/if}
     </div>
   {/if}
@@ -229,8 +234,10 @@
                     <span
                       class="staff-fold min-w-0 whitespace-nowrap transition-opacity motion-reduce:transition-none {collapsed
                         ? 'opacity-0'
-                        : ''}">{module.title}</span
+                        : ''}"
                     >
+                      {module.title}
+                    </span>
                   {:else}
                     <span class="min-w-0 flex-1">
                       <span class="block font-semibold">{module.title}</span>
@@ -242,9 +249,9 @@
                 </a>
                 {#if module.href === CHANGELOG_PATH}
                   <!-- Folded to its icons, the count sits on the corner of the icon and takes no room -->
-                  <span class={collapsed ? 'pointer-events-none absolute top-0.5 left-5' : 'mr-1'}
-                    ><ChangelogBadge textId="{id}-news" /></span
-                  >
+                  <span class={collapsed ? 'pointer-events-none absolute top-0.5 left-5' : 'mr-1'}>
+                    <ChangelogBadge textId="{id}-news" />
+                  </span>
                 {/if}
                 {#if !collapsed}<FavoriteStar {module} compact={variant === 'sidebar'} />{/if}
               </li>

@@ -49,9 +49,9 @@
     id="{id}-titel"
     class="border-b border-neutral-300 pb-2 font-serif text-xl font-semibold text-brand-900"
   >
-    Ergebnis <span class="font-sans text-base font-normal text-neutral-700"
-      >· {antwortenText(anzahl)}</span
-    >
+    Ergebnis <span class="font-sans text-base font-normal text-neutral-700">
+      · {antwortenText(anzahl)}
+    </span>
   </h2>
   {#if hinweis}
     <p class="pt-2 text-sm text-neutral-700">{hinweis}</p>

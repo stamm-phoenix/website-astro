@@ -138,9 +138,9 @@
           <option value={eintrag.mass}>{eintrag.label}</option>
         {/each}
       </select>
-      <ActionButton type="button" disabled={schaetzt} onclick={() => void schaetzen()}
-        >{schaetzt ? 'KI schätzt …' : 'Schätzen lassen'}</ActionButton
-      >
+      <ActionButton type="button" disabled={schaetzt} onclick={() => void schaetzen()}>
+        {schaetzt ? 'KI schätzt …' : 'Schätzen lassen'}
+      </ActionButton>
     </div>
     {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
     {#if schaetzung}
@@ -160,9 +160,9 @@
           <p class="text-neutral-700 [overflow-wrap:anywhere]">{schaetzung.begruendung}</p>
         {/if}
         {#if gramm !== null && gramm > 0}
-          <ActionButton type="button" onclick={() => onuebernehmen(gramm!)}
-            >{mengeFeld(gramm)} g übernehmen</ActionButton
-          >
+          <ActionButton type="button" onclick={() => onuebernehmen(gramm!)}>
+            {mengeFeld(gramm)} g übernehmen
+          </ActionButton>
         {/if}
       </div>
     {/if}

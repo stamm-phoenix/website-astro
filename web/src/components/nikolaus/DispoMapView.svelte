@@ -499,12 +499,12 @@
           >
             <span class="team-dot" style:background={team.color} aria-hidden="true"></span>
             Team {team.name}
-            <span class="tabular-nums text-neutral-700"
-              >({team.stops.length + team.unlocated.length})</span
-            >
-            <span class="font-normal text-neutral-700"
-              >{hidden.includes(team.name) ? 'ausgeblendet' : 'eingeblendet'}</span
-            >
+            <span class="tabular-nums text-neutral-700">
+              ({team.stops.length + team.unlocated.length})
+            </span>
+            <span class="font-normal text-neutral-700">
+              {hidden.includes(team.name) ? 'ausgeblendet' : 'eingeblendet'}
+            </span>
           </button>
         {/each}
       </div>
@@ -542,8 +542,10 @@
           <p class="text-neutral-700">
             Tel.: <a
               class="text-link inline-flex min-h-11 items-center underline"
-              href="tel:{booking.phone}">{booking.phone}</a
+              href="tel:{booking.phone}"
             >
+              {booking.phone}
+            </a>
           </p>
         {/if}
         {#if selected.lateAfterSlot > 0}
@@ -569,9 +571,9 @@
         <!-- A visit already checked off stays with its team, as in the list -->
         {#if !selected.visited}
           <div class="mt-2 flex flex-wrap items-center gap-2">
-            <label class="sr-only" for="dispo-map-team-select"
-              >Team für Familie {booking.familyName}</label
-            >
+            <label class="sr-only" for="dispo-map-team-select">
+              Team für Familie {booking.familyName}
+            </label>
             <select
               id="dispo-map-team-select"
               class="form-input mt-0! w-auto py-1.5 text-sm"
@@ -686,9 +688,9 @@
                 onpointerenter={(event) => event.pointerType === 'mouse' && pointAt(stop.id)}
                 onpointerleave={() => pointAt(null)}
               >
-                <span class="stop-number" style:background={team.color} aria-hidden="true"
-                  >{stop.number}</span
-                >
+                <span class="stop-number" style:background={team.color} aria-hidden="true">
+                  {stop.number}
+                </span>
                 <span class="tabular-nums font-semibold">{minutesToTime(stop.start)}</span>
                 <span class="min-w-0 flex-1 truncate">Familie {stop.booking.familyName}</span>
                 {#if stop.conflicts.length > 0}

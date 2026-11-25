@@ -323,9 +323,9 @@
   <div role="alert" class="surface p-6 border-l-4! border-l-danger!">
     <h1 class="text-lg font-semibold text-brand-900">Ungültiger Link</h1>
     <p class="mt-1 text-sm text-neutral-700">
-      Öffne die Aktion bitte über die <a href="/leitendenbereich/abrechnung" class="underline"
-        >Übersicht der Abrechnung</a
-      >.
+      Öffne die Aktion bitte über die <a href="/leitendenbereich/abrechnung" class="underline">
+        Übersicht der Abrechnung
+      </a>.
     </p>
   </div>
 {:else if loadError && costUnitMissing}
@@ -457,9 +457,9 @@
               {:else if item.id === 'nachweise'}
                 <span class="ml-1 text-xs font-normal">({nachweise.length})</span>
               {:else if item.id === 'leihgebuehren' && leihgebuehrenResult.totalCent > 0}
-                <span class="ml-1 text-xs font-normal" data-testid="tab-leihgebuehren-summe"
-                  >({formatEuro(leihgebuehrenResult.totalCent)})</span
-                >
+                <span class="ml-1 text-xs font-normal" data-testid="tab-leihgebuehren-summe">
+                  ({formatEuro(leihgebuehrenResult.totalCent)})
+                </span>
               {/if}
             </button>
           {/each}

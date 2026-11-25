@@ -102,8 +102,10 @@
             class="shrink-0 print:hidden"
             disabled={busy}
             aria-label="Planung {planung.name} löschen"
-            onclick={() => void loeschen(planung)}>Löschen</ActionButton
+            onclick={() => void loeschen(planung)}
           >
+            Löschen
+          </ActionButton>
         </li>
       {/each}
     </ul>

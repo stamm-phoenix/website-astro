@@ -36,22 +36,24 @@
 </script>
 
 <div class="flex flex-wrap items-center gap-2 {className}">
-  <ActionButton variant="primary" type="button" disabled={saveDisabled} onclick={onsave}
-    >{saving ? 'Speichert …' : 'Speichern'}</ActionButton
-  >
+  <ActionButton variant="primary" type="button" disabled={saveDisabled} onclick={onsave}>
+    {saving ? 'Speichert …' : 'Speichern'}
+  </ActionButton>
   <ActionButton
     variant="secondary"
     type="button"
     disabled={recalculateDisabled}
-    onclick={onrecalculate}>{calculating ? 'Berechne …' : 'Neu berechnen'}</ActionButton
+    onclick={onrecalculate}
   >
+    {calculating ? 'Berechne …' : 'Neu berechnen'}
+  </ActionButton>
   <InfoHint label="Neu berechnen">
     {#each info as paragraph (paragraph)}
       <p>{paragraph}</p>
     {/each}
   </InfoHint>
   {@render children?.()}
-  <ReloadAction type="button" {loadedAt} disabled={loading} onclick={onreload}
-    >{loading ? 'Lädt …' : 'Neu laden'}</ReloadAction
-  >
+  <ReloadAction type="button" {loadedAt} disabled={loading} onclick={onreload}>
+    {loading ? 'Lädt …' : 'Neu laden'}
+  </ReloadAction>
 </div>

@@ -98,8 +98,10 @@
         class="flex {knopf} shrink-0 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-50"
         aria-label="{tag} entfernen"
         {disabled}
-        onclick={() => remove(tag)}>×</button
+        onclick={() => remove(tag)}
       >
+        ×
+      </button>
     </span>
   {/each}
   <VorschlagFeld
@@ -140,6 +142,8 @@
     class="{hoehe} shrink-0 px-2 text-sm font-semibold text-link disabled:opacity-50"
     disabled={disabled || !draft.trim()}
     onmousedown={(event) => event.preventDefault()}
-    onclick={() => add(draft)}>Hinzufügen</button
+    onclick={() => add(draft)}
   >
+    Hinzufügen
+  </button>
 </div>

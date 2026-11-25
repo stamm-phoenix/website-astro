@@ -48,8 +48,10 @@
         <button
           type="button"
           class="text-link min-h-11 underline underline-offset-4"
-          onclick={() => void postfachStart.load({ force: true })}>Erneut versuchen</button
+          onclick={() => void postfachStart.load({ force: true })}
         >
+          Erneut versuchen
+        </button>
       {/if}
       ·
       <a class="text-link" href={postfachHref(postfach.id)}>Zum Postfach</a>
@@ -63,13 +65,13 @@
           class="block min-h-11 py-2"
           title={zeile.betreff}
         >
-          <span class="text-link block truncate" class:font-semibold={zeile.status === 'neu'}
-            >{zeile.betreff}</span
-          >
+          <span class="text-link block truncate" class:font-semibold={zeile.status === 'neu'}>
+            {zeile.betreff}
+          </span>
           <span class="flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
-            <span class="max-w-full truncate"
-              >{zeile.von.name} · {mailZeitKurz(zeile.am)}{mehrere ? ` · ${name(zeile)}` : ''}</span
-            >
+            <span class="max-w-full truncate">
+              {zeile.von.name} · {mailZeitKurz(zeile.am)}{mehrere ? ` · ${name(zeile)}` : ''}
+            </span>
             {#if istMirZugewiesen(zeile, ich)}<StatusLabel
                 label="Dir zugewiesen"
                 tone="warning"

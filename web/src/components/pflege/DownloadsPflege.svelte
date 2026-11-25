@@ -235,9 +235,9 @@
         <path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
       </svg>
       <span class="font-semibold text-brand-900">Dateien hierher ziehen oder auswählen</span>
-      <span class="text-xs text-neutral-700"
-        >Bis 250 MB pro Datei. Erscheint sofort auf der Website.</span
-      >
+      <span class="text-xs text-neutral-700">
+        Bis 250 MB pro Datei. Erscheint sofort auf der Website.
+      </span>
       <input type="file" multiple class="sr-only" onchange={onfilechange} />
     </label>
 
@@ -267,20 +267,24 @@
                   onclick={() => {
                     entry.replace = true;
                     void upload(entry);
-                  }}>Ersetzen</ActionButton
+                  }}
                 >
+                  Ersetzen
+                </ActionButton>
                 <ActionButton
                   variant="secondary"
                   type="button"
-                  onclick={() => uploads.splice(index, 1)}>Abbrechen</ActionButton
+                  onclick={() => uploads.splice(index, 1)}
                 >
+                  Abbrechen
+                </ActionButton>
               </p>
             {:else}
               <p class="mt-2 text-danger">
                 <MessageText text={entry.error ?? ''} />
-                <button type="button" class="ml-2 underline" onclick={() => upload(entry)}
-                  >Erneut versuchen</button
-                >
+                <button type="button" class="ml-2 underline" onclick={() => upload(entry)}>
+                  Erneut versuchen
+                </button>
               </p>
             {/if}
           </li>

@@ -60,25 +60,31 @@
       >
         {#if variant === 'segmented' && value === option.value && (option.tone === 'success' || option.tone === 'warning')}<span
             aria-hidden="true"
-            class="mr-1">✓</span
-          >{/if}{option.label}{#if option.count !== undefined}{#if countStyle === 'badge'}<span
+            class="mr-1"
+          >
+            ✓
+          </span>{/if}{option.label}{#if option.count !== undefined}{#if countStyle === 'badge'}<span
               aria-hidden="true"
-              class="count-badge">{option.count}</span
-            >{:else}<span aria-hidden="true" class="ml-1 tabular-nums">({option.count})</span
-            >{/if}{/if}
+              class="count-badge"
+            >
+              {option.count}
+            </span>{:else}<span aria-hidden="true" class="ml-1 tabular-nums">
+              ({option.count})
+            </span>{/if}{/if}
       </button>
-      {#if option.count !== undefined}<span class="sr-only" id="{id}-count-{index}"
-          >{option.count} {option.count === 1 ? countNouns[0] : countNouns[1]}</span
-        >{/if}
+      {#if option.count !== undefined}<span class="sr-only" id="{id}-count-{index}">
+          {option.count}
+          {option.count === 1 ? countNouns[0] : countNouns[1]}
+        </span>{/if}
     {/each}
   </div>
 {/snippet}
 
 {#if showLabel}
   <div class={`flex flex-wrap items-center gap-x-3 ${className}`}>
-    <span class="text-sm font-semibold text-neutral-700"
-      ><span id="{id}-label">{label}</span><span aria-hidden="true">:</span></span
-    >
+    <span class="text-sm font-semibold text-neutral-700">
+      <span id="{id}-label">{label}</span><span aria-hidden="true">:</span>
+    </span>
     {@render group('')}
   </div>
 {:else}

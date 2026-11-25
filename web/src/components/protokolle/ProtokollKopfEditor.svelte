@@ -146,26 +146,28 @@
         {#each liste as person (key(person))}
           {@const status = statusOf(person)}
           <li class="flex items-center justify-between gap-2 border-b border-neutral-200 py-1">
-            <span class="min-w-0 truncate" class:text-neutral-700={status === null}
-              >{person.name}</span
-            >
+            <span class="min-w-0 truncate" class:text-neutral-700={status === null}>
+              {person.name}
+            </span>
             <span class="flex shrink-0 gap-1" role="group" aria-label="Anwesenheit {person.name}">
               <button
                 type="button"
                 class="status is-da"
                 aria-pressed={status === 'anwesend'}
                 onclick={() => setStatus(person, 'anwesend')}
-                ><span class="mark" aria-hidden="true">{status === 'anwesend' ? '✓' : ''}</span
-                >da</button
               >
+                <span class="mark" aria-hidden="true">{status === 'anwesend' ? '✓' : ''}</span>da
+              </button>
               <button
                 type="button"
                 class="status is-entschuldigt"
                 aria-pressed={status === 'entschuldigt'}
                 onclick={() => setStatus(person, 'entschuldigt')}
-                ><span class="mark" aria-hidden="true">{status === 'entschuldigt' ? '✓' : ''}</span
-                >entsch.</button
               >
+                <span class="mark" aria-hidden="true">
+                  {status === 'entschuldigt' ? '✓' : ''}
+                </span>entsch.
+              </button>
             </span>
           </li>
         {/each}
@@ -184,8 +186,9 @@
           oncommit={addExtra}
         />
       </div>
-      <ActionButton onclick={() => addExtra()} disabled={!extraName.trim()}>Hinzufügen</ActionButton
-      >
+      <ActionButton onclick={() => addExtra()} disabled={!extraName.trim()}>
+        Hinzufügen
+      </ActionButton>
     </div>
   </fieldset>
 

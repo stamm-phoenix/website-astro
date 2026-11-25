@@ -28,9 +28,9 @@
 </script>
 
 <AufgabenLadestatus />
-<a class="inline-flex min-h-11 items-center text-link" href="/leitendenbereich/aufgaben"
-  >Zur Aufgabenliste</a
->
+<a class="inline-flex min-h-11 items-center text-link" href="/leitendenbereich/aufgaben">
+  Zur Aufgabenliste
+</a>
 {#if data}
   <ActionButton type="button" onclick={() => edit()}>Vorlage anlegen</ActionButton>
   <ul class="mt-4 divide-y divide-neutral-200">
@@ -41,9 +41,9 @@
           <p>{template.items.length} {template.items.length === 1 ? 'Aufgabe' : 'Aufgaben'}</p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <ActionButton type="button" variant="secondary" onclick={() => edit(template)}
-            >Vorlage bearbeiten</ActionButton
-          >
+          <ActionButton type="button" variant="secondary" onclick={() => edit(template)}>
+            Vorlage bearbeiten
+          </ActionButton>
           <PdfDownloadButton
             label="PDF herunterladen: Checkliste {template.title}"
             download={async () => {

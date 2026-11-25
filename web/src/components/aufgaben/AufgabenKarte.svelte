@@ -42,8 +42,10 @@
     fill="none"
     stroke="currentColor"
     stroke-width="1.7"
-    class="shrink-0"><path d={path} stroke-linecap="round" stroke-linejoin="round" /></svg
+    class="shrink-0"
   >
+    <path d={path} stroke-linecap="round" stroke-linejoin="round" />
+  </svg>
 {/snippet}
 
 <li
@@ -69,12 +71,13 @@
           fill="none"
           stroke="currentColor"
           stroke-width="1.7"
-          ><rect x="4" y="4" width="16" height="16" rx="3" />{#if task.state === 'erledigt'}<path
+        >
+          <rect x="4" y="4" width="16" height="16" rx="3" />{#if task.state === 'erledigt'}<path
               d="m7 12 3 3 7-7"
               stroke-linecap="round"
               stroke-linejoin="round"
-            />{/if}</svg
-        >
+            />{/if}
+        </svg>
         <span class="sr-only">{task.state === 'erledigt' ? 'Wieder öffnen' : 'Erledigen'}</span>
       </button>
     {/if}
@@ -94,8 +97,10 @@
           onclick={(event) => {
             event.currentTarget.focus({ preventScroll: true });
             onopen();
-          }}>{task.title}</button
-        >{/if}
+          }}
+        >
+          {task.title}
+        </button>{/if}
     </svelte:element>
     {#if task.state !== 'vorschlag'}
       <button
@@ -106,19 +111,19 @@
         disabled={busy}
         onclick={onmenu}
       >
-        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"
-          ><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle
             cx="19"
             cy="12"
             r="2"
-          /></svg
-        >
+          />
+        </svg>
       </button>
     {/if}
   </div>
-  {#if task.state !== 'vorschlag'}<span id="aufgabe-{task.id}-open-hint" class="sr-only"
-      >Aufgabe öffnen und bearbeiten</span
-    >{/if}
+  {#if task.state !== 'vorschlag'}<span id="aufgabe-{task.id}-open-hint" class="sr-only">
+      Aufgabe öffnen und bearbeiten
+    </span>{/if}
   {#if task.state === 'vorschlag' && task.suggestedAssigneeName}
     <p class="text-sm text-neutral-700">
       Zuordnungsvorschlag: {task.suggestedAssigneeName} → {people}
@@ -134,8 +139,10 @@
     <p class="mt-1 text-sm text-neutral-700">
       Aus dem <a
         href={protokollEditorUrl(task.protokollId)}
-        class="relative z-10 inline-flex min-h-11 items-center text-link underline">Protokoll</a
-      >{task.protokollPunkt ? `, Punkt ${task.protokollPunkt}` : ''}
+        class="relative z-10 inline-flex min-h-11 items-center text-link underline"
+      >
+        Protokoll
+      </a>{task.protokollPunkt ? `, Punkt ${task.protokollPunkt}` : ''}
     </p>
   {/if}
   <dl class="mt-2 flex flex-wrap gap-2 text-sm text-neutral-700 break-words">
@@ -174,8 +181,9 @@
     <a
       class="relative z-10 inline-flex min-h-11 items-center text-link text-sm"
       href="/leitendenbereich/protokolle#protokoll-{encodeURIComponent(task.sourceId)}"
-      >Quellprotokoll öffnen</a
     >
+      Quellprotokoll öffnen
+    </a>
     {#if task.state === 'vorschlag'}<blockquote
         class="my-2 border-l-2 border-neutral-300 pl-3 text-sm break-words"
       >
@@ -191,11 +199,13 @@
         onclick={(event) => {
           event.currentTarget.focus({ preventScroll: true });
           onopen();
-        }}>Prüfen und annehmen</ActionButton
+        }}
       >
-      <ActionButton type="button" variant="secondary" disabled={busy} onclick={onreject}
-        >Ablehnen</ActionButton
-      >
+        Prüfen und annehmen
+      </ActionButton>
+      <ActionButton type="button" variant="secondary" disabled={busy} onclick={onreject}>
+        Ablehnen
+      </ActionButton>
     </div>
   {/if}
 </li>

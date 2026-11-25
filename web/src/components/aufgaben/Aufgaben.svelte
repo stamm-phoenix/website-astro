@@ -114,14 +114,17 @@
         data-focus-fallback
         variant="primary"
         onclick={() => edit()}
-        disabled={busy}>Aufgabe anlegen</ActionButton
+        disabled={busy}
       >
+        Aufgabe anlegen
+      </ActionButton>
       <ActionButton
         variant="secondary"
         onclick={() => (checklist = true)}
         disabled={busy || !data.projects.length || !data.templates.length}
-        >Checkliste aus Vorlage</ActionButton
       >
+        Checkliste aus Vorlage
+      </ActionButton>
       <PdfDownloadButton
         download={async () => {
           const shown = {
@@ -141,17 +144,20 @@
 </StaffPageHead>
 <StatusNotice message={actions.state.error ?? aufgabenStore.error} kind="error" popup />
 {#if aufgabenStore.loading && !data}<p role="status">Aufgaben werden geladen …</p>{/if}
-{#if aufgabenStore.error}<ReloadAction onclick={loadTasks} disabled={busy}>Neu laden</ReloadAction
-  >{/if}
+{#if aufgabenStore.error}<ReloadAction onclick={loadTasks} disabled={busy}>
+    Neu laden
+  </ReloadAction>{/if}
 {#if data}
   {#if pending > 0}<a
       href="/leitendenbereich/aufgaben/vorschlaege"
       class="mb-3 inline-flex min-h-11 items-center gap-2 text-link"
-      ><span
+    >
+      <span
         class="rounded-full bg-[var(--color-warning-soft)] px-2 py-0.5 text-sm font-semibold text-warning"
-        >{pending}</span
-      >{pending === 1 ? 'Aufgabenvorschlag prüfen' : 'Aufgabenvorschläge prüfen'}</a
-    >{/if}
+      >
+        {pending}
+      </span>{pending === 1 ? 'Aufgabenvorschlag prüfen' : 'Aufgabenvorschläge prüfen'}
+    </a>{/if}
   <div class="mb-3 flex flex-wrap gap-2 sm:gap-3">
     <FilterTabs
       variant="segmented"

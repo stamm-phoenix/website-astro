@@ -29,9 +29,9 @@
   <div class="flex flex-wrap items-center justify-between gap-2">
     <h3 id="einkaeufe-heading" class="font-serif text-lg font-bold text-brand-900">Einkäufe</h3>
     {#if bearbeiten && !anlegen}
-      <ActionButton type="button" class={KNOPF} onclick={() => (anlegen = true)}
-        >Einkauf anlegen</ActionButton
-      >
+      <ActionButton type="button" class={KNOPF} onclick={() => (anlegen = true)}>
+        Einkauf anlegen
+      </ActionButton>
     {/if}
   </div>
   {#if listen.length}
@@ -44,8 +44,9 @@
               type="button"
               class="flex min-h-8 items-center gap-1 text-left font-semibold text-link [overflow-wrap:anywhere] any-pointer-coarse:min-h-11"
               onclick={() => onoeffnen(einkauf.id, null)}
-              >{einkauf.name}<span aria-hidden="true">›</span></button
             >
+              {einkauf.name}<span aria-hidden="true">›</span>
+            </button>
             <p class="text-xs text-neutral-700">
               {einkaufInfo(ansicht, einkauf)}{#if einkauf.abgeschlossen}
                 · <span class="font-semibold">abgeschlossen</span>{/if}
@@ -67,8 +68,10 @@
               class={KNOPF}
               disabled={!katalogGeladen}
               aria-label="{einkauf.name}: Einkaufen"
-              onclick={() => onoeffnen(einkauf.id, 'live')}>Einkaufen</ActionButton
+              onclick={() => onoeffnen(einkauf.id, 'live')}
             >
+              Einkaufen
+            </ActionButton>
           {/if}
         </li>
       {/each}

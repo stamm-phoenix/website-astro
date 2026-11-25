@@ -170,9 +170,9 @@
                   onblur={() => delete dayInputs[position.id]}
                 />
               </td>
-              <td class="py-2 text-right tabular-nums text-brand-900"
-                >{formatEuro(position.cent)}</td
-              >
+              <td class="py-2 text-right tabular-nums text-brand-900">
+                {formatEuro(position.cent)}
+              </td>
             </tr>
           {/each}
         </tbody>

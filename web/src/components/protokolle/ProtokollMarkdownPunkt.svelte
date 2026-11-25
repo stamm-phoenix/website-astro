@@ -48,8 +48,9 @@
           class="text-link text-sm"
           onclick={() => (punkt.aktion = null)}
           aria-label="Verknüpfung mit der Aktion {punkt.aktion.titel} lösen"
-          >Verknüpfung lösen</button
         >
+          Verknüpfung lösen
+        </button>
       </p>
     {/if}
     {#if canLink}

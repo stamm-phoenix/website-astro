@@ -212,8 +212,10 @@
               onclick={() => {
                 extra = extra.filter((e) => e !== address);
                 notice = `${address} entfernt.`;
-              }}>Entfernen</ActionButton
+              }}
             >
+              Entfernen
+            </ActionButton>
           </li>
         {/each}
       </ul>

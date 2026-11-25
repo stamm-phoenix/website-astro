@@ -36,8 +36,10 @@
 
 {#each parts as part, index (index)}{#if ADDRESSES.includes(part)}<a
       href="mailto:{part}"
-      class="text-link underline">{part}</a
-    >{:else}{part}{/if}{/each}{#if text.includes(SESSION_EXPIRED_MESSAGE) && reloginOnlyHere()}
+      class="text-link underline"
+    >
+      {part}
+    </a>{:else}{part}{/if}{/each}{#if text.includes(SESSION_EXPIRED_MESSAGE) && reloginOnlyHere()}
   <span class="mt-2 block">
     {#if rescueFailed}
       Deine Eingaben ließen sich auf diesem Gerät nicht sichern. Kopiere sie selbst, bevor du dich
@@ -56,13 +58,16 @@
     data-astro-reload
     onclick={keepInput}
     class="btn-secondary mt-2 flex w-fit no-underline"
-    >{rescueFailed ? 'Trotzdem neu anmelden' : 'Neu anmelden'}</a
   >
+    {rescueFailed ? 'Trotzdem neu anmelden' : 'Neu anmelden'}
+  </a>
 {:else if text.includes(SESSION_EXPIRED_MESSAGE)}
   <a
     href={RELOGIN_URL}
     target="_blank"
     rel="noopener"
-    class="btn-secondary mt-2 flex w-fit no-underline">Neu anmelden (öffnet neuen Tab)</a
+    class="btn-secondary mt-2 flex w-fit no-underline"
   >
+    Neu anmelden (öffnet neuen Tab)
+  </a>
 {/if}

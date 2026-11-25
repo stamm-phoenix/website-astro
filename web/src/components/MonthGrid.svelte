@@ -239,21 +239,25 @@
         type="button"
         aria-label="Vorheriger Monat"
         onclick={() => onmonth(shiftMonth(month, -1))}
-        ><span aria-hidden="true">‹</span></ActionButton
       >
+        <span aria-hidden="true">‹</span>
+      </ActionButton>
       <ActionButton
         variant="secondary"
         type="button"
         disabled={month === currentMonth}
-        onclick={() => onmonth(currentMonth)}>Heute</ActionButton
+        onclick={() => onmonth(currentMonth)}
       >
+        Heute
+      </ActionButton>
       <ActionButton
         variant="secondary"
         type="button"
         aria-label="Nächster Monat"
         onclick={() => onmonth(shiftMonth(month, 1))}
-        ><span aria-hidden="true">›</span></ActionButton
       >
+        <span aria-hidden="true">›</span>
+      </ActionButton>
     </div>
   </div>
 
@@ -296,14 +300,17 @@
                   : outside
                     ? ''
                     : 'text-brand-900'}"
-                aria-hidden="true">{Number(day.slice(8, 10))}</span
+                aria-hidden="true"
               >
+                {Number(day.slice(8, 10))}
+              </span>
               {#if layout.hidden[column]}
                 <span
                   class="mt-auto text-[10px] font-semibold text-neutral-700 sm:text-[11px]"
                   aria-hidden="true"
-                  >+{layout.hidden[column]}<span class="hidden sm:inline"> weitere</span></span
                 >
+                  +{layout.hidden[column]}<span class="hidden sm:inline"> weitere</span>
+                </span>
               {/if}
             </button>
           {/each}
@@ -325,10 +332,11 @@
                 style="grid-column: {segment.column +
                   1} / span {segment.span}; grid-row: {segment.lane + 1};"
                 title={segment.row.title}
-                ><span class="hidden sm:inline"
-                  >{segment.starts ? '' : '… '}{segment.row.title || 'Ohne Titel'}</span
-                ></span
               >
+                <span class="hidden sm:inline">
+                  {segment.starts ? '' : '… '}{segment.row.title || 'Ohne Titel'}
+                </span>
+              </span>
             {/each}
           </div>
         </div>
@@ -346,9 +354,9 @@
           : `Alle Aktionen im ${monthLabel}`}
       </h3>
       {#if selectedDay}
-        <ActionButton variant="secondary" type="button" onclick={() => (selectedDay = null)}
-          >Ganzen Monat zeigen</ActionButton
-        >
+        <ActionButton variant="secondary" type="button" onclick={() => (selectedDay = null)}>
+          Ganzen Monat zeigen
+        </ActionButton>
       {/if}
     </div>
     {#if listed.length === 0}

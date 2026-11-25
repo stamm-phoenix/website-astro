@@ -122,13 +122,17 @@
       <button
         type="submit"
         class="btn-primary min-h-0 px-2 py-0.5 text-xs any-pointer-coarse:min-h-11"
-        disabled={!name.trim() || kontext.busy || gesperrt}>Eintragen</button
+        disabled={!name.trim() || kontext.busy || gesperrt}
       >
+        Eintragen
+      </button>
       <button
         type="button"
         class="min-h-0 px-2 py-0.5 text-xs text-neutral-700 hover:underline any-pointer-coarse:min-h-11"
-        onclick={schliessen}>Abbrechen</button
+        onclick={schliessen}
       >
+        Abbrechen
+      </button>
     </div>
   </form>
 {:else}
@@ -136,6 +140,8 @@
     type="button"
     class="flex w-full items-center gap-1 rounded-sm px-1 py-0.5 text-left text-xs text-neutral-700 hover:bg-neutral-100 hover:text-brand-900 any-pointer-coarse:min-h-11 {knopfKlasse}"
     aria-label="Gericht eintragen bei {mahlzeit.kennung} {mahlzeit.name}"
-    onclick={() => void oeffne()}><span aria-hidden="true">+</span> Gericht</button
+    onclick={() => void oeffne()}
   >
+    <span aria-hidden="true">+</span> Gericht
+  </button>
 {/if}

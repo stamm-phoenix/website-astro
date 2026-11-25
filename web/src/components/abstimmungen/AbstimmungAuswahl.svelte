@@ -124,7 +124,9 @@
     <button
       type="button"
       class="mt-1 min-h-11 text-sm font-semibold text-link underline"
-      onclick={() => (gewaehlt = [])}>Auswahl aufheben</button
+      onclick={() => (gewaehlt = [])}
     >
+      Auswahl aufheben
+    </button>
   {/if}
 </fieldset>

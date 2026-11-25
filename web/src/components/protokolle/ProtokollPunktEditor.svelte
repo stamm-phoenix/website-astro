@@ -165,8 +165,8 @@
         onpointerdown={(event) => griff.down(event, punkt.id)}
         onkeydown={(event) => griff.key(event, punkt.id)}
       >
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"
-          ><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle
             cx="9"
             cy="12"
             r="1.6"
@@ -174,8 +174,8 @@
             cx="15"
             cy="18"
             r="1.6"
-          /></svg
-        >
+          />
+        </svg>
       </button>
     {/if}
     <span class="nummer pt-2 font-semibold tabular-nums text-brand-900" aria-hidden="true">
@@ -199,8 +199,9 @@
             class="text-link text-sm"
             onclick={() => (punkt.aktion = null)}
             aria-label="Verknüpfung mit der Aktion {punkt.aktion.titel} lösen"
-            >Verknüpfung lösen</button
           >
+            Verknüpfung lösen
+          </button>
         </p>
       {/if}
     </div>
@@ -221,8 +222,10 @@
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7" /></svg
+          stroke-width="2"
         >
+          <path d="M12 19V5M5 12l7-7 7 7" />
+        </svg>
       </button>
       <button
         type="button"
@@ -236,8 +239,10 @@
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7" /></svg
+          stroke-width="2"
         >
+          <path d="M12 5v14M19 12l-7 7-7-7" />
+        </svg>
       </button>
       <button
         type="button"
@@ -250,17 +255,19 @@
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg
+          stroke-width="2"
         >
+          <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />
+        </svg>
       </button>
     </div>
   </div>
 
   <div class="inhalt space-y-3" class:ohne-unterpunkte={punkt.unterpunkte.length === 0}>
     <div class="details space-y-3">
-      <label for="text-{punkt.id}" id="text-label-{punkt.id}" class="sr-only"
-        >Text zu Punkt {nummer}</label
-      >
+      <label for="text-{punkt.id}" id="text-label-{punkt.id}" class="sr-only">
+        Text zu Punkt {nummer}
+      </label>
       {@render markdownField()}
 
       <ProtokollPunktExtras

@@ -37,8 +37,10 @@
         <li>
           <a
             class="inline-flex min-h-11 items-center break-all text-sm underline underline-offset-2"
-            href={getDownloadFileUrl(file.id)}>{file.fileName}</a
+            href={getDownloadFileUrl(file.id)}
           >
+            {file.fileName}
+          </a>
         </li>
       {/each}
     </ul>

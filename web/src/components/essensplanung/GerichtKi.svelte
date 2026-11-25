@@ -162,13 +162,17 @@
     <ActionButton
       type="button"
       disabled={!bearbeiten || prueft || uebernimmt || kontext.busy || !gericht.zutaten.length}
-      onclick={() => void pruefen()}>{prueft ? 'KI prüft …' : 'Gericht prüfen (KI)'}</ActionButton
+      onclick={() => void pruefen()}
     >
+      {prueft ? 'KI prüft …' : 'Gericht prüfen (KI)'}
+    </ActionButton>
     <ActionButton
       type="button"
       disabled={!bearbeiten || !katalog}
-      onclick={() => (rezeptOffen = true)}>Rezept einfügen (KI)</ActionButton
+      onclick={() => (rezeptOffen = true)}
     >
+      Rezept einfügen (KI)
+    </ActionButton>
   </div>
   {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
   {#if pruefung}
@@ -189,8 +193,10 @@
           <ActionButton
             type="button"
             disabled={!bearbeiten || prueft || uebernimmt || kontext.busy}
-            onclick={() => void pruefen()}>Gericht neu prüfen</ActionButton
+            onclick={() => void pruefen()}
           >
+            Gericht neu prüfen
+          </ActionButton>
         </div>
       {/if}
       {#if pruefung.hinweise.length}
@@ -222,11 +228,12 @@
                     disabled={!bearbeiten || kontext.busy}
                     aria-label="Vorschlag für {name} übernehmen: {aenderungText(hinweis.aenderung)}"
                     onclick={() => void uebernehmen(index, hinweis)}
-                    >Übernehmen: {aenderungText(
+                  >
+                    Übernehmen: {aenderungText(
                       hinweis.aenderung,
                       zutaten.get(zeileVon(hinweis)?.planungZutatId ?? 0)?.abtropfgewicht
-                    )}</ActionButton
-                  >
+                    )}
+                  </ActionButton>
                 {/if}
               {/if}
             </li>

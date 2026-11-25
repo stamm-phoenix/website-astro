@@ -46,8 +46,10 @@
         menuTarget = null;
         await tick();
         if (task) onedit(task);
-      }}>Bearbeiten</ActionButton
+      }}
     >
+      Bearbeiten
+    </ActionButton>
     {#if menuTarget && !menuTarget.sourceId}<ActionButton
         variant="danger"
         onclick={async () => {
@@ -55,8 +57,10 @@
           menuTarget = null;
           await tick();
           if (task) actions.openDelete(task);
-        }}>Löschen</ActionButton
-      >{/if}
+        }}
+      >
+        Löschen
+      </ActionButton>{/if}
   </div>
 </ActionSheet>
 <ConfirmDialog

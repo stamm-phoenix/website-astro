@@ -50,40 +50,46 @@
   {onclose}
 >
   <div class="space-y-4">
-    <FormField name="projectId" id="task-project" label="Projekt" error={fields.projectId}
-      >{#snippet children(attrs)}
-        <select {...attrs} class="form-input" bind:value={draft.projectId} required
-          ><option value={null}>Bitte auswählen</option
-          >{#each data?.projects ?? [] as project (project.id)}<option value={project.id}
-              >{project.title}</option
-            >{/each}</select
-        >
-      {/snippet}</FormField
-    >
+    <FormField name="projectId" id="task-project" label="Projekt" error={fields.projectId}>
+      {#snippet children(attrs)}
+        <select {...attrs} class="form-input" bind:value={draft.projectId} required>
+          <option value={null}>
+            Bitte auswählen
+          </option>{#each data?.projects ?? [] as project (project.id)}<option value={project.id}>
+              {project.title}
+            </option>{/each}
+        </select>
+      {/snippet}
+    </FormField>
     <FormField
       name="templateId"
       id="checklist-template"
       label="Vorlage"
       info="Wird je Projekt nur einmal angewendet."
       error={fields.templateId}
-      >{#snippet children(attrs)}<select
+    >
+      {#snippet children(attrs)}<select
           {...attrs}
           class="form-input"
           bind:value={templateId}
           required
-          ><option value={null}>Bitte auswählen</option
-          >{#each data?.templates ?? [] as template (template.id)}<option value={template.id}
-              >{template.title}</option
-            >{/each}</select
-        >{/snippet}</FormField
-    >
-    <FormField name="dueDate" id="checklist-date" label="Datum der Aktion" error={fields.dueDate}
-      >{#snippet children(attrs)}<GermanDateInput
+        >
+          <option value={null}>
+            Bitte auswählen
+          </option>{#each data?.templates ?? [] as template (template.id)}<option
+              value={template.id}
+            >
+              {template.title}
+            </option>{/each}
+        </select>{/snippet}
+    </FormField>
+    <FormField name="dueDate" id="checklist-date" label="Datum der Aktion" error={fields.dueDate}>
+      {#snippet children(attrs)}<GermanDateInput
           {...attrs}
           value={date}
           required
           onchange={(value) => (date = value)}
-        />{/snippet}</FormField
-    >
+        />{/snippet}
+    </FormField>
   </div>
 </EditDialog>

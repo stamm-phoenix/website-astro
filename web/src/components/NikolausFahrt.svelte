@@ -331,9 +331,9 @@
       {#if !data.dispoSaved}
         <p class="surface p-6 text-sm text-neutral-800">
           Für diesen Tag ist noch keine
-          <a class="font-semibold text-link underline" href="/leitendenbereich/nikolaus-dispo"
-            >Dispo</a
-          > gespeichert.
+          <a class="font-semibold text-link underline" href="/leitendenbereich/nikolaus-dispo">
+            Dispo
+          </a> gespeichert.
         </p>
       {:else if teamInfo}
         <section

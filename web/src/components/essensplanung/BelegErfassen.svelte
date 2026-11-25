@@ -300,8 +300,10 @@
             <ActionButton
               class="min-h-8 any-pointer-coarse:min-h-11"
               disabled={busy}
-              onclick={() => void zuOhneFoto()}>Ohne Foto</ActionButton
+              onclick={() => void zuOhneFoto()}
             >
+              Ohne Foto
+            </ActionButton>
           {/if}
         </div>
         <BelegAiCheck
@@ -376,8 +378,9 @@
               />
             </div>
             {#if fehler.bezahltVonText || fehler.bezahltVonId}
-              <span class="text-xs text-danger">{fehler.bezahltVonText ?? fehler.bezahltVonId}</span
-              >
+              <span class="text-xs text-danger">
+                {fehler.bezahltVonText ?? fehler.bezahltVonId}
+              </span>
             {/if}
           </div>
           <label class="block text-sm">
@@ -406,20 +409,25 @@
               variant="primary"
               class="min-h-8 any-pointer-coarse:min-h-11"
               disabled={busy || photo.photoBusy || !!photo.zuschnitt || !bearbeiten}
-              >{dialog.state.busy ? 'Wird gespeichert …' : 'Beleg speichern'}</ActionButton
             >
+              {dialog.state.busy ? 'Wird gespeichert …' : 'Beleg speichern'}
+            </ActionButton>
             {#if !mitFoto}
               <ActionButton
                 class="min-h-8 any-pointer-coarse:min-h-11"
                 disabled={busy}
-                onclick={() => void zuFoto()}>Foto hinzufügen</ActionButton
+                onclick={() => void zuFoto()}
               >
+                Foto hinzufügen
+              </ActionButton>
             {/if}
             <ActionButton
               class="min-h-8 any-pointer-coarse:min-h-11"
               disabled={busy}
-              onclick={onfertig}>Abbrechen</ActionButton
+              onclick={onfertig}
             >
+              Abbrechen
+            </ActionButton>
           </div>
         </fieldset>
       </form>
@@ -447,20 +455,26 @@
             !!photo.zuschnitt ||
             !bearbeiten}
           onclick={() => void fotoSpeichern()}
-          >{konflikt ? 'Trotzdem speichern' : 'Foto speichern'}</ActionButton
         >
+          {konflikt ? 'Trotzdem speichern' : 'Foto speichern'}
+        </ActionButton>
         {#if beleg.foto}
           <ActionButton
             variant="danger"
             class="min-h-8 any-pointer-coarse:min-h-11"
             disabled={geloescht || busy || !bearbeiten}
             onclick={() => void fotoEntfernen()}
-            >{konflikt ? 'Trotzdem entfernen' : 'Foto entfernen'}</ActionButton
           >
+            {konflikt ? 'Trotzdem entfernen' : 'Foto entfernen'}
+          </ActionButton>
         {/if}
-        <ActionButton class="min-h-8 any-pointer-coarse:min-h-11" disabled={busy} onclick={onfertig}
-          >Abbrechen</ActionButton
+        <ActionButton
+          class="min-h-8 any-pointer-coarse:min-h-11"
+          disabled={busy}
+          onclick={onfertig}
         >
+          Abbrechen
+        </ActionButton>
       </div>
     {/if}
   </div>

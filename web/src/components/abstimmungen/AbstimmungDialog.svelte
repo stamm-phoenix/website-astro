@@ -321,8 +321,10 @@
               type="button"
               class="inline-flex size-11 shrink-0 items-center justify-center rounded text-danger"
               aria-label="Option {index + 1} entfernen{z.text.trim() ? `: ${z.text.trim()}` : ''}"
-              onclick={() => removeZeile(index)}>✕</button
+              onclick={() => removeZeile(index)}
             >
+              ✕
+            </button>
           </li>
         {/each}
       </ol>
@@ -331,8 +333,10 @@
         variant="secondary"
         class="mt-3"
         disabled={voll}
-        onclick={addZeile}>Option hinzufügen</ActionButton
+        onclick={addZeile}
       >
+        Option hinzufügen
+      </ActionButton>
 
       <div class="mt-4 border-t border-neutral-200 pt-4">
         <p id="abstimmung-termin-titel" class="font-semibold text-brand-900">Termin hinzufügen</p>
@@ -351,9 +355,9 @@
             <span>Uhrzeit <span class="text-neutral-700">(optional)</span></span>
             <input type="time" class="form-input" bind:value={uhrzeit} />
           </label>
-          <ActionButton variant="secondary" disabled={voll} onclick={addTermin}
-            >Termin hinzufügen</ActionButton
-          >
+          <ActionButton variant="secondary" disabled={voll} onclick={addTermin}>
+            Termin hinzufügen
+          </ActionButton>
         </div>
         {#if errors.termin}
           <p id="abstimmung-termin-fehler" class="mt-1 text-sm text-danger" role="alert">
@@ -395,9 +399,9 @@
         >
           <option value="">Beliebig viele</option>
           {#each grenzen as grenze (grenze)}
-            <option value={String(grenze)}
-              >{grenze === 1 ? 'Nur eine' : `Höchstens ${grenze}`}</option
-            >
+            <option value={String(grenze)}>
+              {grenze === 1 ? 'Nur eine' : `Höchstens ${grenze}`}
+            </option>
           {/each}
         </select>
       {/snippet}

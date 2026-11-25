@@ -114,8 +114,10 @@
     </p>
     <a
       class="btn-primary mt-4 inline-flex min-h-11 items-center no-underline"
-      href="tel:{contact.phone.replace(/[^\d+]/g, '')}">{contact.name} anrufen: {contact.phone}</a
+      href="tel:{contact.phone.replace(/[^\d+]/g, '')}"
     >
+      {contact.name} anrufen: {contact.phone}
+    </a>
   </section>
 {/snippet}
 
@@ -160,10 +162,10 @@
           <strong>Der Nikolaus ist als Nächstes bei Ihnen!</strong>
         {:else}
           Der Nikolaus ist noch
-          <strong
-            >{progress.stopsAhead}
-            {progress.stopsAhead === 1 ? 'Besuch' : 'Besuche'}</strong
-          >
+          <strong>
+            {progress.stopsAhead}
+            {progress.stopsAhead === 1 ? 'Besuch' : 'Besuche'}
+          </strong>
           von Ihnen entfernt.
         {/if}
       </p>

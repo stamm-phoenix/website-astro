@@ -41,8 +41,10 @@
       >
         <span class="font-semibold">{item.label}</span><span
           aria-hidden="true"
-          class="ml-1 text-sm text-neutral-700">({item.count})</span
+          class="ml-1 text-sm text-neutral-700"
         >
+          ({item.count})
+        </span>
         <span class="sr-only">, {item.count} {item.count === 1 ? item.singular : item.label}.</span>
         <span class="mt-1 block text-sm text-neutral-700">{item.description}</span>
       </a>

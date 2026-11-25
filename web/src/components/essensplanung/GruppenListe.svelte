@@ -69,8 +69,10 @@
       type="button"
       class={KNOPF}
       aria-label="Gruppe {gruppe.name} ändern"
-      onclick={() => onbearbeiten(gruppe.id)}>Ändern</ActionButton
+      onclick={() => onbearbeiten(gruppe.id)}
     >
+      Ändern
+    </ActionButton>
     {#if !personen(gruppe)}
       <ActionButton
         type="button"
@@ -78,8 +80,10 @@
         class={KNOPF}
         disabled={kontext.busy}
         aria-label="Gruppe {gruppe.name} löschen"
-        onclick={() => void loeschen(gruppe)}>Löschen</ActionButton
+        onclick={() => void loeschen(gruppe)}
       >
+        Löschen
+      </ActionButton>
     {/if}
   </span>
 {/snippet}
@@ -98,8 +102,10 @@
       <ActionButton
         type="button"
         class="ml-auto print:hidden {KNOPF}"
-        onclick={() => onbearbeiten(null)}>Gruppe hinzufügen</ActionButton
+        onclick={() => onbearbeiten(null)}
       >
+        Gruppe hinzufügen
+      </ActionButton>
     {/if}
   </div>
   {#if !ansicht.gruppen.length}
@@ -124,8 +130,9 @@
             {#each ERNAEHRUNGEN as ernaehrung (ernaehrung)}
               <th scope="col" class="{KOPF} w-20 text-center">{ERNAEHRUNG_TEXT[ernaehrung]}</th>
             {/each}
-            {#if bearbeiten}<th scope="col" class={KOPF}><span class="sr-only">Ändern</span></th
-              >{/if}
+            {#if bearbeiten}<th scope="col" class={KOPF}>
+                <span class="sr-only">Ändern</span>
+              </th>{/if}
           </tr>
         </thead>
         <tbody>
@@ -144,9 +151,9 @@
               {#each ERNAEHRUNGEN as ernaehrung (ernaehrung)}
                 <td class={ZELLE} data-zahl>{je?.[ernaehrung] || ''}</td>
               {/each}
-              {#if bearbeiten}<td class="border-b border-l border-neutral-200 px-2 py-0.5"
-                  >{@render aktionen(gruppe)}</td
-                >{/if}
+              {#if bearbeiten}<td class="border-b border-l border-neutral-200 px-2 py-0.5">
+                  {@render aktionen(gruppe)}
+                </td>{/if}
             </tr>
           {/each}
         </tbody>
@@ -159,13 +166,13 @@
               Insgesamt
             </th>
             <td class="border-l border-neutral-300"></td>
-            <td class="border-l border-neutral-300 px-2 py-1 text-center font-bold tabular-nums"
-              >{summe.alles + summe.vegetarisch + summe.vegan}</td
-            >
+            <td class="border-l border-neutral-300 px-2 py-1 text-center font-bold tabular-nums">
+              {summe.alles + summe.vegetarisch + summe.vegan}
+            </td>
             {#each ERNAEHRUNGEN as ernaehrung (ernaehrung)}
-              <td class="border-l border-neutral-300 px-2 py-1 text-center font-bold tabular-nums"
-                >{summe[ernaehrung]}</td
-              >
+              <td class="border-l border-neutral-300 px-2 py-1 text-center font-bold tabular-nums">
+                {summe[ernaehrung]}
+              </td>
             {/each}
             {#if bearbeiten}<td class="border-l border-neutral-300"></td>{/if}
           </tr>
@@ -181,9 +188,9 @@
         <li class="flex items-center gap-2 py-0.5">
           <p class="min-w-0 flex-1 [overflow-wrap:anywhere]">
             <span class="font-semibold">{gruppe.name}</span>
-            <span class="text-neutral-700"
-              >Faktor {zahlText(gruppe.faktor)} · {personen(gruppe)} Personen</span
-            >
+            <span class="text-neutral-700">
+              Faktor {zahlText(gruppe.faktor)} · {personen(gruppe)} Personen
+            </span>
           </p>
           {#if bearbeiten}{@render aktionen(gruppe)}{/if}
         </li>

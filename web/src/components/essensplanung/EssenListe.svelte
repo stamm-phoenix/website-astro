@@ -141,8 +141,10 @@
           class="shrink-0 print:hidden"
           aria-label="Bearbeiten: {item.name}"
           disabled={busy}
-          onclick={() => open(item)}>Bearbeiten</ActionButton
+          onclick={() => open(item)}
         >
+          Bearbeiten
+        </ActionButton>
       </li>
     {/each}
   </ul>

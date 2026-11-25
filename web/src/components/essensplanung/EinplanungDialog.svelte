@@ -256,9 +256,9 @@
               <option value={String(mitglied.id)}>{mitglied.name}</option>
             {/each}
             {#if ohneZugang}
-              <option value={zustaendig}
-                >{start?.zustaendig ?? 'Mitglied'} (kein Zugang mehr)</option
-              >
+              <option value={zustaendig}>
+                {start?.zustaendig ?? 'Mitglied'} (kein Zugang mehr)
+              </option>
             {/if}
             <option value="frei">Jemand anderes …</option>
           </select>

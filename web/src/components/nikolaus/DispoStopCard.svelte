@@ -45,13 +45,15 @@
     <span
       class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
       style:background={color}
-      aria-hidden="true">{index + 1}</span
+      aria-hidden="true"
     >
+      {index + 1}
+    </span>
     <div class="min-w-0 flex-1">
       <p class="flex flex-wrap items-baseline gap-x-2">
-        <span class="text-base font-semibold tabular-nums text-brand-900"
-          >{minutesToTime(planned.start)}</span
-        >
+        <span class="text-base font-semibold tabular-nums text-brand-900">
+          {minutesToTime(planned.start)}
+        </span>
         <span class="text-neutral-700">Gebucht: {slotLabel(booking.slotKey)}</span>
       </p>
       <p class="font-semibold text-neutral-900">Familie {booking.familyName}</p>
@@ -69,8 +71,10 @@
         <p class="text-neutral-700">
           Tel.: <a
             class="text-link inline-flex min-h-11 items-center underline"
-            href="tel:{booking.phone}">{booking.phone}</a
+            href="tel:{booking.phone}"
           >
+            {booking.phone}
+          </a>
         </p>
       {/if}
       {#if booking.internalTags.length > 0}

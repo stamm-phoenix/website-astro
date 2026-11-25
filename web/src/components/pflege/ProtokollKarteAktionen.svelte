@@ -94,8 +94,8 @@
   {#if protokoll.webUrl}
     <a class="btn-secondary" href={protokoll.webUrl} target="_blank" rel="noopener noreferrer">
       {isDocx ? `In Word ${done ? 'öffnen' : 'bearbeiten'}` : 'Datei öffnen'}<span class="sr-only">
-        ({protokoll.title}, neues Fenster)</span
-      >
+        ({protokoll.title}, neues Fenster)
+      </span>
     </a>
   {/if}
   <ActionButton disabled={busy} onclick={onpdf}>
@@ -107,8 +107,8 @@
     onclick={onpreview}
   >
     {previewOpen ? 'Vorschau schließen' : 'Vorschau'}<span class="sr-only">
-      ({protokoll.title})</span
-    >
+      ({protokoll.title})
+    </span>
   </ActionButton>
   <MehrAktionen
     aktionen={mehr}

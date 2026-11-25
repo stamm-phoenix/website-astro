@@ -70,8 +70,10 @@
     {#if aktionLink}
       <a
         class="font-semibold text-link underline"
-        href="/leitendenbereich/aktionen/aktion?id={encodeURIComponent(eventId)}">Zur Aktion</a
+        href="/leitendenbereich/aktionen/aktion?id={encodeURIComponent(eventId)}"
       >
+        Zur Aktion
+      </a>
     {/if}
   </p>
 {:else}<div class={className} data-testid="kjr-zuschuss-schalter">

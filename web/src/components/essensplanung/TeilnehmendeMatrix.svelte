@@ -80,14 +80,15 @@
             {/if}
             {#each ERNAEHRUNGEN as ernaehrung (ernaehrung)}
               <td class="{ZELLE} text-center font-semibold tabular-nums">
-                {#if zeile.ernaehrung === ernaehrung}<span data-anzahl={ernaehrung}
-                    >{zeile.anzahl}</span
-                  >{/if}
+                {#if zeile.ernaehrung === ernaehrung}<span data-anzahl={ernaehrung}>
+                    {zeile.anzahl}
+                  </span>{/if}
               </td>
             {/each}
             <td class={ZELLE}>
-              {#if ohne.length}{ohne.join(', ')}{:else}<span class="text-neutral-700">keine</span
-                >{/if}
+              {#if ohne.length}{ohne.join(', ')}{:else}<span class="text-neutral-700">
+                  keine
+                </span>{/if}
             </td>
             <td class={ZELLE}>
               {#if zeitraum}{zeitraum}{:else}<span class="text-neutral-700">ganze Zeit</span>{/if}
@@ -109,8 +110,10 @@
         {#each ERNAEHRUNGEN as ernaehrung (ernaehrung)}
           <td
             class="border-l border-neutral-300 px-2 py-1 text-center font-bold tabular-nums"
-            data-summe={ernaehrung}>{summe[ernaehrung]}</td
+            data-summe={ernaehrung}
           >
+            {summe[ernaehrung]}
+          </td>
         {/each}
         <td
           class="border-l border-neutral-300"

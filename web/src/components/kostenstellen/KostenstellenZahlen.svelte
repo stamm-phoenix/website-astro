@@ -35,8 +35,10 @@
         <span
           class="block font-semibold break-words tabular-nums {spalte.ton} {gross
             ? 'text-lg'
-            : 'text-sm'}">{formatEuro(spalte.cent)}</span
+            : 'text-sm'}"
         >
+          {formatEuro(spalte.cent)}
+        </span>
       </span>
     {/each}
   </span>

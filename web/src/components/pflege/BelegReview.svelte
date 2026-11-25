@@ -35,8 +35,10 @@
             variant="primary"
             type="button"
             disabled={busy}
-            onclick={() => onsave('Eingereicht')}>Erneut einreichen</ActionButton
+            onclick={() => onsave('Eingereicht')}
           >
+            Erneut einreichen
+          </ActionButton>
         </Aktionsraster>
       {/if}
     {:else}
@@ -62,8 +64,10 @@
             variant="primary"
             type="button"
             disabled={busy}
-            onclick={() => onsave('Angenommen')}>Annehmen</ActionButton
+            onclick={() => onsave('Angenommen')}
           >
+            Annehmen
+          </ActionButton>
         {:else}
           <!-- An accepted receipt keeps its details; taking it back opens them again -->
           <ActionButton
@@ -71,24 +75,30 @@
             variant="secondary"
             type="button"
             disabled={busy}
-            onclick={() => onsave('Eingereicht')}>Annahme zurücknehmen</ActionButton
+            onclick={() => onsave('Eingereicht')}
           >
+            Annahme zurücknehmen
+          </ActionButton>
         {/if}
         {#if form.status !== 'Abgelehnt'}
           <ActionButton
             variant="danger"
             type="button"
             disabled={busy}
-            onclick={() => onsave('Abgelehnt')}>Ablehnen</ActionButton
+            onclick={() => onsave('Abgelehnt')}
           >
+            Ablehnen
+          </ActionButton>
         {:else}
           <ActionButton
             class="col-span-2"
             variant="secondary"
             type="button"
             disabled={busy}
-            onclick={() => onsave('Eingereicht')}>Erneut einreichen</ActionButton
+            onclick={() => onsave('Eingereicht')}
           >
+            Erneut einreichen
+          </ActionButton>
         {/if}
       </Aktionsraster>
     {/if}

@@ -239,9 +239,9 @@
     <h3 class="text-lg font-semibold text-brand-900">Termine konnten nicht geladen werden</h3>
     <p class="mt-1 text-sm text-neutral-700">
       Bitte laden Sie die Seite neu oder versuchen Sie es später erneut. Bei Problemen erreichen Sie
-      uns unter <a class="underline" href="mailto:kontakt@stamm-phoenix.de"
-        >kontakt@stamm-phoenix.de</a
-      >.
+      uns unter <a class="underline" href="mailto:kontakt@stamm-phoenix.de">
+        kontakt@stamm-phoenix.de
+      </a>.
     </p>
     <ProblemMeldenLink class="text-link inline-flex min-h-11 items-center text-sm" />
   </article>
@@ -253,8 +253,10 @@
         Bitte schauen Sie später noch einmal vorbei. Wird ein Termin frei, können Sie ihn hier
         buchen. Bei Fragen schreiben Sie an <a
           class="text-link underline"
-          href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a
-        >.
+          href="mailto:kontakt@stamm-phoenix.de"
+        >
+          kontakt@stamm-phoenix.de
+        </a>.
       </p>
     </div>
   {/if}
@@ -313,9 +315,9 @@
     <div class="flex flex-col gap-4 border-t border-neutral-200 pt-6 md:flex-row md:items-center">
       <div class="flex-1 text-sm text-neutral-800" aria-live="polite">
         {#if chosenSlot}
-          Gewählter Termin: <strong
-            >{formatNikolausDate(chosenSlot.date)}, {chosenSlot.time}–{chosenSlot.endTime} Uhr</strong
-          >
+          Gewählter Termin: <strong>
+            {formatNikolausDate(chosenSlot.date)}, {chosenSlot.time}–{chosenSlot.endTime} Uhr
+          </strong>
         {:else}
           Noch kein Termin gewählt.
         {/if}

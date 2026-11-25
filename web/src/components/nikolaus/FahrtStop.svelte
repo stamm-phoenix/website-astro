@@ -66,8 +66,8 @@
       onclick={() => onvisited(true)}
     >
       <span aria-hidden="true">✓</span> Besucht<span class="sr-only">
-        (Familie {stop.familyName})</span
-      >
+        (Familie {stop.familyName})
+      </span>
     </button>
   </div>
 {/snippet}
@@ -77,8 +77,10 @@
     <div class="flex items-center gap-3 py-2 text-neutral-700">
       <span
         class="flex size-7 shrink-0 items-center justify-center rounded-full bg-success text-xs font-bold text-neutral-50"
-        aria-hidden="true">✓</span
+        aria-hidden="true"
       >
+        ✓
+      </span>
       <p class="min-w-0 flex-1">
         <span class="font-semibold text-neutral-900">Familie {stop.familyName}</span>
         <span class="block text-xs">
@@ -106,9 +108,9 @@
         Als Nächstes · {index + 1}. Besuch
       </p>
       <p class="mt-1 flex flex-wrap items-baseline gap-x-2">
-        <span class="text-xl font-semibold tabular-nums text-brand-900"
-          >ca. {stop.plannedArrival} Uhr</span
-        >
+        <span class="text-xl font-semibold tabular-nums text-brand-900">
+          ca. {stop.plannedArrival} Uhr
+        </span>
         <span class="text-neutral-700">Gebucht: {slotLabel(stop.slotKey)}</span>
       </p>
       <p class="text-lg font-semibold text-neutral-900">
@@ -127,17 +129,22 @@
         <span
           class="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
           style:background={color}
-          aria-hidden="true">{index + 1}</span
+          aria-hidden="true"
         >
+          {index + 1}
+        </span>
         <span class="min-w-0 flex-1">
           <span class="font-semibold tabular-nums text-brand-900">ca. {stop.plannedArrival}</span>
           ·
           <span class="font-semibold text-neutral-900">Familie {stop.familyName}</span>
           <span class="block text-neutral-700">{stop.street}, {stop.city}</span>
         </span>
-        <span class="disclosure-icon mt-1 text-neutral-700 group-open:rotate-180" aria-hidden="true"
-          >▾</span
+        <span
+          class="disclosure-icon mt-1 text-neutral-700 group-open:rotate-180"
+          aria-hidden="true"
         >
+          ▾
+        </span>
       </summary>
       <div class="pb-4 pl-10">
         <p class="text-neutral-700">Gebucht: {slotLabel(stop.slotKey)}</p>

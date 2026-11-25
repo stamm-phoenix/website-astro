@@ -192,9 +192,9 @@
     <div class="flex flex-wrap items-end gap-2">
       <div class="min-w-0 flex-1">
         <span class="flex items-center gap-1">
-          <label for="{uid}-projekt" class="text-sm text-neutral-700"
-            >Projekt für Punkt {nummer}</label
-          >
+          <label for="{uid}-projekt" class="text-sm text-neutral-700">
+            Projekt für Punkt {nummer}
+          </label>
           <InfoHint
             label="Projekt"
             text="Aufgaben dieses Punkts landen bei der Freigabe in diesem Projekt."

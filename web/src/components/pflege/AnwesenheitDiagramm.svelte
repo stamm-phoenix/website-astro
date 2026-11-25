@@ -67,9 +67,9 @@
       <p class="text-sm text-neutral-700">
         {MONTH_LABEL.format(monthDate(shown.month))}:
         {#if shown.stats && shown.stats.termine > 0}
-          <strong class="text-base text-brand-900 tabular-nums"
-            >{formatNumber(averageMembers(shown.stats))}</strong
-          >
+          <strong class="text-base text-brand-900 tabular-nums">
+            {formatNumber(averageMembers(shown.stats))}
+          </strong>
           Kinder im Schnitt bei {shown.stats.termine}
           {shown.stats.termine === 1 ? 'Gruppenstunde' : 'Gruppenstunden'}
         {:else}

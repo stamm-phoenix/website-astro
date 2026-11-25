@@ -97,8 +97,10 @@
       <span
         class="tag"
         class:text-warning={tag.tone === 'warning'}
-        class:text-danger={tag.tone === 'danger'}>{tag.label}</span
+        class:text-danger={tag.tone === 'danger'}
       >
+        {tag.label}
+      </span>
     {/each}
   </span>
 {/snippet}
@@ -149,17 +151,17 @@
                 <span class="block text-sm text-neutral-700">{personen(eintrag)}</span>
               {/if}
               {#if eintrag.hinweis}
-                <span class="line-clamp-2 block text-sm text-danger"
-                  >Abgelehnt: {eintrag.hinweis}</span
-                >
+                <span class="line-clamp-2 block text-sm text-danger">
+                  Abgelehnt: {eintrag.hinweis}
+                </span>
               {/if}
               <span class="mt-1 block">{@render tags(eintrag)}</span>
             </span>
             <span class="shrink-0 sm:text-right">
               {#if amount(eintrag)}
-                <span class="block font-semibold tabular-nums text-brand-900"
-                  >{amount(eintrag)}</span
-                >
+                <span class="block font-semibold tabular-nums text-brand-900">
+                  {amount(eintrag)}
+                </span>
               {/if}
               <StatusLabel label={eintrag.label} tone={eintrag.tone} dot />
             </span>

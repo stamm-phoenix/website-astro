@@ -32,10 +32,9 @@
         stroke-width="1.8"
         stroke-linecap="round"
         stroke-linejoin="round"
-        ><path
-          d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"
-        /></svg
       >
+        <path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+      </svg>
     </li>
   {/if}
   {#each crumbs as crumb, index (crumb.path)}
@@ -46,13 +45,17 @@
         <button
           type="button"
           class="min-h-11 break-all text-left text-[var(--color-link)] underline underline-offset-2"
-          onclick={() => onselect(crumb.path)}>{crumb.name}</button
+          onclick={() => onselect(crumb.path)}
         >
+          {crumb.name}
+        </button>
       {:else}
         <span
           class="break-all font-semibold text-brand-900"
-          aria-current={last && onselect ? 'location' : undefined}>{crumb.name}</span
+          aria-current={last && onselect ? 'location' : undefined}
         >
+          {crumb.name}
+        </span>
       {/if}
     </li>
   {/each}

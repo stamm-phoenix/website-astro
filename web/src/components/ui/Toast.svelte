@@ -211,8 +211,10 @@
           onclick={() => {
             onaction();
             onclose();
-          }}>{actionLabel}</ActionButton
+          }}
         >
+          {actionLabel}
+        </ActionButton>
       {/if}
       <button
         type="button"

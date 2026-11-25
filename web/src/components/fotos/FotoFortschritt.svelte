@@ -118,9 +118,9 @@
     </div>
     <div class="flex flex-wrap gap-2">
       <ActionButton variant="primary" onclick={retryFotoUpload}>Erneut versuchen</ActionButton>
-      <ActionButton onclick={() => resetFotoUpload({ keepSelection: true })}
-        >Ziel ändern</ActionButton
-      >
+      <ActionButton onclick={() => resetFotoUpload({ keepSelection: true })}>
+        Ziel ändern
+      </ActionButton>
     </div>
   {:else}
     <div class="space-y-2">
@@ -161,12 +161,12 @@
               hochladen“.
             </p>
             <div class="mt-2 flex flex-wrap gap-2">
-              <a class="btn-secondary" href={RELOGIN_URL} target="_blank" rel="noopener"
-                >Neu anmelden<span class="sr-only"> (öffnet neuen Tab)</span></a
-              >
-              <ActionButton variant="primary" onclick={continueFotoUpload}
-                >Weiter hochladen</ActionButton
-              >
+              <a class="btn-secondary" href={RELOGIN_URL} target="_blank" rel="noopener">
+                Neu anmelden<span class="sr-only"> (öffnet neuen Tab)</span>
+              </a>
+              <ActionButton variant="primary" onclick={continueFotoUpload}>
+                Weiter hochladen
+              </ActionButton>
             </div>
           {/if}
         </div>
@@ -207,9 +207,9 @@
           <li class="text-sm">
             <div class="flex justify-between gap-3">
               <span class="truncate">{item.name}</span>
-              <span class="shrink-0 tabular-nums text-neutral-700"
-                >{Math.floor((item.sent / item.size) * 100)} %</span
-              >
+              <span class="shrink-0 tabular-nums text-neutral-700">
+                {Math.floor((item.sent / item.size) * 100)} %
+              </span>
             </div>
             <progress
               class="foto-progress mt-1 h-1.5 w-full"
@@ -267,9 +267,9 @@
         {/if}
         <ActionButton onclick={() => resetFotoUpload()}>Weitere hochladen</ActionButton>
         {#if fotoUpload.target?.webUrl}
-          <a class="btn-secondary" href={fotoUpload.target.webUrl} target="_blank" rel="noopener"
-            >In SharePoint<span class="sr-only"> öffnen (öffnet neuen Tab)</span></a
-          >
+          <a class="btn-secondary" href={fotoUpload.target.webUrl} target="_blank" rel="noopener">
+            In SharePoint<span class="sr-only"> öffnen (öffnet neuen Tab)</span>
+          </a>
         {/if}
       </Aktionsraster>
     {/if}
@@ -288,8 +288,10 @@
                   ? 'text-danger'
                   : item.status === 'done'
                     ? 'text-success'
-                    : 'text-neutral-700'}">{statusText(item.status)}</span
+                    : 'text-neutral-700'}"
               >
+                {statusText(item.status)}
+              </span>
             </li>
           {/each}
         </ul>

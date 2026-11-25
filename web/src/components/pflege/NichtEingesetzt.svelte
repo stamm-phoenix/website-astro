@@ -76,16 +76,18 @@
                 <ActionButton
                   onclick={() => {
                     applyFailed = onapply?.(kept) ? null : kept.key;
-                  }}>{rescuedLabel(kept)} übernehmen</ActionButton
+                  }}
                 >
+                  {rescuedLabel(kept)} übernehmen
+                </ActionButton>
               {:else}
                 <p class="text-neutral-700">
                   Vergleiche diese Angabe mit dem Formular und passe sie dort an.
                 </p>
               {/if}
-              {#if applyFailed === kept.key}<span role="status" class="text-danger"
-                  >Die Auswahl konnte nicht übernommen werden. Wähle sie im Formular selbst aus.</span
-                >{/if}
+              {#if applyFailed === kept.key}<span role="status" class="text-danger">
+                  Die Auswahl konnte nicht übernommen werden. Wähle sie im Formular selbst aus.
+                </span>{/if}
             {:else}
               <ActionButton onclick={() => copy(index, kept)}>
                 {rescuedLabel(kept)} kopieren
@@ -93,9 +95,9 @@
             {/if}
             <span role="status">
               {#if copied === index}<span class="text-success">Kopiert.</span>
-              {:else if failed === index}<span class="text-danger"
-                  >Kopieren ging nicht, bitte von Hand abschreiben.</span
-                >{/if}
+              {:else if failed === index}<span class="text-danger">
+                  Kopieren ging nicht, bitte von Hand abschreiben.
+                </span>{/if}
             </span>
           </div>
         {/if}

@@ -280,9 +280,9 @@
     </label>
     <div class="flex gap-2">
       <ReloadButton resource={leitendePflege} />
-      <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}
-        >Neue Person</ActionButton
-      >
+      <ActionButton variant="primary" type="button" disabled={!store.data} onclick={create}>
+        Neue Person
+      </ActionButton>
     </div>
     <FilterTabs
       class="sm:col-span-2"
@@ -332,9 +332,9 @@
               decorative
             />
             <span class="min-w-0">
-              <span class="block truncate font-semibold text-brand-900 group-hover:underline"
-                >{person.name}</span
-              >
+              <span class="block truncate font-semibold text-brand-900 group-hover:underline">
+                {person.name}
+              </span>
               <span class="mt-0.5 block text-sm text-neutral-700">
                 {person.teams.length > 0 ? person.teams.join(' · ') : 'Kein Team'}
               </span>
@@ -398,8 +398,10 @@
                 variant="danger"
                 type="button"
                 disabled={busy || photoBusy}
-                onclick={removePhoto}>Foto entfernen</ActionButton
+                onclick={removePhoto}
               >
+                Foto entfernen
+              </ActionButton>
             {/if}
           </div>
           <p class="text-xs text-neutral-700">Wird sofort gespeichert.</p>
@@ -438,9 +440,9 @@
 
     {#if isVorstand}
       <fieldset class="space-y-4 border-t border-neutral-200 pt-4 *:clear-left">
-        <legend class="form-label float-left mb-1 w-full"
-          >Kontakt (Vorstand, öffentlich auf der Website)</legend
-        >
+        <legend class="form-label float-left mb-1 w-full">
+          Kontakt (Vorstand, öffentlich auf der Website)
+        </legend>
 
         <FormField id="ld-phone" label="Telefon" optional error={errors.phone}>
           {#snippet children(attrs)}

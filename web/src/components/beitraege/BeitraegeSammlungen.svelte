@@ -81,16 +81,17 @@
       Sammlungen ({batches.length})
     </h2>
     <div class="flex flex-wrap gap-3">
-      <a href="?ansicht=alle" class="btn-secondary" onclick={(event) => follow(event, 'alle')}
-        >Alle Beiträge einzeln ansehen</a
-      >
+      <a href="?ansicht=alle" class="btn-secondary" onclick={(event) => follow(event, 'alle')}>
+        Alle Beiträge einzeln ansehen
+      </a>
       <ActionButton
         variant="secondary"
         type="button"
         disabled={pdfBusy || visible.length === 0}
         onclick={() => void exportPdf()}
-        >{pdfBusy ? 'Erstellt PDF …' : 'PDF herunterladen'}</ActionButton
       >
+        {pdfBusy ? 'Erstellt PDF …' : 'PDF herunterladen'}
+      </ActionButton>
     </div>
   </div>
   <StatusNotice message={pdfNotice?.text ?? null} kind={pdfNotice?.kind} popup />
@@ -131,9 +132,9 @@
             onclick={(event) => follow(event, batch.id)}
           >
             <span class="min-w-0 sm:w-1/2">
-              <span class="block font-semibold text-link underline-offset-4 group-hover:underline"
-                >{batch.name}</span
-              >
+              <span class="block font-semibold text-link underline-offset-4 group-hover:underline">
+                {batch.name}
+              </span>
               <span class="mt-1 block text-sm text-neutral-700">
                 {batch.feeCount}
                 {batch.feeCount === 1 ? 'Beitrag' : 'Beiträge'} · {formatEuro(batch.totalCent)}
@@ -149,8 +150,9 @@
               ></progress>
               <span
                 class="mt-1 block text-sm {isErledigt(batch) ? 'text-success' : 'text-neutral-700'}"
-                >{sammlungStand(batch, stand)}</span
               >
+                {sammlungStand(batch, stand)}
+              </span>
             </span>
           </a>
         </li>

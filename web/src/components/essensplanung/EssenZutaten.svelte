@@ -207,8 +207,10 @@
       class="md:ml-auto"
       disabled={busy}
       data-focus-fallback
-      onclick={() => open()}>Neue Zutat</ActionButton
+      onclick={() => open()}
     >
+      Neue Zutat
+    </ActionButton>
   </div>
 
   <p class="text-sm text-neutral-700" role="status">
@@ -245,8 +247,10 @@
             class="shrink-0 print:hidden"
             aria-label="Bearbeiten: {zutat.name}"
             disabled={busy}
-            onclick={() => open(zutat)}>Bearbeiten</ActionButton
+            onclick={() => open(zutat)}
           >
+            Bearbeiten
+          </ActionButton>
         </li>
       {/each}
     </ul>
@@ -260,8 +264,10 @@
           search = '';
           kategorieFilter = '';
           nurUngeprueft = false;
-        }}>Filter zurücksetzen</ActionButton
+        }}
       >
+        Filter zurücksetzen
+      </ActionButton>
     </div>
   {/if}
 </section>

@@ -100,34 +100,34 @@
   {onclose}
 >
   <div class="space-y-4">
-    <FormField name="title" id="template-name" label="Titel" error={fields.title}
-      >{#snippet children(attrs)}<input
+    <FormField name="title" id="template-name" label="Titel" error={fields.title}>
+      {#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
           bind:value={draft.title}
           maxlength="200"
           required
-        />{/snippet}</FormField
-    >
+        />{/snippet}
+    </FormField>
     {#each items as item, index (item)}
       <fieldset class="border-t border-neutral-200 pt-3 space-y-3">
         <legend class="font-semibold">Aufgabe {index + 1}</legend>
-        <FormField name="items" id="template-title-{index}" label="Aufgabentitel"
-          >{#snippet children(attrs)}<input
+        <FormField name="items" id="template-title-{index}" label="Aufgabentitel">
+          {#snippet children(attrs)}<input
               {...attrs}
               class="form-input"
               bind:value={item.title}
               required
               maxlength="200"
-            />{/snippet}</FormField
-        >
-        <FormField name="items" id="template-description-{index}" label="Beschreibung" optional
-          >{#snippet children(attrs)}<textarea
+            />{/snippet}
+        </FormField>
+        <FormField name="items" id="template-description-{index}" label="Beschreibung" optional>
+          {#snippet children(attrs)}<textarea
               {...attrs}
               class="form-input"
               bind:value={item.description}
-              maxlength="2000"></textarea>{/snippet}</FormField
-        >
+              maxlength="2000"></textarea>{/snippet}
+        </FormField>
         <TaskAssigneeField
           id="template-assignee-{index}"
           bind:people={item.assignees}
@@ -138,7 +138,8 @@
           id="template-days-{index}"
           label="Tage vor der Aktion"
           info="Gezählt ab dem Datum der Aktion. Negative Zahlen liegen nach der Aktion."
-          >{#snippet children(attrs)}<input
+        >
+          {#snippet children(attrs)}<input
               {...attrs}
               class="form-input"
               type="number"
@@ -147,15 +148,16 @@
               step="1"
               bind:value={item.daysBefore}
               required
-            />{/snippet}</FormField
-        >
+            />{/snippet}
+        </FormField>
         <ActionButton
           type="button"
           variant="secondary"
           disabled={items.length === 1 || busy}
           onclick={() => (items = items.filter((_, i) => i !== index))}
-          >Vorlagenaufgabe entfernen</ActionButton
         >
+          Vorlagenaufgabe entfernen
+        </ActionButton>
       </fieldset>
     {/each}
     <StatusNotice kind="error" message={fields.items ?? null} />
@@ -165,7 +167,8 @@
       disabled={items.length >= 50 || busy}
       onclick={() =>
         (items = [...items, { title: '', description: '', assignee: '', daysBefore: 0 }])}
-      >Vorlagenaufgabe hinzufügen</ActionButton
     >
+      Vorlagenaufgabe hinzufügen
+    </ActionButton>
   </div>
 </EditDialog>

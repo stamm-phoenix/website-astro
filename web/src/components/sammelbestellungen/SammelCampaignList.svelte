@@ -183,12 +183,12 @@
 
 <StaffPageHead href="/leitendenbereich/sammelbestellungen">
   {#snippet actions()}
-    <ActionButton variant="primary" type="button" disabled={loading || busy} onclick={openCreate}
-      >Neue Sammelbestellung</ActionButton
-    >
-    <ReloadAction type="button" disabled={loading || busy} onclick={() => void loadCampaigns()}
-      >Neu laden</ReloadAction
-    >
+    <ActionButton variant="primary" type="button" disabled={loading || busy} onclick={openCreate}>
+      Neue Sammelbestellung
+    </ActionButton>
+    <ReloadAction type="button" disabled={loading || busy} onclick={() => void loadCampaigns()}>
+      Neu laden
+    </ReloadAction>
   {/snippet}
 </StaffPageHead>
 <FilterTabs
@@ -219,8 +219,10 @@
       type="button"
       class="mt-3"
       disabled={loading || busy}
-      onclick={() => void loadCampaigns()}>Erneut laden</ActionButton
+      onclick={() => void loadCampaigns()}
     >
+      Erneut laden
+    </ActionButton>
   </div>{/if}
 <div class="mt-6">
   <LoadState
@@ -243,8 +245,9 @@
                   <a
                     href="/leitendenbereich/sammelbestellungen/{campaign.id}"
                     class="inline-flex min-h-11 min-w-11 items-center text-link hover:underline"
-                    >{campaign.title}</a
                   >
+                    {campaign.title}
+                  </a>
                 </h3>
                 {#if campaign.description}<p
                     class="mt-2 whitespace-pre-line text-sm text-neutral-700"
@@ -279,8 +282,9 @@
                   aria-label="{campaign.title} {campaign.archived
                     ? 'wiederherstellen'
                     : 'archivieren'}"
-                  >{campaign.archived ? 'Wiederherstellen' : 'Archivieren'}</ActionButton
                 >
+                  {campaign.archived ? 'Wiederherstellen' : 'Archivieren'}
+                </ActionButton>
               </div>
             </div>
           </li>
@@ -304,45 +308,46 @@
     if (!busy) createOpen = false;
   }}
 >
-  <FormField id="campaign-title" label="Titel" error={fields.title}
-    >{#snippet children(attrs)}<input
+  <FormField id="campaign-title" label="Titel" error={fields.title}>
+    {#snippet children(attrs)}<input
         {...attrs}
         class="form-input"
         maxlength="200"
         bind:value={title}
         placeholder="Sammelbestellung Frühjahr 2027"
-      />{/snippet}</FormField
-  >
+      />{/snippet}
+  </FormField>
   <div class="grid gap-3 sm:grid-cols-2">
-    <FormField id="campaign-start" label="Beginn" error={fields.startsAt}
-      >{#snippet children(attrs)}<input
+    <FormField id="campaign-start" label="Beginn" error={fields.startsAt}>
+      {#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
           type="datetime-local"
           bind:value={startsAt}
-        />{/snippet}</FormField
-    >
-    <FormField id="campaign-end" label="Ende" error={fields.endsAt}
-      >{#snippet children(attrs)}<input
+        />{/snippet}
+    </FormField>
+    <FormField id="campaign-end" label="Ende" error={fields.endsAt}>
+      {#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
           type="datetime-local"
           bind:value={endsAt}
-        />{/snippet}</FormField
-    >
+        />{/snippet}
+    </FormField>
   </div>
   <FormField
     id="campaign-description"
     label="Hinweise für Mitglieder"
     optional
     error={fields.description}
-    >{#snippet children(attrs)}<textarea
+  >
+    {#snippet children(attrs)}<textarea
         {...attrs}
         class="form-input"
         rows="3"
         maxlength="2000"
-        bind:value={description}></textarea>{/snippet}</FormField
-  >
+        bind:value={description}></textarea>{/snippet}
+  </FormField>
   <div class="flex items-center gap-1 border-t border-neutral-200 pt-4">
     <h3 class="text-lg font-semibold text-brand-900">Häufige Artikel</h3>
     <InfoHint
@@ -383,43 +388,46 @@
             onchange={(event) => (article.shop = event.currentTarget.value as SammelShop)}
           >
             {#each Object.entries(SAMMEL_SHOPS).filter(([key]) => key !== 'stamm' || !!stock) as [key, shop] (key)}<option
-                value={key}>{shop.name}</option
-              >{/each}
+                value={key}
+              >
+                {shop.name}
+              </option>{/each}
           </select>{/snippet}
       </FormField>
-      <FormField id="catalog-name-{index}" label="Artikelname"
-        >{#snippet children(attrs)}<input
+      <FormField id="catalog-name-{index}" label="Artikelname">
+        {#snippet children(attrs)}<input
             {...attrs}
             class="form-input"
             readonly={!!stock}
             bind:value={article.name}
             maxlength="200"
-          />{/snippet}</FormField
-      >
-      <FormField id="catalog-reference-{index}" label="Artikelnummer / Produktlink"
-        >{#snippet children(attrs)}<input
+          />{/snippet}
+      </FormField>
+      <FormField id="catalog-reference-{index}" label="Artikelnummer / Produktlink">
+        {#snippet children(attrs)}<input
             {...attrs}
             class="form-input"
             readonly={!!stock}
             bind:value={article.reference}
             maxlength="500"
-          />{/snippet}</FormField
-      >
-      <FormField id="catalog-variants-{index}" label="Größen / Varianten" optional
-        >{#snippet children(attrs)}<input
+          />{/snippet}
+      </FormField>
+      <FormField id="catalog-variants-{index}" label="Größen / Varianten" optional>
+        {#snippet children(attrs)}<input
             {...attrs}
             class="form-input"
             disabled={!!stock}
             placeholder="S, M, L, XL"
             bind:value={article.variantsText}
-          />{/snippet}</FormField
-      >
+          />{/snippet}
+      </FormField>
       <button
         type="button"
         class="text-sm font-semibold text-danger"
         onclick={() => (catalog = catalog.filter((_, i) => i !== index))}
-        >Artikel {index + 1} entfernen</button
       >
+        Artikel {index + 1} entfernen
+      </button>
     </fieldset>
   {/each}
   <ActionButton
@@ -428,8 +436,9 @@
     disabled={catalog.length >= SAMMEL_MAX_KATALOG_ARTIKEL}
     onclick={() =>
       (catalog = [...catalog, { name: '', reference: '', variants: [], variantsText: '' }])}
-    >Häufigen Artikel hinzufügen</ActionButton
   >
+    Häufigen Artikel hinzufügen
+  </ActionButton>
   {#each Object.entries(fields).filter(([key]) => !['title', 'startsAt', 'endsAt', 'description'].includes(key)) as [key, field] (key)}<p
       class="text-sm text-danger"
     >

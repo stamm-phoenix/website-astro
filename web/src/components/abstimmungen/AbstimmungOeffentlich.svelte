@@ -260,9 +260,9 @@
           <p class="text-sm text-danger" role="alert">{fields.gewaehlt}</p>
         {/if}
         <div class="flex flex-wrap items-center gap-3">
-          <ActionButton type="submit" variant="primary" disabled={saving} aria-busy={saving}
-            >{saving ? 'Wird gespeichert …' : 'Antwort speichern'}</ActionButton
-          >
+          <ActionButton type="submit" variant="primary" disabled={saving} aria-busy={saving}>
+            {saving ? 'Wird gespeichert …' : 'Antwort speichern'}
+          </ActionButton>
           {#if ansicht.ich?.geantwortet && !dirty}
             <StatusLabel label="Du hast abgestimmt" tone="success" />
           {/if}

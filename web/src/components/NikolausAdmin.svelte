@@ -124,11 +124,11 @@
   <li class="flex flex-wrap items-center gap-2">
     <span>
       Familie {booking.familyName}
-      <span class="text-neutral-700"
-        >({formatSlotKey(booking.slotKey)}, {booking.status === 'confirmed'
+      <span class="text-neutral-700">
+        ({formatSlotKey(booking.slotKey)}, {booking.status === 'confirmed'
           ? 'bestätigt'
-          : 'ausstehend'})</span
-      >
+          : 'ausstehend'})
+      </span>
     </span>
     <ActionButton
       variant="secondary"

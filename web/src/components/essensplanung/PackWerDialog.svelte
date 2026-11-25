@@ -141,14 +141,18 @@
         type="button"
         class="min-h-8 px-3 py-1 text-sm any-pointer-coarse:min-h-11"
         disabled={speichert}
-        onclick={alle}>Alle</ActionButton
+        onclick={alle}
       >
+        Alle
+      </ActionButton>
       <ActionButton
         type="button"
         class="min-h-8 px-3 py-1 text-sm any-pointer-coarse:min-h-11"
         disabled={speichert}
-        onclick={niemand}>Niemand</ActionButton
+        onclick={niemand}
       >
+        Niemand
+      </ActionButton>
     </div>
     <fieldset class="min-w-0" disabled={speichert}>
       <legend class="form-label text-xs">Mitglieder</legend>
@@ -162,11 +166,11 @@
             disabled={m.ohneZugang && !an}
             onchange={(event) => mitglied(m.id, event.currentTarget.checked)}
           />
-          <span
-            >{m.name}{m.ich ? ' (du)' : ''}{#if m.ohneZugang}<span class="text-xs text-neutral-700">
-                · ohne Zugang</span
-              >{/if}</span
-          >
+          <span>
+            {m.name}{m.ich ? ' (du)' : ''}{#if m.ohneZugang}<span class="text-xs text-neutral-700">
+                · ohne Zugang
+              </span>{/if}
+          </span>
         </label>
       {/each}
     </fieldset>
@@ -205,17 +209,19 @@
           type="button"
           class="min-h-8 px-3 py-1 text-sm whitespace-nowrap any-pointer-coarse:min-h-11"
           disabled={!neuerName.trim()}
-          onclick={nameHinzu}>Hinzufügen</ActionButton
+          onclick={nameHinzu}
         >
+          Hinzufügen
+        </ActionButton>
       </div>
     </fieldset>
     <div class="flex flex-wrap justify-end gap-2 pt-2">
-      <ActionButton type="button" disabled={speichert} onclick={() => void schliessen()}
-        >Abbrechen</ActionButton
-      >
-      <ActionButton type="submit" variant="primary" disabled={speichert || kontext.busy}
-        >{submitLabel}</ActionButton
-      >
+      <ActionButton type="button" disabled={speichert} onclick={() => void schliessen()}>
+        Abbrechen
+      </ActionButton>
+      <ActionButton type="submit" variant="primary" disabled={speichert || kontext.busy}>
+        {submitLabel}
+      </ActionButton>
     </div>
   </form>
 </ModalDialog>

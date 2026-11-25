@@ -202,8 +202,10 @@
   <p class="py-4 text-neutral-800">
     Diese Abstimmung gibt es nicht. <a
       class="text-link underline"
-      href="/leitendenbereich/abstimmungen">Zu allen Abstimmungen</a
+      href="/leitendenbereich/abstimmungen"
     >
+      Zu allen Abstimmungen
+    </a>
   </p>
 {:else}
   <LoadState
@@ -251,8 +253,10 @@
                 <ActionButton
                   variant="secondary"
                   disabled={busy}
-                  onclick={() => (bearbeiten = true)}>Bearbeiten</ActionButton
+                  onclick={() => (bearbeiten = true)}
                 >
+                  Bearbeiten
+                </ActionButton>
               {/if}
               <PdfDownloadButton
                 download={async () => {
@@ -271,16 +275,19 @@
                   class="col-span-2"
                   disabled={busy}
                   onclick={() => void setGeschlossen(!abstimmung.geschlossen)}
-                  >{abstimmung.geschlossen ? 'Wieder öffnen' : 'Abstimmung beenden'}</ActionButton
                 >
+                  {abstimmung.geschlossen ? 'Wieder öffnen' : 'Abstimmung beenden'}
+                </ActionButton>
               {/if}
             </Aktionsraster>
             <ReloadAction
               disabled={store.loading}
               aria-busy={store.loading}
               loadedAt={store.loadedAt}
-              onclick={() => void load()}>Neu laden</ReloadAction
+              onclick={() => void load()}
             >
+              Neu laden
+            </ReloadAction>
           </div>
         </section>
 
@@ -312,8 +319,9 @@
                 disabled={saving || (!dirty && !!abstimmung.ich?.geantwortet)}
                 aria-busy={saving}
                 onclick={() => void vote()}
-                >{saving ? 'Wird gespeichert …' : 'Antwort speichern'}</ActionButton
               >
+                {saving ? 'Wird gespeichert …' : 'Antwort speichern'}
+              </ActionButton>
               {#if abstimmung.ich?.geantwortet && !dirty}
                 <StatusLabel label="Du hast abgestimmt" tone="success" />
               {:else if dirty}
@@ -358,13 +366,13 @@
                       class="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <span class="min-w-0">
-                        <span class="block font-semibold text-brand-900 [overflow-wrap:anywhere]"
-                          >{teilnahme.name || teilnahme.email}</span
-                        >
+                        <span class="block font-semibold text-brand-900 [overflow-wrap:anywhere]">
+                          {teilnahme.name || teilnahme.email}
+                        </span>
                         {#if teilnahme.name}
-                          <span class="block text-sm text-neutral-700 [overflow-wrap:anywhere]"
-                            >{teilnahme.email}</span
-                          >
+                          <span class="block text-sm text-neutral-700 [overflow-wrap:anywhere]">
+                            {teilnahme.email}
+                          </span>
                         {/if}
                       </span>
                       <span

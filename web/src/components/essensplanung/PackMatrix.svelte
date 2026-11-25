@@ -221,9 +221,9 @@
           class="sticky top-0 z-20 border-b border-neutral-300 bg-[var(--color-surface)] px-2 py-1 text-center align-bottom font-semibold text-brand-900"
         >
           Gepackt
-          <span class="block text-xs font-normal text-neutral-700 tabular-nums"
-            >{gepacktGesamt} von {zeilen.length}</span
-          >
+          <span class="block text-xs font-normal text-neutral-700 tabular-nums">
+            {gepacktGesamt} von {zeilen.length}
+          </span>
         </th>
         {#each spalten as spalte (spalte.key)}
           <th
@@ -232,12 +232,12 @@
           >
             {spalte.name}
             {#if spalte.ich}<span class="font-normal">(du)</span>{/if}
-            {#if spalte.ohneZugang}<span class="block text-xs font-normal text-neutral-700"
-                >ohne Zugang</span
-              >{/if}
-            <span class="block text-xs font-normal text-neutral-700 tabular-nums"
-              >{summe(spalte)}</span
-            >
+            {#if spalte.ohneZugang}<span class="block text-xs font-normal text-neutral-700">
+                ohne Zugang
+              </span>{/if}
+            <span class="block text-xs font-normal text-neutral-700 tabular-nums">
+              {summe(spalte)}
+            </span>
           </th>
         {/each}
       </tr>
@@ -255,12 +255,14 @@
             <span
               class="block font-semibold [overflow-wrap:anywhere] {zeile.gepackt
                 ? 'text-neutral-700 line-through'
-                : ''}">{zeile.name}</span
+                : ''}"
             >
+              {zeile.name}
+            </span>
             {#if fuer}
-              <span class="block truncate text-xs text-neutral-700" title="für {fuer}"
-                >für {fuer}</span
-              >
+              <span class="block truncate text-xs text-neutral-700" title="für {fuer}">
+                für {fuer}
+              </span>
             {/if}
             {#if bearbeiten}
               <button
@@ -269,8 +271,10 @@
                 tabindex={tabindex(z, 0)}
                 class="min-h-8 any-pointer-coarse:min-h-11 text-xs font-semibold text-brand-900 underline"
                 aria-label="Wer packt {zeile.name} ein?"
-                onclick={() => onwer(zeileVon(zeile))}>Wer packt?</button
+                onclick={() => onwer(zeileVon(zeile))}
               >
+                Wer packt?
+              </button>
             {/if}
           </th>
           <td
@@ -306,14 +310,17 @@
                   aria-label="Wer packt {zeile.name} ein? {gepacktAnzahl} von {zeile.personen
                     .length} gepackt"
                   onclick={() => onwer(zeileVon(zeile))}
-                  >{zeile.gepackt ? '✓ ' : ''}{gepacktAnzahl} von {zeile.personen.length}</button
                 >
+                  {zeile.gepackt ? '✓ ' : ''}{gepacktAnzahl} von {zeile.personen.length}
+                </button>
               {:else}
                 <span
                   class="px-1 text-xs font-semibold {zeile.gepackt
                     ? 'text-success'
-                    : 'text-neutral-700'}">{stand}</span
+                    : 'text-neutral-700'}"
                 >
+                  {stand}
+                </span>
               {/if}
             {/if}
           </td>
@@ -353,11 +360,11 @@
                   <span aria-hidden="true">○</span>
                 </button>
               {:else if person}
-                <span class="font-semibold {person.gepackt ? 'text-success' : 'text-brand-900'}"
-                  >{person.gepackt ? '✓' : '●'}<span class="sr-only"
-                    >{spalte.name} packt {zeile.name} ein{person.gepackt ? ', gepackt' : ''}</span
-                  ></span
-                >
+                <span class="font-semibold {person.gepackt ? 'text-success' : 'text-brand-900'}">
+                  {person.gepackt ? '✓' : '●'}<span class="sr-only">
+                    {spalte.name} packt {zeile.name} ein{person.gepackt ? ', gepackt' : ''}
+                  </span>
+                </span>
               {/if}
             </td>
           {/each}

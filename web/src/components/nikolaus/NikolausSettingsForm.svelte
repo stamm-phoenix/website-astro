@@ -354,9 +354,9 @@
           {/each}
         </ul>
         <div class="mt-4">
-          <ActionButton variant="secondary" type="button" onclick={addDay}
-            >Tag hinzufügen</ActionButton
-          >
+          <ActionButton variant="secondary" type="button" onclick={addDay}>
+            Tag hinzufügen
+          </ActionButton>
         </div>
       </section>
 
@@ -541,8 +541,10 @@
             type="button"
             variant="secondary"
             disabled={saving}
-            onclick={reloadCurrent}>Aktuelle Fassung laden</ActionButton
-          >{/if}
+            onclick={reloadCurrent}
+          >
+            Aktuelle Fassung laden
+          </ActionButton>{/if}
         {#if dirty && !stale}
           <ActionButton
             variant="secondary"

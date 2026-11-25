@@ -76,8 +76,10 @@
     </svelte:element>
     <StaffLink
       href="/leitendenbereich/blog/beitrag?id={encodeURIComponent(post.id)}"
-      class="relative z-10 self-start">Bearbeiten</StaffLink
+      class="relative z-10 self-start"
     >
+      Bearbeiten
+    </StaffLink>
     <!-- Without a cover, the card shows more of the text instead (longer excerpt from the API) -->
     <p class="excerpt text-sm text-neutral-900" class:excerpt-long={!post.cover}>{post.excerpt}</p>
     <span

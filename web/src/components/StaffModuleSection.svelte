@@ -29,8 +29,9 @@
     class={level === 2
       ? 'm-0 font-serif text-lg font-semibold text-brand-900'
       : 'm-0 text-xs font-semibold tracking-wide text-neutral-700 uppercase'}
-    >{title}</svelte:element
   >
+    {title}
+  </svelte:element>
   <ul class="grid gap-x-4 sm:grid-cols-2 md:grid-cols-3">
     {#each modules.filter(canOpenModule) as module (module.href)}
       <li class="group flex min-w-0 items-center border-b border-neutral-200">

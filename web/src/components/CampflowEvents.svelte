@@ -282,14 +282,18 @@
         type="button"
         class="ml-auto"
         disabled={campflowEventsStore.loading || calendar.loading}
-        onclick={reload}>Neu laden</ReloadAction
+        onclick={reload}
       >
+        Neu laden
+      </ReloadAction>
       <ActionButton
         variant="primary"
         type="button"
         disabled={!calendar.data}
-        onclick={() => (target = { event: null, entry: null })}>Aktion anlegen</ActionButton
+        onclick={() => (target = { event: null, entry: null })}
       >
+        Aktion anlegen
+      </ActionButton>
     </div>
 
     <StatusNotice {message} popup />
@@ -306,8 +310,10 @@
             type="button"
             class="mt-3"
             disabled={campflowEventsStore.loading || calendar.loading}
-            onclick={reload}>Erneut versuchen</ActionButton
+            onclick={reload}
           >
+            Erneut versuchen
+          </ActionButton>
         </div>
       {/if}
     {/each}

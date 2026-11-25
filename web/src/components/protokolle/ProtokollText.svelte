@@ -24,18 +24,24 @@
 {#snippet inline(nodes: MdInline[])}
   {#each nodes as node, index (index)}
     {#if node.type === 'text'}{node.text}{:else if node.type === 'br'}<br
-      />{:else if node.type === 'code'}<code class="md-code">{node.text}</code
-      >{:else if node.type === 'strong'}<strong>{@render inline(node.children)}</strong
-      >{:else if node.type === 'em'}<em>{@render inline(node.children)}</em
-      >{:else if node.type === 'del'}<del>{@render inline(node.children)}</del
-      >{:else if node.type === 'link'}<a
+      />{:else if node.type === 'code'}<code class="md-code">
+        {node.text}
+      </code>{:else if node.type === 'strong'}<strong>
+        {@render inline(node.children)}
+      </strong>{:else if node.type === 'em'}<em>
+        {@render inline(node.children)}
+      </em>{:else if node.type === 'del'}<del>
+        {@render inline(node.children)}
+      </del>{:else if node.type === 'link'}<a
         class="text-link"
         href={node.href}
         target="_blank"
-        rel="noopener noreferrer">{@render inline(node.children)}</a
-      >{:else if node.type === 'erwaehnung'}<span class="erwaehnung" title={node.login}
-        >@{node.name}</span
-      >{/if}
+        rel="noopener noreferrer"
+      >
+        {@render inline(node.children)}
+      </a>{:else if node.type === 'erwaehnung'}<span class="erwaehnung" title={node.login}>
+        @{node.name}
+      </span>{/if}
   {/each}
 {/snippet}
 
@@ -62,9 +68,9 @@
             {#if item.checked !== null}
               <span class="md-check" class:is-checked={item.checked} aria-hidden="true">
                 {#if item.checked}
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                    ><path d="M5 12l5 5L19 7" /></svg
-                  >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <path d="M5 12l5 5L19 7" />
+                  </svg>
                 {/if}
               </span>
               <span class="sr-only">{item.checked ? 'Erledigt:' : 'Offen:'}</span>
@@ -85,9 +91,9 @@
           <thead>
             <tr>
               {#each block.header as cell, cellIndex (cellIndex)}
-                <th scope="col" style:text-align={align(block.align[cellIndex])}
-                  >{@render inline(cell)}</th
-                >
+                <th scope="col" style:text-align={align(block.align[cellIndex])}>
+                  {@render inline(cell)}
+                </th>
               {/each}
             </tr>
           </thead>

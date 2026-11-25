@@ -94,9 +94,9 @@
   >
     Die Online-Anmeldung für {formatNikolausDate(activeDay.date).replace(/ \d{4}$/, '')} ist geschlossen,
     weil wir an diesem Tag die Touren planen. In dringenden Fällen schreiben Sie uns bitte über unser
-    <a class="font-semibold underline" href="/kontakt?thema=nikolaus#kontaktformular"
-      >Kontaktformular</a
-    >.
+    <a class="font-semibold underline" href="/kontakt?thema=nikolaus#kontaktformular">
+      Kontaktformular
+    </a>.
   </p>
 {:else if activeDay}
   <div

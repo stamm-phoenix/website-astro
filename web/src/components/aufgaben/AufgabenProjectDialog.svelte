@@ -76,32 +76,36 @@
   {onclose}
 >
   <div class="space-y-4">
-    <FormField name="title" id="project-title" label="Titel" error={fields.title}
-      >{#snippet children(attrs)}<input
+    <FormField name="title" id="project-title" label="Titel" error={fields.title}>
+      {#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
           bind:value={draft.title}
           maxlength="200"
           required
-        />{/snippet}</FormField
-    >
+        />{/snippet}
+    </FormField>
     <FormField
       name="campflowId"
       id="project-event"
       label="Aktion"
       optional
       error={fields.campflowId}
-      >{#snippet children(attrs)}
-        <select {...attrs} class="form-input" bind:value={campflowId} onchange={eventProject}
-          ><option value="">Ohne Aktion</option
-          >{#if campflowId && !campflowEventsStore.data?.some((e) => e.id === campflowId)}<option
-              value={campflowId}>Verknüpfte Aktion</option
-            >{/if}{#each eventOptions as event (event.id)}<option value={event.id}
-              >{event.title}</option
-            >{/each}</select
-        >
-      {/snippet}</FormField
     >
+      {#snippet children(attrs)}
+        <select {...attrs} class="form-input" bind:value={campflowId} onchange={eventProject}>
+          <option value="">
+            Ohne Aktion
+          </option>{#if campflowId && !campflowEventsStore.data?.some((e) => e.id === campflowId)}<option
+              value={campflowId}
+            >
+              Verknüpfte Aktion
+            </option>{/if}{#each eventOptions as event (event.id)}<option value={event.id}>
+              {event.title}
+            </option>{/each}
+        </select>
+      {/snippet}
+    </FormField>
     <StatusNotice kind="error" message={campflowEventsStore.error} />
   </div>
 </EditDialog>

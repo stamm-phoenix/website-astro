@@ -215,9 +215,9 @@
               {posten.name}
             {/if}
             {#if posten.regel === 'fest'}<span class="text-xs text-neutral-700">· feste Menge</span>
-            {:else if posten.regel === 'mit'}<span class="text-xs text-neutral-700"
-                >· hierher verschoben</span
-              >{/if}
+            {:else if posten.regel === 'mit'}<span class="text-xs text-neutral-700">
+                · hierher verschoben
+              </span>{/if}
             {#if herkunftAnzeige.an}<PostenHerkunft
                 herkunft={herkunft(posten)}
                 name={posten.name}
@@ -231,10 +231,9 @@
               aria-label="{posten.name} in {einkauf.name} anpassen"
               disabled={speichert}
               onclick={() => oeffnen(posten)}
-              >Anpassen<AufklappPfeil
-                class="text-link {offen === posten.key ? 'rotate-180' : ''}"
-              /></button
             >
+              Anpassen<AufklappPfeil class="text-link {offen === posten.key ? 'rotate-180' : ''}" />
+            </button>
           {/if}
           {#if offen === posten.key}
             <fieldset
@@ -256,8 +255,10 @@
                     type="button"
                     class={KNOPF}
                     disabled={kontext.busy}
-                    onclick={() => void verschieben(posten)}>Verschieben</ActionButton
+                    onclick={() => void verschieben(posten)}
                   >
+                    Verschieben
+                  </ActionButton>
                 </span>
               {/if}
               {#if einheiten(posten).length}
@@ -289,8 +290,10 @@
                     type="button"
                     class={KNOPF}
                     disabled={kontext.busy}
-                    onclick={() => void regel(posten, 'fest')}>Feste Menge</ActionButton
+                    onclick={() => void regel(posten, 'fest')}
                   >
+                    Feste Menge
+                  </ActionButton>
                 </span>
               {/if}
               <span class="flex flex-wrap gap-1">
@@ -298,15 +301,19 @@
                   type="button"
                   class={KNOPF}
                   disabled={kontext.busy}
-                  onclick={() => void regel(posten, 'ohne')}>Nicht in diesem Einkauf</ActionButton
+                  onclick={() => void regel(posten, 'ohne')}
                 >
+                  Nicht in diesem Einkauf
+                </ActionButton>
                 {#if posten.regel}
                   <ActionButton
                     type="button"
                     class={KNOPF}
                     disabled={kontext.busy}
-                    onclick={() => void regel(posten, null)}>Wieder berechnen</ActionButton
+                    onclick={() => void regel(posten, null)}
                   >
+                    Wieder berechnen
+                  </ActionButton>
                 {/if}
               </span>
               {#if fehler}<p class="basis-full text-sm text-danger" role="alert">{fehler}</p>{/if}
@@ -336,8 +343,10 @@
               class={KNOPF}
               disabled={kontext.busy}
               aria-label="{zutat.name} zurück in {einkauf.name}"
-              onclick={() => void zurueckholen(zutat)}>Zurückholen</ActionButton
+              onclick={() => void zurueckholen(zutat)}
             >
+              Zurückholen
+            </ActionButton>
           {/if}
         </li>
       {/each}

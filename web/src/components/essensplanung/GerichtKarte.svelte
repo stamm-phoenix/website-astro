@@ -247,8 +247,10 @@
             type="button"
             variant="danger"
             disabled={kontext.busy}
-            onclick={() => void loeschen()}>Gericht löschen</ActionButton
+            onclick={() => void loeschen()}
           >
+            Gericht löschen
+          </ActionButton>
         {/if}
       </div>
     </div>
@@ -336,16 +338,19 @@
                   <ActionButton
                     type="button"
                     aria-label="Link {index + 1} entfernen"
-                    onclick={() => kopf.links.splice(index, 1)}>Entfernen</ActionButton
+                    onclick={() => kopf.links.splice(index, 1)}
                   >
+                    Entfernen
+                  </ActionButton>
                 </div>
               {/each}
               <ActionButton
                 type="button"
                 disabled={kopf.links.length >= 10}
                 onclick={() => kopf.links.push({ titel: '', url: '' })}
-                >Link hinzufügen</ActionButton
               >
+                Link hinzufügen
+              </ActionButton>
             </fieldset>
             <FormField id="gericht-{gericht.id}-notiz" label="Notiz" optional error={felder.notiz}>
               {#snippet children(attrs)}
@@ -378,9 +383,9 @@
           </div>
         </div>
         <div class="flex justify-end">
-          <ActionButton type="submit" variant="primary" disabled={kontext.busy || !entwurf}
-            >Gericht speichern</ActionButton
-          >
+          <ActionButton type="submit" variant="primary" disabled={kontext.busy || !entwurf}>
+            Gericht speichern
+          </ActionButton>
         </div>
       </form>
     {/if}
@@ -411,8 +416,10 @@
                   class="text-link underline"
                   href={link.url}
                   target="_blank"
-                  rel="noopener noreferrer">{link.titel || link.url}</a
+                  rel="noopener noreferrer"
                 >
+                  {link.titel || link.url}
+                </a>
                 <!-- Paper has no links: the address is printed after the title -->
                 {#if link.titel}<span class="hidden print:inline">({link.url})</span>{/if}
               </li>

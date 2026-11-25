@@ -103,8 +103,9 @@
                   disabled={kontext.busy || laeuft !== null}
                   aria-label="{person.name} einladen"
                   onclick={() => void klick(person)}
-                  >{laeuft === person.email ? 'Wird eingeladen …' : 'Einladen'}</ActionButton
                 >
+                  {laeuft === person.email ? 'Wird eingeladen …' : 'Einladen'}
+                </ActionButton>
               {/if}
             </li>
           {/each}

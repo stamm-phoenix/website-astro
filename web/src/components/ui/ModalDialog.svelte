@@ -295,8 +295,10 @@
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
-                stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg
+                stroke-linecap="round"
               >
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
             </button>
           {/if}
         </div>

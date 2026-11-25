@@ -261,8 +261,10 @@
               type="button"
               aria-label={`${zeile.bezeichnung.trim() || `Zeile ${index + 1}`} entfernen`}
               disabled={form.varianten.length === 1}
-              onclick={() => removeZeile(zeile.key)}>Entfernen</ActionButton
+              onclick={() => removeZeile(zeile.key)}
             >
+              Entfernen
+            </ActionButton>
           </div>
         {/each}
         {#if errors.varianten}
@@ -270,9 +272,9 @@
             {errors.varianten}
           </p>
         {/if}
-        <ActionButton id="inv-zeile-neu" variant="secondary" type="button" onclick={addZeile}
-          >{variantenName?.hinzufuegen ?? 'Variante hinzufügen'}</ActionButton
-        >
+        <ActionButton id="inv-zeile-neu" variant="secondary" type="button" onclick={addZeile}>
+          {variantenName?.hinzufuegen ?? 'Variante hinzufügen'}
+        </ActionButton>
       </div>
     {:else}
       <FormField id="inv-varianten" label="Bestand" error={errors.varianten}>

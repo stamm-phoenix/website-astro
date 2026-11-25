@@ -163,8 +163,10 @@
       <span class="[overflow-wrap:anywhere]">
         <span
           class="font-mono text-[0.7rem] text-brand-900"
-          title="Gericht-ID: Tag_Mahlzeit_Gericht">{kennung}</span
+          title="Gericht-ID: Tag_Mahlzeit_Gericht"
         >
+          {kennung}
+        </span>
         <button
           type="button"
           data-gericht-name
@@ -174,8 +176,10 @@
             : ''}"
           title="Gericht öffnen"
           aria-label="{kennung} {name} öffnen"
-          onclick={() => kontext.oeffneGericht(einplanung.gerichtId)}>{name}</button
+          onclick={() => kontext.oeffneGericht(einplanung.gerichtId)}
         >
+          {name}
+        </button>
       </span>
       <span class="{kalender ? 'block' : ''} text-neutral-700 tabular-nums">
         {zahlText(portionen)} Portionen{faktorText(einplanung.faktor)
@@ -185,12 +189,12 @@
       {#if einplanung.status !== 'offen' || (gericht && !gericht.zutaten.length)}
         <span class="{kalender ? 'block' : ''} font-semibold">
           {#if einplanung.status === 'gekocht'}<span class="text-success">gekocht</span>
-          {:else if einplanung.status === 'ausgelassen'}<span class="text-neutral-700"
-              >ausgelassen</span
-            >{/if}
-          {#if gericht && !gericht.zutaten.length}<span class="font-normal text-neutral-700"
-              >noch ohne Zutaten</span
-            >{/if}
+          {:else if einplanung.status === 'ausgelassen'}<span class="text-neutral-700">
+              ausgelassen
+            </span>{/if}
+          {#if gericht && !gericht.zutaten.length}<span class="font-normal text-neutral-700">
+              noch ohne Zutaten
+            </span>{/if}
         </span>
       {/if}
     </div>
@@ -201,8 +205,9 @@
       aria-label="Mehr zu {kennung} {name}"
       title="Mehr"
       onclick={() => (offen = !offen)}
-      ><AufklappPfeil class="size-4 transition-transform {offen ? 'rotate-180' : ''}" /></button
     >
+      <AufklappPfeil class="size-4 transition-transform {offen ? 'rotate-180' : ''}" />
+    </button>
   </div>
   <!-- Hidden, not removed, so amounts typed for what it used stay when it is folded -->
   <div
@@ -217,24 +222,29 @@
           disabled={kontext.busy}
           title="Nach oben (Alt+↑)"
           aria-label="{name} bei {kennung} nach oben"
-          onclick={() => void bewege('hoch')}>↑</button
+          onclick={() => void bewege('hoch')}
         >
+          ↑
+        </button>
         <button
           type="button"
           class={KNOPF}
           disabled={kontext.busy}
           title="Nach unten (Alt+↓)"
           aria-label="{name} bei {kennung} nach unten"
-          onclick={() => void bewege('runter')}>↓</button
+          onclick={() => void bewege('runter')}
         >
+          ↓
+        </button>
         <button
           type="button"
           class={KNOPF}
           aria-label="{name} bei {kennung} ändern"
           onclick={() =>
             oneinplanen({ modus: 'aendern', mahlzeitId: mahlzeit.id, einplanungId: einplanung.id })}
-          >Ändern …</button
         >
+          Ändern …
+        </button>
         <button
           type="button"
           class={KNOPF}
@@ -244,8 +254,10 @@
               modus: 'kopieren',
               mahlzeitId: mahlzeit.id,
               einplanungId: einplanung.id,
-            })}>Kopieren …</button
+            })}
         >
+          Kopieren …
+        </button>
         <button
           type="button"
           class={KNOPF}
@@ -260,21 +272,25 @@
               einplanung,
               einplanung.status === 'offen' ? 'ausgelassen' : 'offen',
               esser
-            )}>{einplanung.status === 'offen' ? 'Ausgelassen' : 'Wieder offen'}</button
+            )}
         >
+          {einplanung.status === 'offen' ? 'Ausgelassen' : 'Wieder offen'}
+        </button>
         <button
           type="button"
           class="btn-danger"
           disabled={kontext.busy}
           aria-label="{name} aus {kennung} entfernen"
-          onclick={() => void nimmHeraus(kontext, mahlzeit, einplanung)}>Entfernen</button
+          onclick={() => void nimmHeraus(kontext, mahlzeit, einplanung)}
         >
+          Entfernen
+        </button>
       </div>
     {/if}
     {#if kalender}
-      <button type="button" class={KNOPF} onclick={() => onmengen?.(einplanung.id)}
-        >Mengen und Verbrauch</button
-      >
+      <button type="button" class={KNOPF} onclick={() => onmengen?.(einplanung.id)}>
+        Mengen und Verbrauch
+      </button>
     {:else}
       <EinplanungMengen {kontext} {mahlzeit} {einplanung} {name} {esser} {unvertraeglichkeiten} />
       <EinplanungAbhaken

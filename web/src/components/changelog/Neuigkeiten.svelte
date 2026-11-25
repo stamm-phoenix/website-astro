@@ -57,9 +57,9 @@
       <MessageText text={changelogStore.loadError ?? ''} />
       Die Neuigkeiten stehen unten, es wurde nichts als gelesen gespeichert.
       <div>
-        <ActionButton variant="secondary" type="button" class="mt-3" onclick={open}
-          >Erneut versuchen</ActionButton
-        >
+        <ActionButton variant="secondary" type="button" class="mt-3" onclick={open}>
+          Erneut versuchen
+        </ActionButton>
       </div>
     </div>
   {:else if phase === 'saveFailed'}
@@ -102,9 +102,9 @@
             <li>
               {changeText(change)}
               {#if typeof change !== 'string'}
-                <a href={change.href} class="ml-1 inline-block py-2.5 font-semibold text-link"
-                  >„{staffPage(change.href).title}“ öffnen</a
-                >
+                <a href={change.href} class="ml-1 inline-block py-2.5 font-semibold text-link">
+                  „{staffPage(change.href).title}“ öffnen
+                </a>
               {/if}
             </li>
           {/each}

@@ -82,8 +82,10 @@
       <button
         type="button"
         class="min-h-8 font-semibold underline any-pointer-coarse:min-h-11"
-        onclick={onkatalog}>Noch einmal versuchen</button
+        onclick={onkatalog}
       >
+        Noch einmal versuchen
+      </button>
     </p>
   {/if}
   {#if liste.length}
@@ -93,9 +95,9 @@
           <th scope="col" class="w-20 py-1 pr-2 text-right font-semibold">Menge</th>
           <th scope="col" class="py-1 pr-2 font-semibold {herkunftJe ? 'md:w-56' : ''}">Zutat</th>
           {#if herkunftJe}
-            <th scope="col" class="hidden py-1 pr-2 font-semibold md:table-cell"
-              >Für welche Gerichte</th
-            >
+            <th scope="col" class="hidden py-1 pr-2 font-semibold md:table-cell">
+              Für welche Gerichte
+            </th>
           {/if}
           {#if mitGeschaeft}
             <th scope="col" class="w-32 py-1 font-semibold md:w-40">Geschäft</th>
@@ -128,9 +130,9 @@
             </tr>
             {#each kategorie.posten as posten (`${posten.planungZutatId}:${posten.einheit}`)}
               <tr class="border-b border-neutral-200 align-top">
-                <td class="py-1 pr-2 text-right font-semibold whitespace-nowrap tabular-nums"
-                  >{`${postenMenge(posten)} `}</td
-                >
+                <td class="py-1 pr-2 text-right font-semibold whitespace-nowrap tabular-nums">
+                  {`${postenMenge(posten)} `}
+                </td>
                 <th
                   scope="row"
                   class="py-1 pr-2 font-normal hyphens-auto [overflow-wrap:break-word]"

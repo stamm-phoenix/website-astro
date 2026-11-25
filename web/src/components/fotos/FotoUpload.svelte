@@ -139,10 +139,11 @@
           stroke-width="1.8"
           stroke-linecap="round"
           stroke-linejoin="round"
-          ><path
-            d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
-          /></svg
         >
+          <path
+            d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
+          />
+        </svg>
         <span class="font-semibold text-brand-900">
           {draft.files.length ? 'Weitere Fotos hinzufügen' : 'Fotos und Videos auswählen'}
         </span>

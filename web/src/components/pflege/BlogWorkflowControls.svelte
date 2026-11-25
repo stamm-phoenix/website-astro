@@ -103,13 +103,13 @@
         Rückmeldung: {workflow.feedback}
       </p>{/if}
     {#if workflow.state === 'review'}
-      <label class="block text-sm"
-        ><span class="form-label">Rückmeldung bei Rückgabe</span><textarea
+      <label class="block text-sm">
+        <span class="form-label">Rückmeldung bei Rückgabe</span><textarea
           class="form-input"
           disabled={disabled || busy}
           maxlength="2000"
-          bind:value={feedback}></textarea></label
-      >
+          bind:value={feedback}></textarea>
+      </label>
     {/if}
     <Aktionsraster>
       {@render speichern()}
@@ -119,36 +119,46 @@
           variant={dirty ? 'secondary' : 'primary'}
           class="col-span-2"
           disabled={disabled || busy}
-          onclick={() => act('submit')}>Zur Prüfung einreichen</ActionButton
+          onclick={() => act('submit')}
         >
+          Zur Prüfung einreichen
+        </ActionButton>
       {:else if workflow.state === 'review'}
         <ActionButton
           type="button"
           variant={dirty ? 'secondary' : 'primary'}
           class="col-span-2"
           disabled={disabled || busy}
-          onclick={() => act('approve')}>Freigeben</ActionButton
+          onclick={() => act('approve')}
         >
+          Freigeben
+        </ActionButton>
         <ActionButton
           type="button"
           disabled={disabled || busy || !feedback.trim()}
-          onclick={() => act('return')}>Zurückgeben</ActionButton
+          onclick={() => act('return')}
         >
+          Zurückgeben
+        </ActionButton>
       {:else if workflow.state === 'approved'}
         <ActionButton
           type="button"
           variant={dirty ? 'secondary' : 'primary'}
           class="col-span-2"
           disabled={disabled || busy}
-          onclick={() => act('publish')}>Veröffentlichen</ActionButton
+          onclick={() => act('publish')}
         >
+          Veröffentlichen
+        </ActionButton>
       {:else}
         <ActionButton
           type="button"
           class="col-span-2"
           disabled={disabled || busy}
-          onclick={() => act('unpublish')}>Veröffentlichung zurücknehmen</ActionButton
+          onclick={() => act('unpublish')}
         >
+          Veröffentlichung zurücknehmen
+        </ActionButton>
       {/if}
       {@render danach()}
     </Aktionsraster>

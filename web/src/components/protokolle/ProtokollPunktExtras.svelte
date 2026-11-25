@@ -98,8 +98,9 @@
       />
     </div>
     <div>
-      <label for="zeitraum-ende-{uid}" class="text-sm text-neutral-700">Bis (falls mehrtägig)</label
-      >
+      <label for="zeitraum-ende-{uid}" class="text-sm text-neutral-700">
+        Bis (falls mehrtägig)
+      </label>
       <input
         id="zeitraum-ende-{uid}"
         type="date"
@@ -114,9 +115,15 @@
       aria-label="Datum von Punkt {nummer} entfernen"
       onclick={() => (zeitraum = null)}
     >
-      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        ><path d="M6 6l12 12M18 6L6 18" /></svg
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
       >
+        <path d="M6 6l12 12M18 6L6 18" />
+      </svg>
     </button>
   </div>
 {/if}
@@ -155,8 +162,10 @@
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="2"><path d="M6 6l12 12M18 6L6 18" /></svg
+              stroke-width="2"
             >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
           </button>
         </div>
         <div class="grid gap-2 sm:grid-cols-[1fr_auto]">
@@ -210,8 +219,10 @@
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="2"><path d="M6 6l12 12M18 6L6 18" /></svg
+              stroke-width="2"
             >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
           </button>
         </div>
         <div class="grid gap-2 sm:grid-cols-[auto_auto_1fr]">
@@ -245,9 +256,9 @@
           </div>
         </div>
         <div>
-          <label for="termin-zustaendig-{termin.id}" class="text-sm text-neutral-700"
-            >Zuständig</label
-          >
+          <label for="termin-zustaendig-{termin.id}" class="text-sm text-neutral-700">
+            Zuständig
+          </label>
           <PersonenAuswahl
             id="termin-zustaendig-{termin.id}"
             bind:selected={termin.zustaendig}
