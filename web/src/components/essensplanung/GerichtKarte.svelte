@@ -1,13 +1,8 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
-  import FormField from '../pflege/FormField.svelte';
-  import TagInput from '../pflege/TagInput.svelte';
-  import LazyTextEditor from '../ui/LazyTextEditor.svelte';
   import GerichtKi from './GerichtKi.svelte';
   import GerichtGenerierenKnopf from './GerichtGenerierenKnopf.svelte';
   import ProtokollText from '../protokolle/ProtokollText.svelte';
-  import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { plaetzeVon } from '../../lib/essensplanungEinplanung';
@@ -16,11 +11,8 @@
     gerichtStand,
     gerichtWarnungen,
   } from '../../../../api/lib/essen-gerichte-model';
-  import type {
-    EssenKatalog,
-    Gericht,
-    GerichtLink,
-  } from '../../../../api/lib/essen-gerichte-model';
+  import type { EssenKatalog, Gericht } from '../../../../api/lib/essen-gerichte-model';
+  import GerichtKopf from './GerichtKopf.svelte';
   import GerichtPlaetze from './GerichtPlaetze.svelte';
   import { angefangen, leereZeile } from './NeueZutatZeile.svelte';
   import GerichtZutatenListe from './GerichtZutatenListe.svelte';
@@ -28,8 +20,8 @@
   import { gespeichert, meldeVerloren, type PlanKontext } from './planKontext';
 
   /**
-   * One dish: its lines with warnings, and (for those who edit) its fields as a draft that the
-   * changes of others do not overwrite. Printed alone as a recipe card.
+   * One dish: its lines with warnings, and (for those who edit) its fields, which save on their
+   * own (`GerichtKopf.svelte`). Printed alone as a recipe card.
    */
 
   interface Props {
@@ -56,138 +48,28 @@
   );
   const warnungen = $derived(gerichtWarnungen(gericht, zutaten));
 
-  interface Kopf {
-    name: string;
-    personen: string;
-    anleitung: string;
-    notiz: string;
-    werkzeuge: string[];
-    links: GerichtLink[];
-  }
-  const kopfVon = (g: Gericht): Kopf => ({
-    name: g.name,
-    personen: g.personen === null ? '' : String(g.personen),
-    anleitung: g.anleitung,
-    notiz: g.notiz,
-    werkzeuge: [...g.werkzeuge],
-    links: g.links.map((link) => ({ ...link })),
-  });
-  const gleich = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-
-  /** The saved fields the form started from and the input. */
-  let basis = $state<Kopf>(kopfVon(untrack(() => gericht)));
-  /** The version of the saved fields the form started from. */
-  let basisEtag = untrack(() => gericht.etag);
-  let kopf = $state<Kopf>(kopfVon(untrack(() => gericht)));
-  let felder = $state<Record<string, string>>({});
-  /** A tool name typed but not yet added. */
-  let werkzeugEntwurf = $state('');
-  /** Whether the fields hold input; a function too, as a derived read when the card goes may be stale. */
-  const offen = (): boolean => !gleich(kopf, basis) || werkzeugEntwurf.trim() !== '';
-  const entwurf = $derived(offen());
-  $effect(() => {
-    const neu = kopfVon(gericht);
-    untrack(() => {
-      if (entwurf) return;
-      basis = neu;
-      basisEtag = gericht.etag;
-      kopf = kopfVon(gericht);
-    });
-  });
-  $effect(() => guardUnsavedChanges(() => entwurf));
   /** The new row of ingredients; kept here, so a read-only phase does not lose it. */
   let neueZeile = $state(leereZeile());
   $effect(() => guardUnsavedChanges(() => angefangen(neueZeile)));
 
   /** Set when this page deletes the dish itself, which needs no word about lost input. */
   let selbstGeloescht = false;
-  // Someone else deleted the dish: the card goes, so the unsaved fields are shown to copy
+  // Someone else deleted the dish: the card goes, so the started row is shown to copy
   $effect(() => () => {
-    if (selbstGeloescht || (!offen() && !angefangen(neueZeile))) return;
     const neu = neueZeile;
-    const eingaben = (Object.keys(kopf) as (keyof Kopf)[])
-      .filter((feld) => !gleich(kopf[feld], basis[feld]))
-      .map((feld) => `${FELD_NAMEN[feld]}: ${textVon(kopf[feld])}`)
-      .concat(werkzeugEntwurf.trim() ? [`${FELD_NAMEN.werkzeuge}: ${werkzeugEntwurf.trim()}`] : [])
-      .concat(
-        angefangen(neu)
-          ? [
-              `Neue Zutat: ${[neu.name.trim(), neu.menge.trim() && `${neu.menge.trim()} ${einheitText(neu.einheit)}`, neu.hinweis.trim()].filter(Boolean).join(', ')}`,
-            ]
-          : []
-      )
-      .join(' · ');
+    if (selbstGeloescht || !angefangen(neu)) return;
+    const eingabe = [
+      neu.name.trim(),
+      neu.menge.trim() && `${neu.menge.trim()} ${einheitText(neu.einheit)}`,
+      neu.hinweis.trim(),
+    ]
+      .filter(Boolean)
+      .join(', ');
     meldeVerloren(
       kontext,
-      `„${gericht.name}“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: ${eingaben}`
+      `„${gericht.name}“ wurde gerade gelöscht. Deine ungespeicherte neue Zutat: ${eingabe}`
     );
   });
-
-  const FELD_NAMEN: Record<keyof Kopf, string> = {
-    name: 'Name',
-    personen: 'Personen',
-    anleitung: 'Anleitung',
-    notiz: 'Notiz',
-    werkzeuge: 'Werkzeuge',
-    links: 'Links',
-  };
-
-  function textVon(wert: Kopf[keyof Kopf]): string {
-    if (typeof wert === 'string') return wert;
-    return wert.map((eintrag) => (typeof eintrag === 'string' ? eintrag : eintrag.url)).join(', ');
-  }
-
-  async function speichern(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    felder = {};
-    const personen = Number(kopf.personen);
-    const geaenderteFelder = (Object.keys(kopf) as (keyof Kopf)[]).filter(
-      (feld) => !gleich(kopf[feld], basis[feld])
-    );
-    // With the version the form started from: a change of others meanwhile is a conflict
-    const body: Record<string, unknown> = { etag: basisEtag };
-    // Empty links are left out; the form index of each sent one, for the errors coming back
-    const linkIndex = kopf.links.flatMap((link, index) =>
-      link.url.trim() || link.titel.trim() ? [index] : []
-    );
-    for (const feld of geaenderteFelder) {
-      body[feld] =
-        feld === 'personen'
-          ? kopf.personen.trim() === ''
-            ? null
-            : Number.isInteger(personen)
-              ? personen
-              : kopf.personen
-          : feld === 'links'
-            ? linkIndex.map((index) => kopf.links[index])
-            : kopf[feld];
-    }
-    const gesendet = $state.snapshot(kopf);
-    const ok = await kontext.aendern(async () => {
-      try {
-        return await kontext.api.senden('PATCH', `/gerichte/${gericht.id}`, body);
-      } catch (error: unknown) {
-        if (error instanceof ApiError && error.fields)
-          felder = Object.fromEntries(
-            Object.entries(error.fields).map(([feld, text]) => [
-              feld.replace(/^links\.(\d+)\./, (_, i) => `links.${linkIndex[Number(i)] ?? i}.`),
-              text,
-            ])
-          );
-        throw error;
-      }
-    }, `${kopf.name} gespeichert.`);
-    const aktuell = kopfVon(gericht);
-    // What was typed again while saving stays as a draft; after a conflict the fields left alone
-    // show what others saved
-    for (const feld of Object.keys(kopf) as (keyof Kopf)[]) {
-      const weiter = !gleich(kopf[feld], gesendet[feld]);
-      const unberuehrt = !geaenderteFelder.includes(feld);
-      if (!weiter && (ok || unberuehrt)) kopf = { ...kopf, [feld]: aktuell[feld] };
-    }
-    basis = aktuell;
-    basisEtag = gericht.etag;
-  }
 
   async function loeschen(): Promise<void> {
     // A row left with this click saves first, so the version asked about includes it
@@ -256,138 +138,7 @@
     </div>
 
     {#if bearbeiten}
-      <form class="space-y-3 print:hidden" onsubmit={speichern}>
-        <div class="grid gap-x-6 gap-y-3 lg:grid-cols-2">
-          <div class="space-y-3">
-            <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
-              <FormField id="gericht-{gericht.id}-name" label="Name" error={felder.name}>
-                {#snippet children(attrs)}
-                  <input {...attrs} class="form-input" maxlength="150" bind:value={kopf.name} />
-                {/snippet}
-              </FormField>
-              <FormField
-                id="gericht-{gericht.id}-personen"
-                label="Personen"
-                error={felder.personen}
-                info="Für so viele Personen gelten die Mengen und wachsen mit den Essern. Leer gelten sie fest für jede Einplanung, z. B. 2 Brote fürs Frühstück."
-              >
-                {#snippet children(attrs)}
-                  <input
-                    {...attrs}
-                    class="form-input"
-                    inputmode="numeric"
-                    placeholder="leer: feste Mengen"
-                    bind:value={kopf.personen}
-                  />
-                {/snippet}
-              </FormField>
-            </div>
-            <FormField
-              id="gericht-{gericht.id}-werkzeuge"
-              label="Werkzeuge"
-              optional
-              error={felder.werkzeuge}
-            >
-              {#snippet children(attrs)}
-                <TagInput
-                  id={attrs.id}
-                  tags={kopf.werkzeuge}
-                  placeholder="z. B. Pürierstab"
-                  kompakt
-                  onchange={(werkzeuge) => (kopf.werkzeuge = werkzeuge)}
-                  ondraftchange={(text) => (werkzeugEntwurf = text)}
-                />
-              {/snippet}
-            </FormField>
-            <fieldset class="space-y-2">
-              <legend class="form-label">Links</legend>
-              {#each kopf.links as link, index (index)}
-                <div class="flex flex-wrap items-end gap-2">
-                  <FormField
-                    id="gericht-{gericht.id}-link-{index}-titel"
-                    label="Titel"
-                    optional
-                    class="min-w-0 flex-1"
-                    error={felder[`links.${index}.titel`]}
-                  >
-                    {#snippet children(attrs)}
-                      <input
-                        {...attrs}
-                        class="form-input"
-                        maxlength="100"
-                        bind:value={link.titel}
-                      />
-                    {/snippet}
-                  </FormField>
-                  <FormField
-                    id="gericht-{gericht.id}-link-{index}-url"
-                    label="Adresse"
-                    class="min-w-0 flex-[2]"
-                    error={felder[`links.${index}.url`]}
-                  >
-                    {#snippet children(attrs)}
-                      <input
-                        {...attrs}
-                        class="form-input"
-                        type="url"
-                        placeholder="https://"
-                        bind:value={link.url}
-                      />
-                    {/snippet}
-                  </FormField>
-                  <ActionButton
-                    type="button"
-                    aria-label="Link {index + 1} entfernen"
-                    onclick={() => kopf.links.splice(index, 1)}
-                  >
-                    Entfernen
-                  </ActionButton>
-                </div>
-              {/each}
-              <ActionButton
-                type="button"
-                disabled={kopf.links.length >= 10}
-                onclick={() => kopf.links.push({ titel: '', url: '' })}
-              >
-                Link hinzufügen
-              </ActionButton>
-            </fieldset>
-            <FormField id="gericht-{gericht.id}-notiz" label="Notiz" optional error={felder.notiz}>
-              {#snippet children(attrs)}
-                <textarea {...attrs} class="form-input min-h-20" bind:value={kopf.notiz}></textarea>
-              {/snippet}
-            </FormField>
-          </div>
-          <div>
-            <FormField
-              id="gericht-{gericht.id}-anleitung"
-              label="Anleitung"
-              labelAs="span"
-              optional
-              error={felder.anleitung}
-            >
-              {#snippet children(attrs)}
-                {#if editorGeladen}
-                  <LazyTextEditor
-                    id={attrs.id}
-                    labelledBy="{attrs.id}-label"
-                    describedBy={attrs['aria-describedby']}
-                    invalid={attrs['aria-invalid'] === 'true'}
-                    placeholder="z. B. Zwiebeln anbraten, dann …"
-                    maxLength={20_000}
-                    bind:value={kopf.anleitung}
-                  />
-                {/if}
-              {/snippet}
-            </FormField>
-          </div>
-        </div>
-        <div class="flex justify-end">
-          <ActionButton type="submit" variant="primary" disabled={kontext.busy || !entwurf}>
-            Gericht speichern
-          </ActionButton>
-        </div>
-      </form>
+      <GerichtKopf {kontext} {gericht} {editorGeladen} selbstGeloescht={() => selbstGeloescht} />
     {/if}
 
     <!-- Read-only and for the recipe card -->

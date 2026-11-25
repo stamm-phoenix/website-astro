@@ -239,12 +239,12 @@ test('a recipe sets the people of a dish without any in the same save, never hal
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
   await anderes.getByText('Suppe', { exact: true }).click();
-  await anderes
+  const personen = anderes
     .locator('li', { has: anderes.getByText('Suppe', { exact: true }) })
     .first()
-    .getByLabel('Personen', { exact: true })
-    .fill('20');
-  await anderes.getByRole('button', { name: 'Gericht speichern' }).click();
+    .getByLabel('Personen', { exact: true });
+  await personen.fill('20');
+  await personen.press('Enter');
   await expect(anderes.getByText('Suppe gespeichert.').first()).toBeVisible();
   await anderes.context().close();
   await page.bringToFront();
