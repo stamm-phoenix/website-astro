@@ -51,8 +51,10 @@
     {#if onzuruecksetzen}<button
         type="button"
         class="text-link min-h-11 underline underline-offset-4"
-        onclick={onzuruecksetzen}>Filter zurücksetzen</button
-      >{/if}
+        onclick={onzuruecksetzen}
+      >
+        Filter zurücksetzen
+      </button>{/if}
   </div>
 {:else}
   <ul class="divide-y divide-neutral-200" data-testid="postfach-liste">
@@ -90,16 +92,20 @@
                 stroke-width="2.6"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg
+                aria-hidden="true"
               >
+                <path d="M5 12l5 5L20 7" />
+              </svg>
             {:else if zeile.status === 'handlungsbedarf'}
               <!-- The flag of Outlook -->
               <svg
                 class="size-4 shrink-0 self-center text-warning"
                 viewBox="0 0 24 24"
                 fill="currentColor"
-                aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H7v9z" /></svg
+                aria-hidden="true"
               >
+                <path d="M5 21V4h11l-1.5 4L16 12H7v9z" />
+              </svg>
             {:else}
               <span class="size-2 shrink-0 self-center rounded-full bg-[var(--color-dpsg-red)]"
               ></span>
@@ -107,23 +113,25 @@
             <span
               class="min-w-0 flex-1 truncate text-brand-900"
               class:font-semibold={neu}
-              title={zeile.von.adresse}>{zeile.von.name}</span
+              title={zeile.von.adresse}
             >
-            <span class="shrink-0 text-xs text-neutral-700 tabular-nums"
-              >{mailZeitKurz(zeile.am)}</span
-            >
+              {zeile.von.name}
+            </span>
+            <span class="shrink-0 text-xs text-neutral-700 tabular-nums">
+              {mailZeitKurz(zeile.am)}
+            </span>
           </span>
           <span
             class="mt-0.5 flex items-baseline gap-1.5 text-sm text-brand-900"
             class:font-semibold={neu}
           >
             <span class="min-w-0 truncate">{zeile.betreff}</span>
-            {#if zeile.anzahl > 1}<span class="shrink-0 text-xs text-neutral-700"
-                >({zeile.anzahl})</span
-              >{/if}
-            {#if zeile.hatAnhang}<span class="shrink-0 text-xs text-neutral-700" title="Mit Anhang"
-                >📎<span class="sr-only">Mit Anhang</span></span
-              >{/if}
+            {#if zeile.anzahl > 1}<span class="shrink-0 text-xs text-neutral-700">
+                ({zeile.anzahl})
+              </span>{/if}
+            {#if zeile.hatAnhang}<span class="shrink-0 text-xs text-neutral-700" title="Mit Anhang">
+                📎<span class="sr-only">Mit Anhang</span>
+              </span>{/if}
           </span>
           <span class="mt-0.5 block truncate text-sm text-neutral-700">{zeile.vorschau}</span>
           <span class="mt-1 flex flex-wrap gap-2 text-sm">

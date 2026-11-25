@@ -16,8 +16,10 @@
   <span
     class="changelog-badge {floating ? 'changelog-badge-floating' : ''}"
     data-testid="changelog-badge"
-    aria-hidden="true">{count > 9 ? '9+' : count}</span
+    aria-hidden="true"
   >
+    {count > 9 ? '9+' : count}
+  </span>
   <!-- Hidden text still describes a control through aria-describedby, without joining its name -->
   <span id={textId} class={textId ? undefined : 'sr-only'} hidden={textId ? true : undefined}>
     {count === 1 ? 'Eine neue Neuigkeit' : `${count} neue Neuigkeiten`}

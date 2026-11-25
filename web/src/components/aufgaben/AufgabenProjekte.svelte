@@ -62,9 +62,9 @@
 </script>
 
 <AufgabenLadestatus />
-<a class="inline-flex min-h-11 items-center text-link" href="/leitendenbereich/aufgaben"
-  >Zur Aufgabenliste</a
->
+<a class="inline-flex min-h-11 items-center text-link" href="/leitendenbereich/aufgaben">
+  Zur Aufgabenliste
+</a>
 {#if data}
   <ActionButton type="button" onclick={() => edit()} disabled={busy}>Projekt anlegen</ActionButton>
   <ul class="mt-4 divide-y divide-neutral-200">
@@ -78,8 +78,9 @@
           {#if project.campflowId}<a
               class="text-link"
               href="/leitendenbereich/aktionen/aktion?id={encodeURIComponent(project.campflowId)}"
-              >CampFlow-Aktion öffnen</a
-            >{/if}
+            >
+              CampFlow-Aktion öffnen
+            </a>{/if}
           <p class="mt-1 text-sm text-neutral-700">
             {openCount}
             {openCount === 1 ? 'offene Aufgabe' : 'offene Aufgaben'}
@@ -90,8 +91,10 @@
             type="button"
             variant="secondary"
             onclick={() => edit(project)}
-            disabled={busy}>Projekt bearbeiten</ActionButton
+            disabled={busy}
           >
+            Projekt bearbeiten
+          </ActionButton>
           <ActionButton
             type="button"
             variant="danger"
@@ -99,8 +102,10 @@
             onclick={() => {
               deleteError = null;
               deleteProjectTarget = project;
-            }}>Projekt löschen</ActionButton
+            }}
           >
+            Projekt löschen
+          </ActionButton>
         </div>
       </li>
     {:else}<li class="py-4">Noch keine Projekte.</li>{/each}

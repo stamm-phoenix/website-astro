@@ -73,11 +73,11 @@
   >
     {#if wahl === ''}<option value="" disabled>Bitte wählen</option>{/if}
     {#each auswahl as mitglied (mitglied.id)}
-      <option value="m:{mitglied.id}"
-        >{mitglied.ich ? `Ich (${mitglied.name})` : mitglied.name}{mitglied.entzogen
+      <option value="m:{mitglied.id}">
+        {mitglied.ich ? `Ich (${mitglied.name})` : mitglied.name}{mitglied.entzogen
           ? ' (kein Zugang mehr)'
-          : ''}</option
-      >
+          : ''}
+      </option>
     {/each}
     <option value="text">Jemand anderes …</option>
   </select>

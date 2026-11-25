@@ -78,19 +78,21 @@
           <tbody>
             {#each zeilen as zeile, index (index)}
               <tr class="border-b border-neutral-200">
-                <th scope="row" class="py-1 pr-3 font-semibold [overflow-wrap:anywhere]"
-                  >{zeile.name}{#if zeile.ersatz}<span class="block font-normal text-neutral-700"
-                      >{zeile.ersatz}</span
-                    >{/if}</th
-                >
+                <th scope="row" class="py-1 pr-3 font-semibold [overflow-wrap:anywhere]">
+                  {zeile.name}{#if zeile.ersatz}<span class="block font-normal text-neutral-700">
+                      {zeile.ersatz}
+                    </span>{/if}
+                </th>
                 <td class="py-1 pr-3 text-right tabular-nums">{zeile.anfang}</td>
                 <td class="py-1 pr-3 text-right tabular-nums">{zeile.erhalten}</td>
                 <td class="py-1 pr-3 text-right tabular-nums">{zeile.verbraucht}</td>
                 <td
                   class="py-1 text-right font-semibold tabular-nums {zeile.leer
                     ? 'text-neutral-700'
-                    : ''}">{zeile.jetzt}</td
+                    : ''}"
                 >
+                  {zeile.jetzt}
+                </td>
               </tr>
             {/each}
           </tbody>

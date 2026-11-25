@@ -59,8 +59,9 @@
     <a
       href="/blog"
       class="mt-4 inline-flex min-h-11 items-center font-semibold text-link underline underline-offset-4"
-      >Alle Beiträge</a
     >
+      Alle Beiträge
+    </a>
   </div>
 {:else if !post}
   <div role="status" aria-live="polite" class="mx-auto max-w-3xl space-y-4">
@@ -108,9 +109,9 @@
       <a href="/blog" class="font-semibold text-link">
         <span aria-hidden="true">←</span> Alle Beiträge
       </a>
-      <StaffLink href="/leitendenbereich/blog/beitrag?id={encodeURIComponent(post.id)}"
-        >Beitrag bearbeiten</StaffLink
-      >
+      <StaffLink href="/leitendenbereich/blog/beitrag?id={encodeURIComponent(post.id)}">
+        Beitrag bearbeiten
+      </StaffLink>
     </footer>
   </article>
 {/if}

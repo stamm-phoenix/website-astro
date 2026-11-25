@@ -529,9 +529,10 @@
       <h2 id="zeitplan-titel" class="font-serif text-lg font-semibold text-brand-900">
         Zeitplan
         {#if blockCount > 0}
-          <span class="ml-1 font-sans text-sm font-normal text-neutral-700"
-            >({blockCount} {blockCount === 1 ? 'Block' : 'Blöcke'})</span
-          >
+          <span class="ml-1 font-sans text-sm font-normal text-neutral-700">
+            ({blockCount}
+            {blockCount === 1 ? 'Block' : 'Blöcke'})
+          </span>
         {/if}
       </h2>
       <div class="flex flex-wrap items-center gap-2">
@@ -595,13 +596,17 @@
           <ActionButton
             variant="primary"
             disabled={reading !== null || !freitext.trim()}
-            onclick={sendFreitext}>Kurzbeschreibung erstellen</ActionButton
+            onclick={sendFreitext}
           >
+            Kurzbeschreibung erstellen
+          </ActionButton>
           <ActionButton
             variant="secondary"
             disabled={reading !== null}
-            onclick={() => (freitextOffen = false)}>Schließen</ActionButton
+            onclick={() => (freitextOffen = false)}
           >
+            Schließen
+          </ActionButton>
         </div>
       </div>
     {/if}

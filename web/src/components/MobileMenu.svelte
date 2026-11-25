@@ -95,9 +95,9 @@
     {/each}
     <li>
       <details>
-        <summary class="min-h-11 cursor-pointer py-3 text-sm font-semibold text-brand-900"
-          >Stamm & Hilfe</summary
-        >
+        <summary class="min-h-11 cursor-pointer py-3 text-sm font-semibold text-brand-900">
+          Stamm & Hilfe
+        </summary>
         <ul class="border-l-2 border-neutral-200 pl-4">
           {#each secondaryNav as item (item.href)}
             <li>
@@ -105,8 +105,10 @@
                 href={item.href}
                 class="block py-3 text-sm text-brand-900"
                 aria-current={isCurrent(item.href) ? 'page' : undefined}
-                onclick={closeMenu}>{item.label}</a
+                onclick={closeMenu}
               >
+                {item.label}
+              </a>
             </li>
           {/each}
         </ul>

@@ -271,11 +271,13 @@
   <div class="flex flex-wrap justify-end gap-2">
     <ReloadAction
       disabled={store.loading || busy}
-      onclick={() => void personenPflege.load({ force: true })}>Neu laden</ReloadAction
+      onclick={() => void personenPflege.load({ force: true })}
     >
-    <ActionButton variant="primary" disabled={!store.data || busy} onclick={() => open()}
-      >Person hinzufügen</ActionButton
-    >
+      Neu laden
+    </ReloadAction>
+    <ActionButton variant="primary" disabled={!store.data || busy} onclick={() => open()}>
+      Person hinzufügen
+    </ActionButton>
   </div>
 
   <StatusNotice message={actions.message} kind={actions.kind} popup />
@@ -322,8 +324,9 @@
               class="shrink-0"
               disabled={busy}
               onclick={() => void applyVorschlaege()}
-              >{applying ? 'Wird übernommen …' : 'Alle Vorschläge übernehmen'}</ActionButton
             >
+              {applying ? 'Wird übernommen …' : 'Alle Vorschläge übernehmen'}
+            </ActionButton>
           </div>
         {/if}
         <ul class="mt-2 divide-y divide-neutral-200 border-b border-neutral-200">
@@ -355,8 +358,9 @@
                 aria-label="{row?.campflowPersonId ? 'Bearbeiten' : 'Verknüpfen'}: {konto.name}"
                 disabled={busy}
                 onclick={() => open(row, konto)}
-                >{row?.campflowPersonId ? 'Bearbeiten' : 'Verknüpfen'}</ActionButton
               >
+                {row?.campflowPersonId ? 'Bearbeiten' : 'Verknüpfen'}
+              </ActionButton>
             </li>
           {/each}
         </ul>
@@ -392,8 +396,10 @@
                 class="shrink-0"
                 aria-label="Bearbeiten: {person.name}"
                 disabled={busy}
-                onclick={() => open(person)}>Bearbeiten</ActionButton
+                onclick={() => open(person)}
               >
+                Bearbeiten
+              </ActionButton>
             </li>
           {/each}
         </ul>
@@ -422,8 +428,9 @@
                     {person.name}
                   </p>
                   <p class="flex flex-wrap gap-x-3 text-sm text-neutral-700">
-                    {#if person.login}<span class="[overflow-wrap:anywhere]">{person.login}</span
-                      >{/if}
+                    {#if person.login}<span class="[overflow-wrap:anywhere]">
+                        {person.login}
+                      </span>{/if}
                     <StatusLabel
                       label={person.aktiv ? 'Wird angeboten' : 'Inaktiv'}
                       tone={person.aktiv ? 'success' : 'neutral'}
@@ -438,8 +445,10 @@
                   class="shrink-0"
                   aria-label="Bearbeiten: {person.name}"
                   disabled={busy}
-                  onclick={() => open(person)}>Bearbeiten</ActionButton
+                  onclick={() => open(person)}
                 >
+                  Bearbeiten
+                </ActionButton>
               </li>
             {/each}
           </ul>
@@ -566,8 +575,10 @@
                 onclick={() => {
                   form!.campflowPersonId = '';
                   void tick().then(() => document.getElementById('person-campflow')?.focus());
-                }}>Andere Person wählen</ActionButton
+                }}
               >
+                Andere Person wählen
+              </ActionButton>
             </div>
           {:else if mitglieder}
             <input
@@ -601,14 +612,14 @@
                           onclick={() => pickCampflow(mitglied)}
                         >
                           <span class="font-semibold text-brand-900">{mitgliedName(mitglied)}</span>
-                          <span class="text-sm text-neutral-700"
-                            >{[
+                          <span class="text-sm text-neutral-700">
+                            {[
                               trefferGruppe(mitglied) === 'Ausgetreten' ? 'ausgetreten' : '',
                               ...mitglied.groups,
                             ]
                               .filter(Boolean)
-                              .join(' · ') || 'ohne Gruppe'}</span
-                          >
+                              .join(' · ') || 'ohne Gruppe'}
+                          </span>
                         </button>
                       </li>
                     {/each}

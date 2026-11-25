@@ -352,8 +352,10 @@
                     class="mt-7 print:hidden"
                     aria-label="Gruppe {gruppe.name || 'ohne Namen'} entfernen"
                     disabled={form.vorlageGruppen.length <= 1}
-                    onclick={() => form!.vorlageGruppen.splice(index, 1)}>Entfernen</ActionButton
+                    onclick={() => form!.vorlageGruppen.splice(index, 1)}
                   >
+                    Entfernen
+                  </ActionButton>
                 </li>
               {/each}
             </ul>
@@ -390,8 +392,10 @@
                     class="mt-7 print:hidden"
                     aria-label="Mahlzeit {mahlzeit.name || 'ohne Namen'} entfernen"
                     disabled={form.vorlageMahlzeiten.length <= 1}
-                    onclick={() => form!.vorlageMahlzeiten.splice(index, 1)}>Entfernen</ActionButton
+                    onclick={() => form!.vorlageMahlzeiten.splice(index, 1)}
                   >
+                    Entfernen
+                  </ActionButton>
                 </li>
               {/each}
             </ol>

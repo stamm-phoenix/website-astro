@@ -76,8 +76,10 @@
         <a
           href="/logout"
           data-astro-reload
-          class="ml-auto inline-flex min-h-11 items-center font-semibold text-link">Abmelden</a
+          class="ml-auto inline-flex min-h-11 items-center font-semibold text-link"
         >
+          Abmelden
+        </a>
         <button
           bind:this={closeButton}
           type="button"
@@ -92,8 +94,10 @@
             fill="none"
             stroke="currentColor"
             stroke-width="2"
-            stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg
+            stroke-linecap="round"
           >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
         </button>
       </div>
     </div>
@@ -114,15 +118,19 @@
               Technische Probleme:
               <a
                 href="mailto:{HELP_CONTACTS.technik}"
-                class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.technik}</a
+                class="inline-flex min-h-11 items-center text-link"
               >
+                {HELP_CONTACTS.technik}
+              </a>
             </li>
             <li>
               Alles andere:
               <a
                 href="mailto:{HELP_CONTACTS.allgemein}"
-                class="inline-flex min-h-11 items-center text-link">{HELP_CONTACTS.allgemein}</a
+                class="inline-flex min-h-11 items-center text-link"
               >
+                {HELP_CONTACTS.allgemein}
+              </a>
             </li>
           </ul>
         </section>

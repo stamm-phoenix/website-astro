@@ -104,13 +104,14 @@
       bind:value={kind}
     >
       <option value="all">Alle Bereiche</option>
-      {#each Object.entries(labels) as [value, label] (value)}<option {value}>{label}</option
-        >{/each}
+      {#each Object.entries(labels) as [value, label] (value)}<option {value}>
+          {label}
+        </option>{/each}
     </select>
   </div>
-  <ActionButton type="button" variant="secondary" onclick={() => resource.load({ force: true })}
-    >Neu laden</ActionButton
-  >
+  <ActionButton type="button" variant="secondary" onclick={() => resource.load({ force: true })}>
+    Neu laden
+  </ActionButton>
 </div>
 <p role="status" aria-live="polite" class="mb-3">{success}</p>
 <LoadState {...resource.state} onretry={() => resource.load({ force: true })}>
@@ -123,8 +124,10 @@
         <h2 class="mb-2 break-words text-lg font-semibold">{item.title}</h2>
         <a
           class="mb-3 mr-3 inline-flex min-h-11 items-center text-link underline"
-          href={`/leitendenbereich/${links[item.kind]}`}>{labels[item.kind]} öffnen</a
+          href={`/leitendenbereich/${links[item.kind]}`}
         >
+          {labels[item.kind]} öffnen
+        </a>
         <StatusLabel
           label={!item.reviewedAt
             ? 'Ungeprüft'
@@ -155,9 +158,9 @@
             </dd>
           </div>
         </dl>
-        <ActionButton type="button" disabled={busy !== null} onclick={() => review(item)}
-          >{busy === key(item) ? 'Wird markiert …' : 'Als geprüft markieren'}</ActionButton
-        >
+        <ActionButton type="button" disabled={busy !== null} onclick={() => review(item)}>
+          {busy === key(item) ? 'Wird markiert …' : 'Als geprüft markieren'}
+        </ActionButton>
         {#if messages[key(item)]}<p
             class="mt-2 text-sm"
             role={messages[key(item)].error ? 'alert' : 'status'}

@@ -37,9 +37,9 @@
   <div class="flex flex-wrap items-center justify-between gap-2">
     <h3 id="geschaefte-heading" class="font-serif text-lg font-bold text-brand-900">Geschäfte</h3>
     {#if bearbeiten}
-      <ActionButton type="button" class={KNOPF} onclick={() => onbearbeiten(null)}
-        >Geschäft hinzufügen</ActionButton
-      >
+      <ActionButton type="button" class={KNOPF} onclick={() => onbearbeiten(null)}>
+        Geschäft hinzufügen
+      </ActionButton>
     {/if}
   </div>
   {#if ansicht.geschaefte.length}
@@ -49,24 +49,29 @@
     >
       {#each ansicht.geschaefte as geschaeft (geschaeft.id)}
         <li class="flex items-center gap-2 py-0.5">
-          <span class="min-w-0 flex-1 font-semibold [overflow-wrap:anywhere]">{geschaeft.name}</span
-          >
+          <span class="min-w-0 flex-1 font-semibold [overflow-wrap:anywhere]">
+            {geschaeft.name}
+          </span>
           {#if bearbeiten}
             <span class="flex shrink-0 gap-1">
               <ActionButton
                 type="button"
                 class={KNOPF}
                 aria-label="Geschäft {geschaeft.name} ändern"
-                onclick={() => onbearbeiten(geschaeft.id)}>Ändern</ActionButton
+                onclick={() => onbearbeiten(geschaeft.id)}
               >
+                Ändern
+              </ActionButton>
               <ActionButton
                 type="button"
                 variant="danger"
                 class={KNOPF}
                 disabled={kontext.busy}
                 aria-label="Geschäft {geschaeft.name} löschen"
-                onclick={() => void loeschen(geschaeft)}>Löschen</ActionButton
+                onclick={() => void loeschen(geschaeft)}
               >
+                Löschen
+              </ActionButton>
             </span>
           {/if}
         </li>

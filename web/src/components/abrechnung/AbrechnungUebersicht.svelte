@@ -353,8 +353,9 @@
                 {/if}
               </th>
               <td class="py-2 pr-2 text-right tabular-nums text-neutral-700">{auslage.count}</td>
-              <td class="py-2 text-right tabular-nums text-brand-900">{formatEuro(auslage.cent)}</td
-              >
+              <td class="py-2 text-right tabular-nums text-brand-900">
+                {formatEuro(auslage.cent)}
+              </td>
             </tr>
           {/each}
         </tbody>
@@ -528,17 +529,17 @@
         <div class="grid grid-cols-2 gap-4">
           <label class="block text-sm">
             <span class="font-semibold text-neutral-700">Beginn</span>
-            <span class="text-neutral-600" data-testid="kjr-beginn-datum"
-              >am {formatDate(abrechnung.event.start_date) || '–'}, Uhrzeit</span
-            >
+            <span class="text-neutral-600" data-testid="kjr-beginn-datum">
+              am {formatDate(abrechnung.event.start_date) || '–'}, Uhrzeit
+            </span>
             <input type="time" bind:value={session.kjr.beginn} class="form-input mt-1" />
           </label>
           <label class="block text-sm">
             <span class="font-semibold text-neutral-700">Ende</span>
-            <span class="text-neutral-600" data-testid="kjr-ende-datum"
-              >am {formatDate(abrechnung.event.end_date ?? abrechnung.event.start_date) || '–'},
-              Uhrzeit</span
-            >
+            <span class="text-neutral-600" data-testid="kjr-ende-datum">
+              am {formatDate(abrechnung.event.end_date ?? abrechnung.event.start_date) || '–'},
+              Uhrzeit
+            </span>
             <input type="time" bind:value={session.kjr.ende} class="form-input mt-1" />
           </label>
         </div>

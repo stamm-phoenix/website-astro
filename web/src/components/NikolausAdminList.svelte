@@ -173,11 +173,9 @@
       />
     </label>
     <details class="border-y border-neutral-200 py-2">
-      <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-brand-900"
-        >Filter ({activeFilters} aktiv){activeFilters
-          ? `: ${filterWords.join(' · ')}`
-          : ''}</summary
-      >
+      <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-brand-900">
+        Filter ({activeFilters} aktiv){activeFilters ? `: ${filterWords.join(' · ')}` : ''}
+      </summary>
       <div class="grid gap-4 py-3 md:grid-cols-2 lg:grid-cols-[auto_auto_1fr] lg:items-end">
         <label class="block text-sm">
           <span class="font-semibold text-neutral-700">Tag</span>
@@ -244,9 +242,9 @@
         </div>
       </div>
       {#if activeFilters > 0}
-        <ActionButton type="button" variant="secondary" class="mb-3" onclick={resetFilters}
-          >Filter zurücksetzen</ActionButton
-        >
+        <ActionButton type="button" variant="secondary" class="mb-3" onclick={resetFilters}>
+          Filter zurücksetzen
+        </ActionButton>
       {/if}
     </details>
   </form>
@@ -261,9 +259,9 @@
       Keine Anmeldungen für diese Filter.
     </p>
     {#if activeFilters > 0}
-      <ActionButton type="button" variant="secondary" onclick={resetFilters}
-        >Filter zurücksetzen</ActionButton
-      >
+      <ActionButton type="button" variant="secondary" onclick={resetFilters}>
+        Filter zurücksetzen
+      </ActionButton>
     {/if}
   {:else}
     <!-- Desktop: table -->

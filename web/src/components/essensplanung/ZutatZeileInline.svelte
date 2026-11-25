@@ -337,27 +337,35 @@
           type="button"
           aria-label="{name} nach oben"
           disabled={kontext.busy || erste}
-          onclick={() => void verschiebe(position - 1)}>↑</ActionButton
+          onclick={() => void verschiebe(position - 1)}
         >
+          ↑
+        </ActionButton>
         <ActionButton
           type="button"
           aria-label="{name} nach unten"
           disabled={kontext.busy || letzte}
-          onclick={() => void verschiebe(position + 1)}>↓</ActionButton
+          onclick={() => void verschiebe(position + 1)}
         >
+          ↓
+        </ActionButton>
         <ActionButton
           type="button"
           aria-label="{name} ändern"
           disabled={!katalogDa}
-          onclick={() => void aendern()}>Ändern</ActionButton
+          onclick={() => void aendern()}
         >
+          Ändern
+        </ActionButton>
         <ActionButton
           type="button"
           variant="danger"
           aria-label="{name} entfernen"
           disabled={kontext.busy}
-          onclick={() => void entfernen()}>✕</ActionButton
+          onclick={() => void entfernen()}
         >
+          ✕
+        </ActionButton>
       </div>
     </div>
     {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
@@ -366,21 +374,25 @@
         <ActionButton
           type="button"
           aria-label="{name}: trotzdem speichern"
-          onclick={() => void speichern(true)}>Trotzdem speichern</ActionButton
+          onclick={() => void speichern(true)}
         >
+          Trotzdem speichern
+        </ActionButton>
         <ActionButton
           type="button"
           aria-label="{name}: Eingabe verwerfen"
-          onclick={() => uebernehme(zeile)}>Verwerfen</ActionButton
+          onclick={() => uebernehme(zeile)}
         >
+          Verwerfen
+        </ActionButton>
       </div>
     {/if}
   {:else}
     <p class="text-neutral-900 [overflow-wrap:anywhere]">
       {#if zeile.menge !== null}
-        <span class="font-semibold tabular-nums"
-          >{mengeText(zeile.menge, zeile.einheit, zutat?.abtropfgewicht)}</span
-        >
+        <span class="font-semibold tabular-nums">
+          {mengeText(zeile.menge, zeile.einheit, zutat?.abtropfgewicht)}
+        </span>
       {/if}
       {name}
       {#if zeile.hinweis}<span class="text-neutral-700">({zeile.hinweis})</span>{/if}

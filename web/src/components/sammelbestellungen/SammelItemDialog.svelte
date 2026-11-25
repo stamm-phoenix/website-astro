@@ -120,12 +120,12 @@
     {#if itemEditing && (itemEditing.order.totalCents !== null || itemEditing.order.paid)}Gesamtbetrag
       und „Bezahlt“ werden zurückgesetzt.{/if}
   </p>
-  <FormField id="item-reason" label="Kommentar" optional
-    >{#snippet children(attrs)}<textarea
+  <FormField id="item-reason" label="Kommentar" optional>
+    {#snippet children(attrs)}<textarea
         {...attrs}
         class="form-input"
         rows="3"
         maxlength="1000"
-        bind:value={itemReason}></textarea>{/snippet}</FormField
-  >
+        bind:value={itemReason}></textarea>{/snippet}
+  </FormField>
 </EditDialog>

@@ -277,8 +277,9 @@
       </div>
 
       <div class="md:col-span-2">
-        <label for="{idPrefix}-notes" class="label">Sonstige Bemerkungen {@render optional()}</label
-        >
+        <label for="{idPrefix}-notes" class="label">
+          Sonstige Bemerkungen {@render optional()}
+        </label>
         <textarea
           id="{idPrefix}-notes"
           rows="3"

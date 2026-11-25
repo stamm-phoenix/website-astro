@@ -72,8 +72,10 @@
         href={photoUrl(form)}
         target="_blank"
         rel="noopener"
-        class="datei-link">In voller Größe öffnen</a
+        class="datei-link"
       >
+        In voller Größe öffnen
+      </a>
       <a data-astro-prefetch="false" href="{photoUrl(form)}&download=1" download class="datei-link">
         {form.isPdf ? 'PDF herunterladen' : 'Foto herunterladen'}
       </a>
@@ -103,18 +105,21 @@
           type="button"
           disabled={photo.photoBusy || busy || !zuSpeichern(photo.draft)}
           onclick={photo.savePhoto}
-          >{photo.draft.pdf
+        >
+          {photo.draft.pdf
             ? 'Neues PDF speichern'
             : nachbearbeitet
               ? 'Bearbeitetes Foto speichern'
-              : 'Neues Foto speichern'}</ActionButton
-        >
+              : 'Neues Foto speichern'}
+        </ActionButton>
         <ActionButton
           variant="secondary"
           type="button"
           disabled={photo.photoBusy || busy}
-          onclick={photo.clearDraft}>Verwerfen</ActionButton
+          onclick={photo.clearDraft}
         >
+          Verwerfen
+        </ActionButton>
       {/if}
       {#if form.id && form.hasImage && !form.isPdf && !photo.draft}
         <ActionButton
@@ -122,8 +127,9 @@
           type="button"
           disabled={photo.photoBusy || busy}
           onclick={() => photo.nachbearbeiten(() => ladeGespeichertesFoto(form))}
-          >Foto bearbeiten</ActionButton
         >
+          Foto bearbeiten
+        </ActionButton>
       {/if}
       <!-- Choosing the first file is the main step; replacing it is a quiet link -->
       <label

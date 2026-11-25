@@ -161,9 +161,9 @@
       <MessageText text={loadError} />
       {#if id !== null}Es wird gleich erneut versucht.{/if}
     </p>
-    <a href="/leitendenbereich/protokolle" class="text-link inline-flex min-h-11 items-center"
-      >Zur Protokollübersicht</a
-    >
+    <a href="/leitendenbereich/protokolle" class="text-link inline-flex min-h-11 items-center">
+      Zur Protokollübersicht
+    </a>
   {:else if !stand}
     <p role="status" aria-live="polite" class="text-neutral-700">Protokoll wird geladen …</p>
   {:else}

@@ -104,9 +104,9 @@
 <section aria-label="Zuständigkeit" class="surface-muted p-3">
   <p class="min-w-0">
     {#if zustaendig}
-      <span class="font-semibold text-brand-900"
-        >{meins ? 'Du bist zuständig' : `Zuständig: ${zustaendig.name}`}</span
-      >
+      <span class="font-semibold text-brand-900">
+        {meins ? 'Du bist zuständig' : `Zuständig: ${zustaendig.name}`}
+      </span>
     {:else}
       <span class="font-semibold text-warning">Noch niemand zuständig</span>
     {/if}
@@ -116,27 +116,31 @@
       <ActionButton
         variant="primary"
         disabled={busy}
-        onclick={() => setze({ login: ich, name: '' })}>Ich kümmere mich</ActionButton
+        onclick={() => setze({ login: ich, name: '' })}
       >
+        Ich kümmere mich
+      </ActionButton>
     {/if}
     <ActionButton
       class={meins ? 'col-span-2' : ''}
       disabled={busy}
       aria-expanded={auswahl}
-      onclick={oeffneAuswahl}>{zustaendig ? 'Anderen zuweisen' : 'Jemandem zuweisen'}</ActionButton
+      onclick={oeffneAuswahl}
     >
+      {zustaendig ? 'Anderen zuweisen' : 'Jemandem zuweisen'}
+    </ActionButton>
     {#if zustaendig}
-      <ActionButton class="col-span-2" disabled={busy} onclick={() => setze(null)}
-        >{meins ? 'Nicht mehr zuständig' : 'Zuständigkeit entfernen'}</ActionButton
-      >
+      <ActionButton class="col-span-2" disabled={busy} onclick={() => setze(null)}>
+        {meins ? 'Nicht mehr zuständig' : 'Zuständigkeit entfernen'}
+      </ActionButton>
     {/if}
   </Aktionsraster>
 
   {#if auswahl}
     <div class="mt-3">
-      <label for="zustaendig-suche-{konversation}" class="text-sm font-semibold text-brand-900"
-        >Wer soll sich kümmern?</label
-      >
+      <label for="zustaendig-suche-{konversation}" class="text-sm font-semibold text-brand-900">
+        Wer soll sich kümmern?
+      </label>
       {#if personenFehler}
         <p class="mt-1 text-sm text-danger"><MessageText text={personenFehler} /></p>
       {:else if !personen}
@@ -159,8 +163,10 @@
             onclick={() => {
               auswahl = false;
               query = '';
-            }}>Abbrechen</ActionButton
+            }}
           >
+            Abbrechen
+          </ActionButton>
         </div>
       {/if}
     </div>

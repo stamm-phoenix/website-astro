@@ -132,13 +132,15 @@
             <a
               class="font-semibold text-link underline"
               href={planungUrl(eintrag.token)}
-              data-astro-reload>{eintrag.name}</a
+              data-astro-reload
             >
+              {eintrag.name}
+            </a>
             <span class="flex items-center gap-3 text-sm text-neutral-700">
               {eintrag.zugang === 'lesen' ? 'nur ansehen' : ''}
-              <ActionButton type="button" onclick={() => entfernen(eintrag.token)}
-                >Von diesem Gerät entfernen</ActionButton
-              >
+              <ActionButton type="button" onclick={() => entfernen(eintrag.token)}>
+                Von diesem Gerät entfernen
+              </ActionButton>
             </span>
           </li>
         {/each}
@@ -219,9 +221,9 @@
       {#if anlegenVorschau}
         <p class="text-sm">
           Vorschau-Umgebung, es wird keine Mail verschickt:
-          <a class="font-semibold text-link underline" href={anlegenVorschau} data-astro-reload
-            >Planung bestätigen</a
-          >
+          <a class="font-semibold text-link underline" href={anlegenVorschau} data-astro-reload>
+            Planung bestätigen
+          </a>
         </p>
       {/if}
     </section>
@@ -261,9 +263,9 @@
           <ul class="mt-1 list-disc pl-5">
             {#each meineVorschau as eintrag (eintrag.link)}
               <li>
-                <a class="text-link underline" href={eintrag.link} data-astro-reload
-                  >{eintrag.planungName}</a
-                >
+                <a class="text-link underline" href={eintrag.link} data-astro-reload>
+                  {eintrag.planungName}
+                </a>
               </li>
             {/each}
           </ul>

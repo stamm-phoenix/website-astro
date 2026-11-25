@@ -18,8 +18,9 @@
 
 <div class="border-t border-neutral-200 pt-4">
   <Aktionsraster>
-    <ActionButton class="col-span-2" onclick={onpunkt} {disabled}>+ Tagesordnungspunkt</ActionButton
-    >
+    <ActionButton class="col-span-2" onclick={onpunkt} {disabled}>
+      + Tagesordnungspunkt
+    </ActionButton>
     <ActionButton class="col-span-2" onclick={() => onaktion('Planung')} {disabled}>
       + Planungskapitel aus Aktion
     </ActionButton>

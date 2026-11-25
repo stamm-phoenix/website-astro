@@ -404,9 +404,9 @@
                   >
                     {protokoll.title}
                     {#if protokoll.date}
-                      <span class="font-normal text-neutral-700"
-                        >· {formatMeetingDate(protokoll)}</span
-                      >
+                      <span class="font-normal text-neutral-700">
+                        · {formatMeetingDate(protokoll)}
+                      </span>
                     {/if}
                   </h2>
                   <StatusLabel
@@ -445,8 +445,10 @@
                     class="text-link text-sm"
                     href="/leitendenbereich/aufgaben/vorschlaege?protokoll={encodeURIComponent(
                       protokoll.id
-                    )}">Aufgaben aus diesem Protokoll prüfen</a
+                    )}"
                   >
+                    Aufgaben aus diesem Protokoll prüfen
+                  </a>
                 {/if}
                 {#if protokoll.delivery?.state === 'attempted'}
                   <p class="border-l-2 border-danger py-1 pl-4 text-sm text-danger">

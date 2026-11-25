@@ -17,8 +17,10 @@
   stroke-width="2"
   stroke-linecap="round"
   stroke-linejoin="round"
-  aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg
+  aria-hidden="true"
 >
+  <path d="M6 9l6 6 6-6" />
+</svg>
 
 <style>
   :global(details[open] > summary > .aufklapp-pfeil) {

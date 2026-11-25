@@ -39,9 +39,9 @@
         <li class="[overflow-wrap:anywhere]">
           <span class="font-semibold tabular-nums">{zeile.menge}</span>
           {zeile.name}
-          {#if zeile.fuer || zeile.hinweis}<span class="text-neutral-700"
-              >· {[zeile.fuer, zeile.hinweis].filter(Boolean).join(' · ')}</span
-            >{/if}
+          {#if zeile.fuer || zeile.hinweis}<span class="text-neutral-700">
+              · {[zeile.fuer, zeile.hinweis].filter(Boolean).join(' · ')}
+            </span>{/if}
         </li>
       {/each}
     </ul>

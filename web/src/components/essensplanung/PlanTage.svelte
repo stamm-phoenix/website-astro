@@ -271,16 +271,18 @@
                     title="Tag löschen"
                     aria-label="Tag {tag.nummer} löschen"
                     onclick={() => void tagLoeschen(tag)}
-                    ><svg
+                  >
+                    <svg
                       viewBox="0 0 24 24"
                       class="size-4"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2"
                       aria-hidden="true"
-                      ><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg
-                    ></button
-                  >
+                    >
+                      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+                    </svg>
+                  </button>
                 </span>
               {/if}
             </div>
@@ -289,8 +291,9 @@
               class="hidden grid-cols-[3rem_minmax(8rem,13rem)_minmax(0,1fr)_minmax(6rem,9rem)_auto] gap-x-2 border-b border-neutral-200 px-2 py-0.5 text-xs text-neutral-700 md:grid"
               aria-hidden="true"
             >
-              <span>ID</span><span>Mahlzeit</span><span>Gerichte</span><span>Wer isst mit</span
-              ><span class="w-[5.5rem]"></span>
+              <span>ID</span><span>Mahlzeit</span><span>Gerichte</span><span>
+                Wer isst mit
+              </span><span class="w-[5.5rem]"></span>
             </div>
             <ul class="divide-y divide-neutral-200">
               {#each tag.mahlzeiten as mahlzeit, index (mahlzeit.id)}
@@ -314,9 +317,9 @@
                 class="flex items-center gap-2 border-t border-neutral-200 bg-neutral-50 px-2 py-1 print:hidden"
                 onsubmit={(event) => void mahlzeitHinzufuegen(event, tag)}
               >
-                <label class="sr-only" for="neue-mahlzeit-{tag.id}"
-                  >Neue Mahlzeit an Tag {tag.nummer}</label
-                >
+                <label class="sr-only" for="neue-mahlzeit-{tag.id}">
+                  Neue Mahlzeit an Tag {tag.nummer}
+                </label>
                 <input
                   id="neue-mahlzeit-{tag.id}"
                   class="form-input mt-0 min-h-0 max-w-xs px-2 py-0.5 text-sm any-pointer-coarse:min-h-11"
@@ -328,8 +331,9 @@
                   type="submit"
                   class={KNOPF}
                   disabled={kontext.busy || !(neueMahlzeit[tag.id] ?? '').trim()}
-                  >Mahlzeit hinzufügen</button
                 >
+                  Mahlzeit hinzufügen
+                </button>
               </form>
             {/if}
           </li>

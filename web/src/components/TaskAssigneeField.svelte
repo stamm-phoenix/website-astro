@@ -105,8 +105,10 @@
                 type="button"
                 class="shrink-0 min-h-9 min-w-9 rounded-full text-neutral-700 hover:text-danger"
                 aria-label="{person.name} entfernen"
-                onclick={() => update(selected.filter((item) => item !== person))}>×</button
+                onclick={() => update(selected.filter((item) => item !== person))}
               >
+                ×
+              </button>
             </li>
           {/each}
         </ul>

@@ -22,9 +22,9 @@
       <strong class="text-danger">Nikolausdienst: Löschfrist erreicht.</strong>
       Die Daten der Familien und Helfenden mussten bis {formatNikolausDate(status.deleteBy)}
       gelöscht werden.
-      <a href="/leitendenbereich/nikolaus-steuerung" class="font-semibold text-link"
-        >Zur Steuerung</a
-      >
+      <a href="/leitendenbereich/nikolaus-steuerung" class="font-semibold text-link">
+        Zur Steuerung
+      </a>
     </p>
   {/if}
   {#if status?.maintenance}

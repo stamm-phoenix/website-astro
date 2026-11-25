@@ -300,8 +300,8 @@
             class="font-semibold text-brand-800 underline"
             onclick={() => load(postId!)}
           >
-            den aktuellen Stand lädst</button
-          >.
+            den aktuellen Stand lädst
+          </button>.
         </p>
       {/if}
 

@@ -134,22 +134,22 @@
         />{/snippet}
     </FormField>
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <FormField id="verleih-von" label="Ausleihe am" error={dialog.state.fields.von}
-        >{#snippet children(attrs)}<input
+      <FormField id="verleih-von" label="Ausleihe am" error={dialog.state.fields.von}>
+        {#snippet children(attrs)}<input
             {...attrs}
             type="date"
             class="form-input"
             bind:value={input.von}
-          />{/snippet}</FormField
-      >
-      <FormField id="verleih-bis" label="Rückgabe bis" error={dialog.state.fields.bis}
-        >{#snippet children(attrs)}<input
+          />{/snippet}
+      </FormField>
+      <FormField id="verleih-bis" label="Rückgabe bis" error={dialog.state.fields.bis}>
+        {#snippet children(attrs)}<input
             {...attrs}
             type="date"
             class="form-input"
             bind:value={input.bis}
-          />{/snippet}</FormField
-      >
+          />{/snippet}
+      </FormField>
     </div>
     <fieldset class="space-y-3">
       <legend class="form-label">Material und Menge</legend>
@@ -184,8 +184,10 @@
                 type="button"
                 variant="secondary"
                 aria-label={`Material ${i + 1} entfernen`}
-                onclick={() => input.positionen.splice(i, 1)}>Entfernen</ActionButton
-              >{/if}
+                onclick={() => input.positionen.splice(i, 1)}
+              >
+                Entfernen
+              </ActionButton>{/if}
           </div>
         </div>
       {/each}
@@ -197,41 +199,45 @@
         variant="secondary"
         disabled={input.positionen.length >= 60}
         onclick={() => input.positionen.push({ varianteId: 0, menge: 1 })}
-        >Material hinzufügen</ActionButton
       >
+        Material hinzufügen
+      </ActionButton>
     </fieldset>
     <FormField
       id="verleih-kontakt"
       label="E-Mail oder Kontakt"
       optional
       error={dialog.state.fields.kontakt}
-      >{#snippet children(attrs)}<input
+    >
+      {#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
           bind:value={input.kontakt}
-        />{/snippet}</FormField
-    >
+        />{/snippet}
+    </FormField>
     <FormField
       id="verleih-person"
       label="Verantwortliche Person"
       optional
       error={dialog.state.fields.verantwortlich}
-      >{#snippet children(attrs)}<input
+    >
+      {#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
           bind:value={input.verantwortlich}
-        />{/snippet}</FormField
-    >
+        />{/snippet}
+    </FormField>
     <FormField
       id="verleih-notizen"
       label="Zweck und Notizen"
       optional
       error={dialog.state.fields.notizen}
-      >{#snippet children(attrs)}<textarea
+    >
+      {#snippet children(attrs)}<textarea
           {...attrs}
           class="form-input"
           rows="3"
-          bind:value={input.notizen}></textarea>{/snippet}</FormField
-    >
+          bind:value={input.notizen}></textarea>{/snippet}
+    </FormField>
   </fieldset>
 </EditDialog>

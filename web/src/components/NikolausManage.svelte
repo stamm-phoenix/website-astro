@@ -493,9 +493,9 @@
           Ihre Angaben
         </h3>
         {#if canChange && !editing}
-          <ActionButton variant="secondary" type="button" onclick={startEditing}
-            >Bearbeiten</ActionButton
-          >
+          <ActionButton variant="secondary" type="button" onclick={startEditing}>
+            Bearbeiten
+          </ActionButton>
         {/if}
       </div>
 
@@ -586,9 +586,9 @@
         </p>
         <div class="mt-4 flex flex-wrap items-center gap-3">
           {#if confirmCancel}
-            <span class="text-sm text-neutral-800"
-              >Termin am {slotText(booking)} wirklich absagen?</span
-            >
+            <span class="text-sm text-neutral-800">
+              Termin am {slotText(booking)} wirklich absagen?
+            </span>
             <ActionButton
               variant="danger"
               type="button"

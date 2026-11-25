@@ -51,8 +51,10 @@
   {#if updates && !refreshed}<button
       type="button"
       class="min-h-11 font-semibold text-link underline"
-      onclick={() => (refreshed = true)}>Aktualisierte Beiträge anzeigen</button
-    >{/if}
+      onclick={() => (refreshed = true)}
+    >
+      Aktualisierte Beiträge anzeigen
+    </button>{/if}
 </div>
 
 {#if loading}
@@ -116,8 +118,10 @@
           <p class="text-neutral-900">{featured.excerpt}</p>
           <StaffLink
             href="/leitendenbereich/blog/beitrag?id={encodeURIComponent(featured.id)}"
-            class="relative z-10 self-start">Beitrag bearbeiten</StaffLink
+            class="relative z-10 self-start"
           >
+            Beitrag bearbeiten
+          </StaffLink>
           <span
             aria-hidden="true"
             class="mt-auto font-semibold text-brand-900 underline decoration-neutral-300 underline-offset-4 group-hover:decoration-current"

@@ -160,11 +160,11 @@
           {:else}
             <p class="whitespace-pre-line break-words">
               <span class="sr-only">Vorher: </span><del class="text-danger">{vorschlag.vorher}</del>
-              <span aria-hidden="true" class="px-1">→</span><span class="sr-only"
-                >Nachher:
-              </span><ins class="font-semibold text-success no-underline"
-                >{vorschlag.nachher || '(entfernen)'}</ins
-              >
+              <span aria-hidden="true" class="px-1">→</span><span class="sr-only">
+                Nachher:
+              </span><ins class="font-semibold text-success no-underline">
+                {vorschlag.nachher || '(entfernen)'}
+              </ins>
             </p>
           {/if}
           <p class="text-neutral-800">{vorschlag.begruendung}</p>

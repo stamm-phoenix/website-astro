@@ -158,14 +158,16 @@
       href={outlook}
       target="_blank"
       rel="noopener noreferrer"
-      >Postfach in Outlook öffnen<span aria-hidden="true">↗</span><span class="sr-only">
-        (öffnet neuen Tab)</span
-      ></a
     >
+      Postfach in Outlook öffnen<span aria-hidden="true">↗</span><span class="sr-only">
+        (öffnet neuen Tab)
+      </span>
+    </a>
     <ActionButton disabled={busy} onclick={aktualisieren}>Neu laden</ActionButton>
     {#if meldung}<span role="status" class="text-sm text-success">{meldung}</span>{/if}
-    {#if fehler}<span role="alert" class="text-sm text-danger"><MessageText text={fehler} /></span
-      >{/if}
+    {#if fehler}<span role="alert" class="text-sm text-danger">
+        <MessageText text={fehler} />
+      </span>{/if}
   </div>
 
   <LoadState
@@ -225,9 +227,9 @@
             <!-- The list reads the newest messages only; nothing older is hidden silently -->
             <p class="border-t border-neutral-200 p-3 text-sm text-neutral-700">
               Hier stehen die neuesten 100 E-Mails.
-              <a class="text-link" href={outlook} target="_blank" rel="noopener noreferrer"
-                >Ältere in Outlook ansehen<span aria-hidden="true">↗</span></a
-              >
+              <a class="text-link" href={outlook} target="_blank" rel="noopener noreferrer">
+                Ältere in Outlook ansehen<span aria-hidden="true">↗</span>
+              </a>
             </p>
           {/if}
         </div>

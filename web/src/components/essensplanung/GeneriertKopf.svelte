@@ -44,11 +44,11 @@
           data-testid="generiert-anleitung-an"
           bind:checked={anleitungAn}
         />
-        <span
-          >{hatAnleitung
+        <span>
+          {hatAnleitung
             ? 'Anleitung ersetzen (die bisherige Anleitung geht verloren)'
-            : 'Anleitung übernehmen'}</span
-        >
+            : 'Anleitung übernehmen'}
+        </span>
       </label>
       <span class="sr-only" id="generiert-anleitung-label">Anleitung</span>
       {#if anleitungAn}
@@ -77,11 +77,11 @@
           data-testid="generiert-werkzeuge-an"
           bind:checked={werkzeugeAn}
         />
-        <span
-          >{gericht.werkzeuge.length
+        <span>
+          {gericht.werkzeuge.length
             ? 'Werkzeuge zu den bisherigen ergänzen'
-            : 'Werkzeuge übernehmen'}</span
-        >
+            : 'Werkzeuge übernehmen'}
+        </span>
       </label>
       <label class="sr-only" for="generiert-werkzeuge">Werkzeuge</label>
       <TagInput

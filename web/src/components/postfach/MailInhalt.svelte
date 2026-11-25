@@ -100,8 +100,10 @@
     <button
       type="button"
       class="text-link min-h-11 underline underline-offset-4"
-      onclick={() => (externeBilder = true)}>Bilder anzeigen</button
+      onclick={() => (externeBilder = true)}
     >
+      Bilder anzeigen
+    </button>
   </p>
 {/if}
 <!-- Same origin without scripts: the page can measure the height, the mail cannot run code -->

@@ -56,15 +56,15 @@
     <div class="flex flex-wrap gap-2">
       {#if ondelete}
         {#snippet deleteButton()}
-          <ActionButton variant="danger" type="button" disabled={busy} onclick={ondelete}
-            >{deleteLabel}</ActionButton
-          >
+          <ActionButton variant="danger" type="button" disabled={busy} onclick={ondelete}>
+            {deleteLabel}
+          </ActionButton>
         {/snippet}
         {#if deleteDisclosure}
           <details bind:open={deleteActionsOpen}>
-            <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-link"
-              >Weitere Aktionen</summary
-            >
+            <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-link">
+              Weitere Aktionen
+            </summary>
             <div class="pt-2">{@render deleteButton()}</div>
           </details>
         {:else}
@@ -72,9 +72,9 @@
         {/if}
       {/if}
       {@render actions?.()}
-      {#if onreload}<ActionButton variant="secondary" disabled={busy} onclick={onreload}
-          >Aktuelle Fassung laden</ActionButton
-        >{/if}
+      {#if onreload}<ActionButton variant="secondary" disabled={busy} onclick={onreload}>
+          Aktuelle Fassung laden
+        </ActionButton>{/if}
     </div>
     <div class="flex flex-wrap justify-end gap-2">
       <ActionButton variant="secondary" type="button" disabled={busy} onclick={onclose}>

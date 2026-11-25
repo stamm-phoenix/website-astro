@@ -55,16 +55,20 @@
           variant="secondary"
           class="mr-auto"
           disabled={busy}
-          onclick={() => void onreload()}>Aktuelle Fassung laden</ActionButton
-        >{/if}
-      <ActionButton variant="secondary" disabled={busy} onclick={onclose}
-        >{cancelLabel}</ActionButton
-      ><ActionButton
+          onclick={() => void onreload()}
+        >
+          Aktuelle Fassung laden
+        </ActionButton>{/if}
+      <ActionButton variant="secondary" disabled={busy} onclick={onclose}>
+        {cancelLabel}
+      </ActionButton><ActionButton
         variant={tone === 'danger' ? 'danger-filled' : 'primary'}
         disabled={busy}
         aria-busy={busy}
-        onclick={onconfirm}>{busy ? busyLabel : submitLabel}</ActionButton
+        onclick={onconfirm}
       >
+        {busy ? busyLabel : submitLabel}
+      </ActionButton>
     </div>
   </div>
 </ModalDialog>

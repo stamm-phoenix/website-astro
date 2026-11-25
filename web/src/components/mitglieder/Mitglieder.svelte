@@ -124,8 +124,10 @@
       href={CAMPFLOW_URL}
       class="inline-flex min-h-11 items-center text-link underline underline-offset-4"
       target="_blank"
-      rel="noopener">Mitglieder in CampFlow öffnen</a
+      rel="noopener"
     >
+      Mitglieder in CampFlow öffnen
+    </a>
     {#if store.data}
       <ReloadAction
         loadedAt={Date.parse(store.data.loadedAt)}
@@ -214,12 +216,12 @@
                   onclick={() => (selectedId = person.id)}
                 >
                   <span class="min-w-0">
-                    <span class="block font-semibold text-brand-900 group-hover:underline"
-                      >{formatName(
+                    <span class="block font-semibold text-brand-900 group-hover:underline">
+                      {formatName(
                         person
                       )}{#if isIch({ id: person.id, name: formatName(person), mitglied: true })}
-                        <span class="font-normal text-neutral-700">(ich)</span>{/if}</span
-                    >
+                        <span class="font-normal text-neutral-700">(ich)</span>{/if}
+                    </span>
                     <span class="block text-sm text-neutral-700">
                       {[groups.join(', ') || 'Ohne Gruppe', age !== null && `${age} Jahre`]
                         .filter(Boolean)
@@ -227,21 +229,21 @@
                     </span>
                   </span>
                   {#if status === 'ausgetreten'}
-                    <span class="shrink-0 text-sm"
-                      ><StatusLabel
+                    <span class="shrink-0 text-sm">
+                      <StatusLabel
                         label={typeof person.leave_date === 'string'
                           ? `Ausgetreten am ${formatDate(person.leave_date)}`
                           : 'Ausgetreten'}
-                      /></span
-                    >
+                      />
+                    </span>
                   {:else if status === 'kuenftig'}
-                    <span class="shrink-0 text-sm"
-                      ><StatusLabel
+                    <span class="shrink-0 text-sm">
+                      <StatusLabel
                         label={`Tritt am ${formatDate(String(person.join_date))} ein`}
                         tone="warning"
                         dot
-                      /></span
-                    >
+                      />
+                    </span>
                   {/if}
                 </button>
               </li>

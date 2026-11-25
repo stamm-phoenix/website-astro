@@ -79,8 +79,10 @@
                   class="font-semibold text-link"
                   href={item.reference}
                   target="_blank"
-                  rel="noopener noreferrer">Im Shop ansehen ↗</a
+                  rel="noopener noreferrer"
                 >
+                  Im Shop ansehen ↗
+                </a>
               {:else}
                 · Art.-Nr. {item.reference}
               {/if}

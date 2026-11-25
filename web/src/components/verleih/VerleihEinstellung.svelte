@@ -73,9 +73,9 @@
       {#snippet children(attrs)}
         <select {...attrs} class="form-input" bind:value={login}>
           <option value="">Kein Materialwart</option>
-          {#each data?.konten ?? [] as k (k.login)}<option value={k.login}
-              >{k.name} ({k.login})</option
-            >{/each}
+          {#each data?.konten ?? [] as k (k.login)}<option value={k.login}>
+              {k.name} ({k.login})
+            </option>{/each}
         </select>
       {/snippet}
     </FormField>

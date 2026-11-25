@@ -304,8 +304,10 @@
       class="flex size-6 items-center justify-center rounded border-2 text-base font-bold {posten.haken
         ? 'border-success bg-success-soft text-success'
         : 'border-neutral-500 bg-surface'} {speichert ? 'opacity-50' : ''}"
-      aria-hidden="true">{posten.haken ? '✓' : ''}</span
+      aria-hidden="true"
     >
+      {posten.haken ? '✓' : ''}
+    </span>
   </button>
   <div class="min-w-0 flex-1 [overflow-wrap:anywhere]">
     {#if posten.haken}
@@ -326,10 +328,11 @@
       aria-expanded={offen}
       aria-label="{bezeichnung}: Menge und Ersatz"
       onclick={oeffnen}
-      ><span aria-hidden="true">Menge</span><AufklappPfeil
-        class="text-link transition-transform {offen ? 'rotate-180' : ''}"
-      /></button
     >
+      <span aria-hidden="true">Menge</span><AufklappPfeil
+        class="text-link transition-transform {offen ? 'rotate-180' : ''}"
+      />
+    </button>
   {/if}
   <form
     class="{aufgeklappt
@@ -379,15 +382,18 @@
           variant="primary"
           class={KNOPF}
           disabled={speichert || gesperrt || kontext.busy}
-          >{konflikt ? 'Trotzdem speichern' : etag !== null ? 'Speichern' : 'Abhaken'}</ActionButton
         >
+          {konflikt ? 'Trotzdem speichern' : etag !== null ? 'Speichern' : 'Abhaken'}
+        </ActionButton>
         {#if posten.haken}
           <ActionButton
             type="button"
             class="{KNOPF} md:hidden"
             disabled={gesperrt || kontext.busy}
-            onclick={() => void aufheben()}>Häkchen aufheben</ActionButton
+            onclick={() => void aufheben()}
           >
+            Häkchen aufheben
+          </ActionButton>
         {/if}
         <ActionButton type="button" class={KNOPF} onclick={abbrechen}>Abbrechen</ActionButton>
       </span>

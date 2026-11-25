@@ -268,23 +268,28 @@
     disabled={loading || busy || fortschritt !== null || abstimmung.geschlossen}
     aria-busy={loading}
     onclick={() => void start()}
-    >{loading ? 'Leitende werden geladen …' : 'Per Mail einladen'}</ActionButton
   >
+    {loading ? 'Leitende werden geladen …' : 'Per Mail einladen'}
+  </ActionButton>
   {#if erinnerbar > 0}
     <ActionButton
       variant="secondary"
       class="col-span-2"
       disabled={busy || fortschritt !== null || abstimmung.geschlossen}
-      onclick={() => void remind()}>An Abstimmung erinnern</ActionButton
+      onclick={() => void remind()}
     >
+      An Abstimmung erinnern
+    </ActionButton>
   {/if}
   {#if offeneMails > 0 && fortschritt === null}
     <ActionButton
       variant="secondary"
       class="col-span-2"
       disabled={busy || abstimmung.geschlossen}
-      onclick={() => void deliver('Mails')}>Restliche Mails verschicken</ActionButton
+      onclick={() => void deliver('Mails')}
     >
+      Restliche Mails verschicken
+    </ActionButton>
   {/if}
 </Aktionsraster>
 

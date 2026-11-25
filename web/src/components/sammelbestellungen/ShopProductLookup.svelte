@@ -104,8 +104,10 @@
               href={product.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              class="self-center text-sm font-semibold text-link">Im Shop ansehen ↗</a
+              class="self-center text-sm font-semibold text-link"
             >
+              Im Shop ansehen ↗
+            </a>
           </div>
         </div>
       </div>
@@ -115,8 +117,10 @@
         variant="secondary"
         type="button"
         class="mt-2"
-        onclick={() => void lookup(reference)}>Erneut laden</ActionButton
+        onclick={() => void lookup(reference)}
       >
+        Erneut laden
+      </ActionButton>
     {/if}
   </div>
 {/if}

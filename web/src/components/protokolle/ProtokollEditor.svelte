@@ -525,9 +525,9 @@
     {#if mode === 'schreiben' && speicherung.saveState === 'fehler' && speicherung.saveError}
       <div class="border-l-2 border-danger py-1 pl-4 text-sm" role="alert">
         <p class="text-danger"><MessageText text={speicherung.saveError} /></p>
-        <ActionButton class="mt-2" onclick={() => void speicherung.save()}
-          >Erneut speichern</ActionButton
-        >
+        <ActionButton class="mt-2" onclick={() => void speicherung.save()}>
+          Erneut speichern
+        </ActionButton>
       </div>
     {/if}
     {#if speicherung.localWarning && mode === 'schreiben'}
@@ -547,13 +547,13 @@
         <div class="flex flex-wrap gap-2">
           <ActionButton onclick={() => (localPreview = true)}>Ansehen</ActionButton>
           {#if editable}
-            <ActionButton variant="primary" onclick={adoptLocal}
-              >Meine Fassung übernehmen</ActionButton
-            >
+            <ActionButton variant="primary" onclick={adoptLocal}>
+              Meine Fassung übernehmen
+            </ActionButton>
           {/if}
-          <ActionButton variant="danger" onclick={() => (discardingLocal = true)}
-            >Verwerfen</ActionButton
-          >
+          <ActionButton variant="danger" onclick={() => (discardingLocal = true)}>
+            Verwerfen
+          </ActionButton>
         </div>
       </div>
     {/if}
@@ -607,10 +607,10 @@
         </div>
 
         <details class="border-y border-neutral-200 py-2">
-          <summary class="min-h-11 cursor-pointer content-center font-semibold text-brand-900"
-            >Sitzungsdaten und Teilnehmende bearbeiten ({session.stand.inhalt.kopf.teilnehmende
-              .length} eingetragen)</summary
-          >
+          <summary class="min-h-11 cursor-pointer content-center font-semibold text-brand-900">
+            Sitzungsdaten und Teilnehmende bearbeiten ({session.stand.inhalt.kopf.teilnehmende
+              .length} eingetragen)
+          </summary>
           <div class="py-4">
             <ProtokollKopfEditor
               bind:kopf={session.stand.inhalt.kopf}
@@ -634,7 +634,8 @@
                     class="inline h-4 w-4 align-[-2px]"
                     viewBox="0 0 24 24"
                     fill="currentColor"
-                    ><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle
+                  >
+                    <circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle
                       cx="9"
                       cy="12"
                       r="1.6"
@@ -642,8 +643,8 @@
                       cx="15"
                       cy="18"
                       r="1.6"
-                    /></svg
-                  >
+                    />
+                  </svg>
                   verschieben: nach rechts gezogen wird ein Punkt Unterpunkt, nach links Hauptpunkt.
                 </p>
               </InfoHint>
@@ -745,9 +746,9 @@
         Zuletzt gespeichert {formatDateTime(detail.updatedAt)} von {detail.updatedBy}.
       </p>
       {#if detail.canDelete && !writerActive}
-        <ActionButton variant="danger" onclick={() => (deleting = true)}
-          >Protokoll löschen</ActionButton
-        >
+        <ActionButton variant="danger" onclick={() => (deleting = true)}>
+          Protokoll löschen
+        </ActionButton>
       {/if}
     {/if}
   {/if}

@@ -187,24 +187,28 @@
           type="button"
           class="text-link min-h-11 text-sm underline underline-offset-4 disabled:opacity-60"
           disabled={busy}
-          onclick={onaufheben}>Auswahl aufheben</button
+          onclick={onaufheben}
         >
+          Auswahl aufheben
+        </button>
       </div>
       <Aktionsraster>
         <ActionButton
           variant="primary"
           disabled={busy}
-          onclick={() => void zuweisen({ login: ich, name: '' })}>Ich kümmere mich</ActionButton
+          onclick={() => void zuweisen({ login: ich, name: '' })}
         >
-        <ActionButton disabled={busy} aria-expanded={auswahl} onclick={oeffneAuswahl}
-          >Jemandem zuweisen</ActionButton
-        >
-        <ActionButton class="col-span-2" disabled={busy} onclick={() => void stand('erledigt')}
-          >Erledigt und archivieren</ActionButton
-        >
-        <ActionButton disabled={busy} onclick={() => void stand('handlungsbedarf')}
-          >Handlungsbedarf</ActionButton
-        >
+          Ich kümmere mich
+        </ActionButton>
+        <ActionButton disabled={busy} aria-expanded={auswahl} onclick={oeffneAuswahl}>
+          Jemandem zuweisen
+        </ActionButton>
+        <ActionButton class="col-span-2" disabled={busy} onclick={() => void stand('erledigt')}>
+          Erledigt und archivieren
+        </ActionButton>
+        <ActionButton disabled={busy} onclick={() => void stand('handlungsbedarf')}>
+          Handlungsbedarf
+        </ActionButton>
         <MehrAktionen
           title="Weitere Aktionen für die Auswahl"
           aktionen={[
@@ -219,10 +223,10 @@
       </Aktionsraster>
       {#if auswahl}
         <div>
-          <label for="mehrfach-zustaendig" class="text-sm font-semibold text-brand-900"
-            >Wer soll sich um die {anzahl}
-            {wort(anzahl)} kümmern?</label
-          >
+          <label for="mehrfach-zustaendig" class="text-sm font-semibold text-brand-900">
+            Wer soll sich um die {anzahl}
+            {wort(anzahl)} kümmern?
+          </label>
           {#if personenFehler}
             <p class="mt-1 text-sm text-danger"><MessageText text={personenFehler} /></p>
           {:else if !personen}
@@ -245,8 +249,10 @@
                 onclick={() => {
                   auswahl = false;
                   query = '';
-                }}>Abbrechen</ActionButton
+                }}
               >
+                Abbrechen
+              </ActionButton>
             </div>
           {/if}
         </div>

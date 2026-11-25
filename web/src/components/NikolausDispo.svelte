@@ -387,8 +387,9 @@
         type="button"
         disabled={!plan || exporting}
         onclick={() => void exportPdf()}
-        >{exporting ? 'Erstellt PDF …' : 'PDF herunterladen'}</ActionButton
       >
+        {exporting ? 'Erstellt PDF …' : 'PDF herunterladen'}
+      </ActionButton>
     </PlanToolbar>
   {/snippet}
 </StaffPageHead>
@@ -459,8 +460,10 @@
                     .flatMap((route) => route.stops)
                     .find((stop) => stop.lateAfterSlot > 0);
                   if (late) void showInList(late.id);
-                }}>{totals.lateAfterSlot} nach Ende des gebuchten Termins – Besuche ansehen</a
+                }}
               >
+                {totals.lateAfterSlot} nach Ende des gebuchten Termins – Besuche ansehen
+              </a>
             {/if}
             {#if dirty}· <span class="font-semibold text-warning">nicht gespeichert</span>{/if}
             <InfoHint

@@ -55,10 +55,11 @@
                 stroke-width="1.8"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                ><path
-                  d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"
-                /></svg
               >
+                <path
+                  d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"
+                />
+              </svg>
               <span class="min-w-0 flex-1 truncate">{folder.name}</span>
               <span aria-hidden="true" class="text-neutral-700">›</span>
             </button>

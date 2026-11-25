@@ -17,9 +17,9 @@
 </script>
 
 {#if leitendeStore.loading}
-  <span class="skeleton-element skeleton-inline" role="status"
-    ><span class="sr-only">Wird geladen</span></span
-  >
+  <span class="skeleton-element skeleton-inline" role="status">
+    <span class="sr-only">Wird geladen</span>
+  </span>
 {:else if leitendeStore.error}
   <span class="status-text">Leitende konnten nicht geladen werden</span>
 {:else if leaders.length > 0}

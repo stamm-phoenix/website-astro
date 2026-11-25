@@ -43,8 +43,9 @@
             aria-label="{zutat.name} steht in {einheiten}: vereinheitlichen"
             disabled={ansicht.wartung}
             onclick={() => (offen = zutat.id)}
-            >{zutat.name} <span class="text-neutral-700">({einheiten})</span> · vereinheitlichen</ActionButton
           >
+            {zutat.name} <span class="text-neutral-700">({einheiten})</span> · vereinheitlichen
+          </ActionButton>
         </li>
       {/each}
     </ul>

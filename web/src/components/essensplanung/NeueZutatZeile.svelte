@@ -187,8 +187,9 @@
     role="group"
     aria-label="Neue Zeile für {gericht.name}"
   >
-    <label class="sr-only" for="gericht-{gericht.id}-neu-zutat">Neue Zutat für {gericht.name}</label
-    >
+    <label class="sr-only" for="gericht-{gericht.id}-neu-zutat">
+      Neue Zutat für {gericht.name}
+    </label>
     <VorschlagFeld
       id="gericht-{gericht.id}-neu-zutat"
       wrapperClass="col-span-3 sm:col-span-1"
@@ -239,8 +240,10 @@
         variant="primary"
         aria-label="Zeile zu {gericht.name} hinzufügen"
         disabled={speichert || kontext.busy}
-        onclick={() => void hinzufuegen()}>Hinzufügen</ActionButton
+        onclick={() => void hinzufuegen()}
       >
+        Hinzufügen
+      </ActionButton>
       <ActionButton
         type="button"
         disabled={speichert}
@@ -254,8 +257,10 @@
           eingabe = leereZeile();
           auswahl = null;
           onmehr(vorgabe);
-        }}>Mehr Angaben …</ActionButton
+        }}
       >
+        Mehr Angaben …
+      </ActionButton>
     </div>
   </div>
   {#if fehler}

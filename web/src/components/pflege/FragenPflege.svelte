@@ -164,15 +164,17 @@
       <input id="faq-search" type="search" class="form-input" bind:value={search} />
     </div>
     <div class="flex flex-wrap gap-2">
-      <ReloadAction type="button" disabled={store.loading || busy} onclick={() => void reload()}
-        >Neu laden</ReloadAction
-      >
+      <ReloadAction type="button" disabled={store.loading || busy} onclick={() => void reload()}>
+        Neu laden
+      </ReloadAction>
       <ActionButton
         variant="primary"
         type="button"
         disabled={!store.data || busy}
-        onclick={() => open()}>Neue Frage</ActionButton
+        onclick={() => open()}
       >
+        Neue Frage
+      </ActionButton>
     </div>
   </div>
 
@@ -194,9 +196,14 @@
       {:else}
         <div class="border-t border-neutral-200 pt-5" role="status">
           <p>Keine Frage passt zu deiner Suche.</p>
-          <ActionButton variant="secondary" type="button" class="mt-3" onclick={() => (search = '')}
-            >Suche zurücksetzen</ActionButton
+          <ActionButton
+            variant="secondary"
+            type="button"
+            class="mt-3"
+            onclick={() => (search = '')}
           >
+            Suche zurücksetzen
+          </ActionButton>
         </div>
       {/if}
     {/snippet}

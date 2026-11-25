@@ -170,8 +170,10 @@
     <button
       type="button"
       class="flex min-h-8 items-center gap-1 text-sm font-semibold text-link any-pointer-coarse:min-h-11"
-      onclick={onzurueck}><span aria-hidden="true">←</span> Zurück zu den Einkäufen</button
+      onclick={onzurueck}
     >
+      <span aria-hidden="true">←</span> Zurück zu den Einkäufen
+    </button>
     <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <h3
         id="einkauf-{einkauf.id}-heading"
@@ -222,8 +224,9 @@
           disabled={kontext.busy}
           aria-label="{einkauf.name} {einkauf.abgeschlossen ? 'wieder öffnen' : 'abschließen'}"
           onclick={() => void abschliessen(!einkauf.abgeschlossen)}
-          >{einkauf.abgeschlossen ? 'Wieder öffnen' : 'Abschließen'}</ActionButton
         >
+          {einkauf.abgeschlossen ? 'Wieder öffnen' : 'Abschließen'}
+        </ActionButton>
       {/if}
       <PdfKnopf
         {kontext}
@@ -243,15 +246,19 @@
           onclick={() => {
             formular = true;
             aendernOffen = !aendernOffen;
-          }}>Ändern</ActionButton
+          }}
         >
+          Ändern
+        </ActionButton>
         <ActionButton
           type="button"
           variant="danger"
           disabled={kontext.busy}
           aria-label="{einkauf.name} löschen"
-          onclick={() => void loeschen()}>Löschen</ActionButton
+          onclick={() => void loeschen()}
         >
+          Löschen
+        </ActionButton>
       {/if}
     </Aktionsraster>
   </div>

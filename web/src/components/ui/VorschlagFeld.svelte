@@ -331,12 +331,15 @@
                 class="flex min-h-11 w-full items-center break-words px-3 py-2 text-left hover:bg-neutral-100"
                 class:bg-neutral-100={markiert === index}
                 onclick={() => pick(option)}
-                ><span
-                  >{#each trefferTeile(option.label ?? option.value, filter ?? value) as part, partIndex (partIndex)}{#if part.hit}<mark
-                        class="treffer">{part.text}</mark
-                      >{:else}{part.text}{/if}{/each}</span
-                ></button
               >
+                <span>
+                  {#each trefferTeile(option.label ?? option.value, filter ?? value) as part, partIndex (partIndex)}{#if part.hit}<mark
+                        class="treffer"
+                      >
+                        {part.text}
+                      </mark>{:else}{part.text}{/if}{/each}
+                </span>
+              </button>
             </li>
           {/each}
         {/snippet}
@@ -344,8 +347,10 @@
           <li role="group" aria-label={group.label}>
             <span
               class="block px-3 pt-2 pb-1 text-xs font-semibold tracking-wide text-neutral-700 uppercase"
-              aria-hidden="true">{group.label}</span
+              aria-hidden="true"
             >
+              {group.label}
+            </span>
             <ul role="none">{@render items()}</ul>
           </li>
         {:else}

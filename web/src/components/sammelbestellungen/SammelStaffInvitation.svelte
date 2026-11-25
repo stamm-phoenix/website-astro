@@ -48,12 +48,13 @@
       variant="secondary"
       disabled={view.campaign.archived}
       onclick={() => void copyInvitation()}
-      ><span aria-live="polite"
-        >{copied ? 'Link kopiert' : 'Link kopieren'}{#if copied}<span aria-hidden="true">
-            ✓</span
-          >{/if}</span
-      ></ActionButton
     >
+      <span aria-live="polite">
+        {copied ? 'Link kopiert' : 'Link kopieren'}{#if copied}<span aria-hidden="true">
+            ✓
+          </span>{/if}
+      </span>
+    </ActionButton>
   </div>
   <p class="mt-1 text-xs text-neutral-700">Nur für Mitglieder, nicht öffentlich teilen.</p>
   <SammelInvitationRelease

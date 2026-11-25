@@ -175,9 +175,9 @@
     <span class={isDriver ? 'font-semibold text-brand-900' : ''}>{p.name}</span>
     {#if ichIds.has(p.id)}<span class="text-neutral-700">(ich)</span>{/if}
     {#if p.gruppe}<span class="text-sm text-neutral-700">{groupName(p.gruppe)}</span>{/if}
-    {#if prioritaeten[p.id]}<span class="text-sm text-neutral-700"
-        >· {PRIORITAET_MARKE[prioritaeten[p.id]]}</span
-      >{/if}
+    {#if prioritaeten[p.id]}<span class="text-sm text-neutral-700">
+        · {PRIORITAET_MARKE[prioritaeten[p.id]]}
+      </span>{/if}
     <span class="ml-auto shrink-0 text-sm text-link underline underline-offset-2">ändern</span>
   </button>
 {/snippet}
@@ -250,13 +250,15 @@
             <a
               class="btn-secondary"
               href={`/leitendenbereich/aktionen/aktion?id=${encodeURIComponent(id)}`}
-              >Teilnehmende</a
             >
+              Teilnehmende
+            </a>
             <ReloadAction
               disabled={campflowDetailStore.loading}
               onclick={() => fetchCampflowEvent(id, { force: true })}
-              >{campflowDetailStore.loading ? 'Lädt …' : 'Neu laden'}</ReloadAction
             >
+              {campflowDetailStore.loading ? 'Lädt …' : 'Neu laden'}
+            </ReloadAction>
           </div>
         </section>
 
@@ -329,9 +331,9 @@
               />
               <ActionButton onclick={copyLink}>Link kopieren</ActionButton>
               {#if changed}
-                <ActionButton class="col-span-2" variant="danger" onclick={reset}
-                  >Änderungen verwerfen</ActionButton
-                >
+                <ActionButton class="col-span-2" variant="danger" onclick={reset}>
+                  Änderungen verwerfen
+                </ActionButton>
               {/if}
             </Aktionsraster>
           </div>
@@ -425,14 +427,15 @@
               <ul class="mt-1 divide-y divide-neutral-200">
                 {#each plan.entfernt as p (p.id)}
                   <li class="flex flex-wrap items-center justify-between gap-2 py-2">
-                    <span
-                      >{p.name}{#if ichIds.has(p.id)}
-                        <span class="text-neutral-700">(ich)</span>{/if}</span
-                    >
+                    <span>
+                      {p.name}{#if ichIds.has(p.id)}
+                        <span class="text-neutral-700">(ich)</span>{/if}
+                    </span>
                     <ActionButton
                       onclick={() => setAnpassungen(withRemoved(anpassungen[fahrt], p.id, false))}
-                      >Wieder einplanen<span class="sr-only">: {p.name}</span></ActionButton
                     >
+                      Wieder einplanen<span class="sr-only">: {p.name}</span>
+                    </ActionButton>
                   </li>
                 {/each}
               </ul>

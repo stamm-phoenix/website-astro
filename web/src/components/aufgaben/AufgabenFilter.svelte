@@ -11,30 +11,33 @@
 </script>
 
 <details bind:open={filtersOpen} class="my-3">
-  <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-brand-900"
-    >Filter ({activeFilters} aktiv)</summary
-  >
+  <summary class="min-h-11 cursor-pointer py-2 text-sm font-semibold text-brand-900">
+    Filter ({activeFilters} aktiv)
+  </summary>
   <div role="group" aria-label="Aufgabenfilter" class="my-3 flex flex-wrap items-end gap-3">
-    <FormField id="task-project-filter" label="Projekt"
-      >{#snippet children(attrs)}
-        <select {...attrs} class="form-input" bind:value={projectFilter} {onchange}
-          ><option value="alle">Alle Projekte</option><option value="">Ohne Projekt</option
-          >{#each aufgabenStore.data?.projects ?? [] as project (project.id)}<option
-              value={String(project.id)}>{project.title}</option
-            >{/each}</select
-        >
-      {/snippet}</FormField
-    >
-    <label class="flex items-center gap-3 min-h-11 cursor-pointer py-2"
-      ><input
+    <FormField id="task-project-filter" label="Projekt">
+      {#snippet children(attrs)}
+        <select {...attrs} class="form-input" bind:value={projectFilter} {onchange}>
+          <option value="alle">Alle Projekte</option><option value="">
+            Ohne Projekt
+          </option>{#each aufgabenStore.data?.projects ?? [] as project (project.id)}<option
+              value={String(project.id)}
+            >
+              {project.title}
+            </option>{/each}
+        </select>
+      {/snippet}
+    </FormField>
+    <label class="flex items-center gap-3 min-h-11 cursor-pointer py-2">
+      <input
         type="checkbox"
         switch
         class="person-switch shrink-0"
         role="switch"
         bind:checked={ownOnly}
         {onchange}
-      /> Nur mir zugewiesen</label
-    >
+      /> Nur mir zugewiesen
+    </label>
   </div>
 </details>
 

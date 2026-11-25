@@ -119,9 +119,9 @@
           {#if mitPunkt}<td data-label="Punkt" class="tabular-nums">{nummer}</td>{/if}
           <td data-label="Aufgabe" class="font-semibold">{item.titel}</td>
           <td data-label="Zuständig">{names(item.zustaendig)}</td>
-          <td data-label="Fällig" class="whitespace-nowrap tabular-nums"
-            >{item.faellig ? formatShortDate(item.faellig) : '–'}</td
-          >
+          <td data-label="Fällig" class="whitespace-nowrap tabular-nums">
+            {item.faellig ? formatShortDate(item.faellig) : '–'}
+          </td>
         </tr>
       {/each}
     </tbody>
@@ -141,14 +141,14 @@
     <tbody>
       {#each list as item (item.id)}
         <tr class:is-erledigt={item.erledigt}>
-          <td data-label="Stand" class="whitespace-nowrap"
-            >{item.erledigt ? 'Erledigt' : 'Noch offen'}</td
-          >
+          <td data-label="Stand" class="whitespace-nowrap">
+            {item.erledigt ? 'Erledigt' : 'Noch offen'}
+          </td>
           <td data-label="Offene Aufgabe" class="font-semibold">{item.titel}</td>
           <td data-label="Zuständig">{names(item.zustaendig)}</td>
-          <td data-label="Fällig" class="whitespace-nowrap tabular-nums"
-            >{item.faellig ? formatShortDate(item.faellig) : '–'}</td
-          >
+          <td data-label="Fällig" class="whitespace-nowrap tabular-nums">
+            {item.faellig ? formatShortDate(item.faellig) : '–'}
+          </td>
         </tr>
       {/each}
     </tbody>
@@ -171,9 +171,9 @@
         <tr>
           {#if mitPunkt}<td data-label="Punkt" class="tabular-nums">{nummer}</td>{/if}
           <td data-label="Termin" class="font-semibold">{item.titel}</td>
-          <td data-label="Wann" class="tabular-nums"
-            >{formatTermin(item.datum, item.uhrzeit) || '–'}</td
-          >
+          <td data-label="Wann" class="tabular-nums">
+            {formatTermin(item.datum, item.uhrzeit) || '–'}
+          </td>
           <td data-label="Ort">{item.ort.trim() || '–'}</td>
           <td data-label="Zuständig">{names(item.zustaendig)}</td>
         </tr>

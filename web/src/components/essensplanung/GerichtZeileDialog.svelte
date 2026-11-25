@@ -398,8 +398,10 @@
           <button
             type="button"
             class="min-h-11 font-semibold text-link underline"
-            onclick={() => (eigene = neueEigene())}>Als eigene Zutat dieser Planung anlegen</button
+            onclick={() => (eigene = neueEigene())}
           >
+            Als eigene Zutat dieser Planung anlegen
+          </button>
         </p>
       {/if}
       {#if eigene}

@@ -175,13 +175,17 @@
             <p class="flex flex-wrap gap-x-4 [overflow-wrap:anywhere]">
               <a
                 class="text-link inline-flex min-h-11 items-center"
-                href={`mailto:${anfrage.email}`}>{anfrage.email}</a
+                href={`mailto:${anfrage.email}`}
               >
+                {anfrage.email}
+              </a>
               {#if anfrage.telefon}
                 <a
                   class="text-link inline-flex min-h-11 items-center"
-                  href={`tel:${anfrage.telefon.replace(/[^\d+]/g, '')}`}>{anfrage.telefon}</a
+                  href={`tel:${anfrage.telefon.replace(/[^\d+]/g, '')}`}
                 >
+                  {anfrage.telefon}
+                </a>
               {/if}
             </p>
             {#if anfrage.nachricht}
@@ -213,22 +217,27 @@
               type="button"
               aria-label={`${anfrage.termin ? 'Neuen Termin schicken' : 'Termin bestätigen'}: ${anfrage.name}`}
               onclick={() => (antworten = { anfrage, art: 'bestaetigen' })}
-              >{anfrage.termin ? 'Neuer Termin' : 'Termin bestätigen'}</ActionButton
             >
+              {anfrage.termin ? 'Neuer Termin' : 'Termin bestätigen'}
+            </ActionButton>
             {#if anfrage.status !== 'abgesagt'}
               <ActionButton
                 variant="secondary"
                 type="button"
                 aria-label={`Absagen: ${anfrage.name}`}
-                onclick={() => (antworten = { anfrage, art: 'absagen' })}>Absagen</ActionButton
+                onclick={() => (antworten = { anfrage, art: 'absagen' })}
               >
+                Absagen
+              </ActionButton>
             {/if}
             <ActionButton
               variant="danger"
               type="button"
               aria-label={`Löschen: Anfrage von ${anfrage.name}`}
-              onclick={() => void loeschen(anfrage)}>Löschen</ActionButton
+              onclick={() => void loeschen(anfrage)}
             >
+              Löschen
+            </ActionButton>
           </Aktionsraster>
         </li>
       {/each}

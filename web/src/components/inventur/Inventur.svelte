@@ -122,8 +122,10 @@
         variant="primary"
         type="button"
         disabled={!store.data}
-        onclick={() => (bearbeiten = { artikel: null })}>Neuer Artikel</ActionButton
+        onclick={() => (bearbeiten = { artikel: null })}
       >
+        Neuer Artikel
+      </ActionButton>
     </div>
   </div>
 
@@ -176,15 +178,17 @@
             variant="primary"
             type="button"
             class="mt-3"
-            onclick={() => (bearbeiten = { artikel: null })}>Ersten Artikel anlegen</ActionButton
+            onclick={() => (bearbeiten = { artikel: null })}
           >
+            Ersten Artikel anlegen
+          </ActionButton>
         </div>
       {:else}
         <div class="border-t border-neutral-200 pt-5" role="status">
           <p>Kein Artikel passt zu deiner Auswahl.</p>
-          <ActionButton variant="secondary" type="button" class="mt-3" onclick={zuruecksetzen}
-            >Auswahl zurücksetzen</ActionButton
-          >
+          <ActionButton variant="secondary" type="button" class="mt-3" onclick={zuruecksetzen}>
+            Auswahl zurücksetzen
+          </ActionButton>
         </div>
       {/if}
     {/snippet}
@@ -233,14 +237,18 @@
               variant="secondary"
               type="button"
               aria-label={`Zählen: ${artikel.bezeichnung}`}
-              onclick={() => (zaehlen = artikel)}>Zählen</ActionButton
+              onclick={() => (zaehlen = artikel)}
             >
+              Zählen
+            </ActionButton>
             <ActionButton
               variant="secondary"
               type="button"
               aria-label={`Bearbeiten: ${artikel.bezeichnung}`}
-              onclick={() => (bearbeiten = { artikel })}>Bearbeiten</ActionButton
+              onclick={() => (bearbeiten = { artikel })}
             >
+              Bearbeiten
+            </ActionButton>
           </div>
         </li>
       {/each}

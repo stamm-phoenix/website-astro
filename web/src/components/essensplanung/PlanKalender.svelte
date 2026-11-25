@@ -181,9 +181,9 @@
               : undefined}
           >
             {#if mahlzeit}
-              <span class="px-0.5 text-[0.7rem] text-neutral-700" aria-hidden="true"
-                ><span class="font-mono">{mahlzeit.kennung}</span>{ohneText(mahlzeit)}</span
-              >
+              <span class="px-0.5 text-[0.7rem] text-neutral-700" aria-hidden="true">
+                <span class="font-mono">{mahlzeit.kennung}</span>{ohneText(mahlzeit)}
+              </span>
               {#each mahlzeit.einplanungen as einplanung, index (einplanung.id)}
                 {#if markiert && ziehen.ziel?.index === index}
                   <div class="h-0.5 rounded bg-brand-800" aria-hidden="true"></div>

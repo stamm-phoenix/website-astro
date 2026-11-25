@@ -49,9 +49,9 @@
         <NewsTypeBadge type="instagram" />
         {#if date}
           <span aria-hidden="true">·</span>
-          <time datetime={post.timestamp} class="news-meta font-semibold text-brand-900"
-            >{date}</time
-          >
+          <time datetime={post.timestamp} class="news-meta font-semibold text-brand-900">
+            {date}
+          </time>
         {/if}
       </p>
       {#if post.caption}

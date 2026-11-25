@@ -205,9 +205,9 @@
         errorText="Das PDF der Helfenden konnte nicht erstellt werden. Versuch es noch einmal."
         onresult={(kind, text) => (notice = { kind, text })}
       />
-      <ActionButton variant="primary" type="button" onclick={openNew}
-        >Person hinzufügen</ActionButton
-      >
+      <ActionButton variant="primary" type="button" onclick={openNew}>
+        Person hinzufügen
+      </ActionButton>
     </div>
   </div>
 
@@ -219,9 +219,9 @@
     <p class="text-sm text-neutral-700 md:hidden">Seitlich wischen ›</p>
     <div class="overflow-x-auto">
       <table class="w-full min-w-[40rem] text-left text-sm">
-        <caption class="sr-only"
-          >Helfende mit ihren Posten pro Tag und Wünschen zur Einteilung</caption
-        >
+        <caption class="sr-only">
+          Helfende mit ihren Posten pro Tag und Wünschen zur Einteilung
+        </caption>
         <thead class="border-b-2 border-neutral-300 text-neutral-700">
           <tr>
             <th scope="col" class="px-3 py-2 font-semibold">Name</th>
@@ -229,9 +229,9 @@
               <th scope="col" class="px-3 py-2 font-semibold">{formatShortDate(day.date)}</th>
             {/each}
             <th scope="col" class="px-3 py-2 font-semibold">Wünsche zur Einteilung</th>
-            <th scope="col" class="px-3 py-2 font-semibold"
-              ><span class="sr-only">Aktionen</span></th
-            >
+            <th scope="col" class="px-3 py-2 font-semibold">
+              <span class="sr-only">Aktionen</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -243,9 +243,9 @@
                   <span class="font-normal text-neutral-700">(ich)</span>
                 {/if}
                 {#if person.notes}
-                  <span class="mt-0.5 block text-xs font-normal text-neutral-700"
-                    >{person.notes}</span
-                  >
+                  <span class="mt-0.5 block text-xs font-normal text-neutral-700">
+                    {person.notes}
+                  </span>
                 {/if}
               </th>
               {#each data.days as day (day.date)}
@@ -352,9 +352,9 @@
           <tbody>
             {#each data.days as day (day.date)}
               <tr>
-                <th scope="row" class="py-1 pr-2 text-left font-semibold"
-                  >{formatShortDate(day.date)}</th
-                >
+                <th scope="row" class="py-1 pr-2 text-left font-semibold">
+                  {formatShortDate(day.date)}
+                </th>
                 {#each HELPER_ROLES as role (role)}
                   <td class="px-2 py-1 text-center">
                     <input

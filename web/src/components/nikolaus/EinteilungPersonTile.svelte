@@ -52,8 +52,10 @@
       <span
         class="rounded-sm px-1.5 text-xs {role === activeRole
           ? 'bg-action text-on-action'
-          : 'bg-neutral-100 text-neutral-700'}">{roleText(role)}</span
+          : 'bg-neutral-100 text-neutral-700'}"
       >
+        {roleText(role)}
+      </span>
     {/each}
   </span>
 {/snippet}

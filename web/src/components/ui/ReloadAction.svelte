@@ -26,9 +26,9 @@
 
 <span class="inline-flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
   {#if time}<span>Stand: {time} Uhr</span>{/if}
-  <button {type} class="reload-action {className}" {...attributes}
-    >{#if children}{@render children()}{:else}Neu laden{/if}</button
-  >
+  <button {type} class="reload-action {className}" {...attributes}>
+    {#if children}{@render children()}{:else}Neu laden{/if}
+  </button>
 </span>
 
 <style>

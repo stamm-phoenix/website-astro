@@ -120,14 +120,18 @@
       {#if store.data?.darfEinrichten}<ActionButton
           type="button"
           variant="secondary"
-          onclick={() => (einrichten = true)}>Materialwart festlegen</ActionButton
-        >{/if}
+          onclick={() => (einrichten = true)}
+        >
+          Materialwart festlegen
+        </ActionButton>{/if}
       <ActionButton
         type="button"
         variant="primary"
         disabled={!store.data || !inventurPflege.state.data}
-        onclick={() => (eintrag = { vorgang: null })}>Ausleihe eintragen</ActionButton
+        onclick={() => (eintrag = { vorgang: null })}
       >
+        Ausleihe eintragen
+      </ActionButton>
     </div>
   </div>
   <FilterTabs
@@ -149,8 +153,10 @@
     <ActionButton
       type="button"
       variant="secondary"
-      onclick={() => inventurPflege.load({ force: true })}>Material erneut laden</ActionButton
-    >{/if}
+      onclick={() => inventurPflege.load({ force: true })}
+    >
+      Material erneut laden
+    </ActionButton>{/if}
   <LoadState
     data={store.data}
     loading={store.loading}
@@ -202,19 +208,23 @@
                 type="button"
                 variant="primary"
                 onclick={() => (aktion = { vorgang: v, aktion: 'rueckgabe' })}
-                >Rückgabe erfassen</ActionButton
               >
+                Rückgabe erfassen
+              </ActionButton>
               <ActionButton
                 type="button"
                 variant="secondary"
-                onclick={() => (eintrag = { vorgang: v })}>Ausleihe bearbeiten</ActionButton
+                onclick={() => (eintrag = { vorgang: v })}
               >
+                Ausleihe bearbeiten
+              </ActionButton>
               {#if v.positionen.every((p) => p.zurueck === 0)}<ActionButton
                   type="button"
                   variant="secondary"
                   onclick={() => (aktion = { vorgang: v, aktion: 'stornieren' })}
-                  >Ausleihe absagen</ActionButton
-                >{/if}
+                >
+                  Ausleihe absagen
+                </ActionButton>{/if}
             </Aktionsraster>
           {/if}
           {#if v.mailOffen}
@@ -226,8 +236,9 @@
               variant="secondary"
               disabled={sending !== null}
               onclick={() => versand(v.id)}
-              >{sending === v.id ? 'Wird versandt …' : 'E-Mails erneut versenden'}</ActionButton
             >
+              {sending === v.id ? 'Wird versandt …' : 'E-Mails erneut versenden'}
+            </ActionButton>
           {/if}
         </li>
       {/each}

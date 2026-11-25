@@ -64,24 +64,26 @@
 </script>
 
 <div class="mb-6 flex min-h-11 flex-wrap gap-3">
-  <StaffLink href="/leitendenbereich/fragen-und-antworten?neu" variant="primary"
-    >Neue Frage anlegen</StaffLink
-  >
+  <StaffLink href="/leitendenbereich/fragen-und-antworten?neu" variant="primary">
+    Neue Frage anlegen
+  </StaffLink>
 </div>
 
 <div class="min-h-11" aria-live="polite">
   {#if updates && !refreshed}<button
       type="button"
       class="min-h-11 font-semibold text-link underline"
-      onclick={() => (refreshed = true)}>Aktualisierte Fragen anzeigen</button
-    >{/if}
+      onclick={() => (refreshed = true)}
+    >
+      Aktualisierte Fragen anzeigen
+    </button>{/if}
 </div>
 
 {#if view.data?.length}
   <div class="mb-8 max-w-2xl">
-    <label for="fragen-suche" class="mb-2 block font-semibold text-brand-900"
-      >Fragen und Antworten durchsuchen</label
-    >
+    <label for="fragen-suche" class="mb-2 block font-semibold text-brand-900">
+      Fragen und Antworten durchsuchen
+    </label>
     <div class="flex flex-wrap items-center gap-3">
       <input
         id="fragen-suche"
@@ -96,8 +98,10 @@
           onclick={() => {
             query = '';
             document.getElementById('fragen-suche')?.focus();
-          }}>Suche löschen</ActionButton
+          }}
         >
+          Suche löschen
+        </ActionButton>
       {/if}
     </div>
     <p class="mt-2 text-sm text-neutral-700" role="status">
@@ -132,12 +136,12 @@
       Lade die Fragen erneut oder schreib uns deine Frage über die Kontaktseite.
     </p>
     <div class="mt-4 flex flex-wrap items-center gap-4">
-      <ActionButton variant="primary" type="button" onclick={() => fetchQuestionsAndAnswers()}
-        >Erneut laden</ActionButton
-      >
-      <a class="font-semibold text-link underline underline-offset-4" href="/kontakt"
-        >Zur Kontaktseite</a
-      >
+      <ActionButton variant="primary" type="button" onclick={() => fetchQuestionsAndAnswers()}>
+        Erneut laden
+      </ActionButton>
+      <a class="font-semibold text-link underline underline-offset-4" href="/kontakt">
+        Zur Kontaktseite
+      </a>
     </div>
   </div>
 {:else if groupedQuestions.length > 0}
@@ -229,8 +233,10 @@
                     {@html sanitizeDescription(item.answer, 'public')}
                     <StaffLink
                       href={`/leitendenbereich/fragen-und-antworten?bearbeiten=${encodeURIComponent(item.id)}`}
-                      class="mt-3">Frage bearbeiten</StaffLink
+                      class="mt-3"
                     >
+                      Frage bearbeiten
+                    </StaffLink>
                   </div>
                 {/if}
               </li>
@@ -245,8 +251,10 @@
     <h2 class="font-serif text-xl text-brand-900">Keine passenden Fragen gefunden</h2>
     <a
       class="mt-4 inline-flex min-h-11 items-center font-semibold text-link underline underline-offset-4"
-      href="/kontakt">Frage stellen</a
+      href="/kontakt"
     >
+      Frage stellen
+    </a>
   </div>
 {:else}
   <div class="border-y border-neutral-200 py-6">
@@ -254,9 +262,12 @@
     <p class="mt-2 text-neutral-700">
       Du kannst uns deine Frage jederzeit über die Kontaktseite schicken.
     </p>
-    <a class="mt-4 inline-flex font-semibold text-link underline underline-offset-4" href="/kontakt"
-      >Frage stellen</a
+    <a
+      class="mt-4 inline-flex font-semibold text-link underline underline-offset-4"
+      href="/kontakt"
     >
+      Frage stellen
+    </a>
   </div>
 {/if}
 

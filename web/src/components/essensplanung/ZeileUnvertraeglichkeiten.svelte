@@ -53,9 +53,9 @@
     {#each verschwunden as id (id)}
       <li class="flex items-center justify-between gap-3">
         <span class="min-w-0 text-danger">Gelöscht: nicht mehr in der Liste</span>
-        <ActionButton type="button" onclick={() => delete unvertraeglich[id]}
-          >Entfernen</ActionButton
-        >
+        <ActionButton type="button" onclick={() => delete unvertraeglich[id]}>
+          Entfernen
+        </ActionButton>
       </li>
     {/each}
   </ul>

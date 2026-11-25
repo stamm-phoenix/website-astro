@@ -241,8 +241,10 @@
       Öffne den Link aus unserer E-Mail zur Sammelbestellung. Keine E-Mail erhalten? Schau auch im
       Spam-Ordner nach. Du kannst auch unter <a
         class="text-link underline"
-        href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a
-      > nach dem Link fragen.
+        href="mailto:kontakt@stamm-phoenix.de"
+      >
+        kontakt@stamm-phoenix.de
+      </a> nach dem Link fragen.
     </p>
     <a href="/kontakt" class="btn-secondary mt-3">Kontakt zum Stamm</a>
   </section>
@@ -293,9 +295,9 @@
       <p class="text-xs text-neutral-700">
         <a class="underline" href="/datenschutz#sammelbestellungen">Datenschutz</a>
       </p>
-      <ActionButton type="submit" variant="primary" disabled={busy} aria-busy={busy}
-        >{busy ? 'Wird gesendet …' : 'Bestelllink per E-Mail erhalten'}</ActionButton
-      >
+      <ActionButton type="submit" variant="primary" disabled={busy} aria-busy={busy}>
+        {busy ? 'Wird gesendet …' : 'Bestelllink per E-Mail erhalten'}
+      </ActionButton>
     </form>
   {:else if view}
     <dl
@@ -324,16 +326,18 @@
     </dl>
     {#if view.order.payment?.reference}
       <p class="mb-5 text-sm text-neutral-700">
-        Zahlungsreferenz <span class="font-semibold break-all text-brand-900"
-          >{view.order.payment.reference}</span
-        >. Die Zahlungsaufforderung kommt per E-Mail von CampFlow.
+        Zahlungsreferenz <span class="font-semibold break-all text-brand-900">
+          {view.order.payment.reference}
+        </span>. Die Zahlungsaufforderung kommt per E-Mail von CampFlow.
       </p>
     {/if}
     {#if !canEdit}<p class="mb-6 border-l-2 border-neutral-400 py-1 pl-4 text-neutral-700">
         Diese Bestellung kann nicht mehr geändert werden. Bei Fragen: <a
           class="font-semibold text-link"
-          href="mailto:kontakt@stamm-phoenix.de">kontakt@stamm-phoenix.de</a
+          href="mailto:kontakt@stamm-phoenix.de"
         >
+          kontakt@stamm-phoenix.de
+        </a>
       </p>{/if}
     {#if !canEdit}
       <SammelOrderSummary {name} email={view.order.email} {notes} {items} />
@@ -426,8 +430,10 @@
           type="submit"
           class="mt-3"
           disabled={busy}
-          onclick={() => void load()}>Bestellung neu laden</ActionButton
-        >{/if}
+          onclick={() => void load()}
+        >
+          Bestellung neu laden
+        </ActionButton>{/if}
     </div>{/if}
   <StatusNotice {message} kind={messageKind} class="mt-5" popup />
 </div>

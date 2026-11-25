@@ -35,12 +35,13 @@
       <tbody class="divide-y divide-neutral-200">
         {#each coverage as day (day.date)}
           <tr>
-            <th scope="row" class="py-2 pr-4 font-semibold"
-              >{formatShortDate(day.date)}
-              <span class="font-normal text-neutral-700"
-                >({day.teams} {day.teams === 1 ? 'Team' : 'Teams'})</span
-              ></th
-            >
+            <th scope="row" class="py-2 pr-4 font-semibold">
+              {formatShortDate(day.date)}
+              <span class="font-normal text-neutral-700">
+                ({day.teams}
+                {day.teams === 1 ? 'Team' : 'Teams'})
+              </span>
+            </th>
             {#each day.counts as entry (entry.role)}
               <td
                 class="py-2 pr-4 tabular-nums {entry.role !== KITCHEN && entry.count < day.teams

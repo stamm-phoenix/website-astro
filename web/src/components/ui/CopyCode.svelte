@@ -55,11 +55,11 @@
     {#if state === 'copied'}
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
     {:else}
-      <svg viewBox="0 0 24 24" aria-hidden="true"
-        ><rect x="9" y="9" width="12" height="12" rx="2" /><path
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="9" y="9" width="12" height="12" rx="2" /><path
           d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"
-        /></svg
-      >
+        />
+      </svg>
     {/if}
   </button>
   <span
@@ -67,10 +67,11 @@
     class="text-sm"
     class:sr-only={compact && state !== 'failed'}
     class:text-success={state === 'copied'}
-    >{#if state === 'copied'}Kopiert{:else if state === 'failed'}<span class="text-danger"
-        >Kopieren ging nicht, bitte von Hand abschreiben.</span
-      >{/if}</span
   >
+    {#if state === 'copied'}Kopiert{:else if state === 'failed'}<span class="text-danger">
+        Kopieren ging nicht, bitte von Hand abschreiben.
+      </span>{/if}
+  </span>
 </span>
 
 <style>

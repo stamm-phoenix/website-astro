@@ -74,14 +74,18 @@
         href={NAMI_URL}
         class="inline-flex min-h-11 items-center text-link underline underline-offset-4"
         target="_blank"
-        rel="noopener">NaMi öffnen</a
+        rel="noopener"
       >
+        NaMi öffnen
+      </a>
       <a
         href={CAMPFLOW_URL}
         class="inline-flex min-h-11 items-center text-link underline underline-offset-4"
         target="_blank"
-        rel="noopener">Mitglieder in CampFlow öffnen</a
+        rel="noopener"
       >
+        Mitglieder in CampFlow öffnen
+      </a>
     </span>
     {#if store.data}
       <ReloadAction

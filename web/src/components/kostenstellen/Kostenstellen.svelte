@@ -109,8 +109,10 @@
       href={CAMPFLOW_URL}
       class="inline-flex min-h-11 items-center text-link underline underline-offset-4"
       target="_blank"
-      rel="noopener">Auswertungen in CampFlow öffnen</a
+      rel="noopener"
     >
+      Auswertungen in CampFlow öffnen
+    </a>
     {#if store.data}
       <ReloadAction
         loadedAt={Date.parse(store.data.loadedAt)}
@@ -158,8 +160,9 @@
             type="button"
             disabled={pdfBusy || liste.length === 0}
             onclick={() => void exportPdf(liste, data.loadedAt)}
-            >{pdfBusy ? 'Erstellt PDF …' : 'PDF herunterladen'}</ActionButton
           >
+            {pdfBusy ? 'Erstellt PDF …' : 'PDF herunterladen'}
+          </ActionButton>
         </div>
         <KostenstellenZahlen summen={summe} gross />
       </section>
@@ -231,9 +234,9 @@
                       aria-hidden="true"
                     ></span>
                     <span class="min-w-0 flex-1">
-                      <span class="block font-semibold break-words text-brand-900"
-                        >{kostenstelle.name}</span
-                      >
+                      <span class="block font-semibold break-words text-brand-900">
+                        {kostenstelle.name}
+                      </span>
                       <span class="block text-sm text-neutral-700">
                         {buchungen(kostenstelle.bookings)} · {kostenstelle.categories.length}
                         {kostenstelle.categories.length === 1 ? 'Kategorie' : 'Kategorien'}
@@ -249,8 +252,10 @@
                       stroke-width="2"
                       stroke-linecap="round"
                       stroke-linejoin="round"
-                      aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg
+                      aria-hidden="true"
                     >
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
                   </span>
                   <KostenstellenZahlen summen={kostenstelle} />
                 </summary>
@@ -265,14 +270,14 @@
                         <li class="space-y-2 py-3">
                           <p class="text-sm">
                             <span class="font-semibold text-brand-900">{kategorie.name}</span>
-                            <span class="text-neutral-700"
-                              >· {[
+                            <span class="text-neutral-700">
+                              · {[
                                 buchungen(kategorie.bookings),
                                 kategorie.sphere && SPHAEREN[kategorie.sphere],
                               ]
                                 .filter(Boolean)
-                                .join(' · ')}</span
-                            >
+                                .join(' · ')}
+                            </span>
                           </p>
                           <KostenstellenZahlen summen={kategorie} />
                         </li>

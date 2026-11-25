@@ -71,8 +71,10 @@
   disabled={disabled || exporting}
   aria-busy={exporting}
   aria-label={label}
-  onclick={() => void run()}>{exporting ? 'Erstellt PDF …' : text}</ActionButton
+  onclick={() => void run()}
 >
+  {exporting ? 'Erstellt PDF …' : text}
+</ActionButton>
 {#if !onresult}
   <Toast message={notice?.text ?? null} kind={notice?.kind} onclose={() => (notice = null)} />
 {/if}

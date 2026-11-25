@@ -65,14 +65,15 @@
     type="button"
     disabled={disabled || busy !== null}
     onclick={() => void preview()}
-    >{busy === 'send'
+  >
+    {busy === 'send'
       ? 'Versand läuft …'
       : busy === 'preview'
         ? 'Verteiler wird geladen …'
         : audience?.started
           ? 'Versand fortsetzen'
-          : 'Sammelbestellung freigeben'}</ActionButton
-  >
+          : 'Sammelbestellung freigeben'}
+  </ActionButton>
   <p class="mt-2 flex flex-wrap items-center gap-1 text-sm text-neutral-700">
     <span>Schickt die Einladung per E-Mail an alle Mitglieder.</span>
     <InfoHint

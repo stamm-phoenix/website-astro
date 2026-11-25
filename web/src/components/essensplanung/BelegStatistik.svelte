@@ -24,18 +24,20 @@
     <tbody>
       {#each statistik.personen as person (person.key)}
         <tr class="border-b border-neutral-200">
-          <th scope="row" class="px-1.5 py-1 text-left font-normal [overflow-wrap:anywhere]"
-            >{person.name}</th
-          >
+          <th scope="row" class="px-1.5 py-1 text-left font-normal [overflow-wrap:anywhere]">
+            {person.name}
+          </th>
           <td class="px-1.5 py-1 text-right tabular-nums">{person.anzahl}</td>
-          <td class="px-1.5 py-1 text-right whitespace-nowrap tabular-nums"
-            >{formatEuro(person.gesamtCent)}</td
-          >
+          <td class="px-1.5 py-1 text-right whitespace-nowrap tabular-nums">
+            {formatEuro(person.gesamtCent)}
+          </td>
           <td
             class="px-1.5 py-1 text-right whitespace-nowrap tabular-nums {person.offenCent
               ? 'font-semibold text-brand-900'
-              : 'text-neutral-700'}">{formatEuro(person.offenCent)}</td
+              : 'text-neutral-700'}"
           >
+            {formatEuro(person.offenCent)}
+          </td>
         </tr>
       {/each}
     </tbody>
@@ -43,12 +45,12 @@
       <tr class="border-t-2 border-neutral-300 font-semibold">
         <th scope="row" class="px-1.5 py-1 text-left">Summe</th>
         <td class="px-1.5 py-1 text-right tabular-nums">{statistik.anzahl}</td>
-        <td class="px-1.5 py-1 text-right whitespace-nowrap tabular-nums"
-          >{formatEuro(statistik.gesamtCent)}</td
-        >
-        <td class="px-1.5 py-1 text-right whitespace-nowrap tabular-nums"
-          >{formatEuro(statistik.offenCent)}</td
-        >
+        <td class="px-1.5 py-1 text-right whitespace-nowrap tabular-nums">
+          {formatEuro(statistik.gesamtCent)}
+        </td>
+        <td class="px-1.5 py-1 text-right whitespace-nowrap tabular-nums">
+          {formatEuro(statistik.offenCent)}
+        </td>
       </tr>
     </tfoot>
   </table>

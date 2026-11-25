@@ -192,8 +192,10 @@
     <p class="text-sm text-neutral-700">
       Keine Aktion ausgewählt. <a
         class="font-semibold text-link underline"
-        href="/leitendenbereich/aktionen">Zur Übersicht</a
+        href="/leitendenbereich/aktionen"
       >
+        Zur Übersicht
+      </a>
     </p>
   </div>
 {:else}
@@ -275,8 +277,10 @@
             {/if}
             <a
               href={`/leitendenbereich/aufgaben?aktion=${encodeURIComponent(id)}`}
-              class="btn-secondary">Aufgaben und Checklisten</a
+              class="btn-secondary"
             >
+              Aufgaben und Checklisten
+            </a>
             <span data-testid={beitraegeDaten ? 'aktion-beitraege-stand' : undefined}>
               <ReloadAction
                 type="button"
@@ -299,8 +303,9 @@
               <div>
                 <dt class="text-sm text-neutral-700">{label}</dt>
                 <dd class="mt-0.5 text-2xl font-semibold tabular-nums text-brand-900">
-                  {value}{#if hint}<span class="text-sm font-normal text-neutral-700">{hint}</span
-                    >{/if}
+                  {value}{#if hint}<span class="text-sm font-normal text-neutral-700">
+                      {hint}
+                    </span>{/if}
                 </dd>
               </div>
             {/snippet}
@@ -370,8 +375,10 @@
               <button
                 type="button"
                 class="btn-secondary"
-                onclick={() => loadBeitraege(beitraegeDaten !== null)}>Beiträge erneut laden</button
+                onclick={() => loadBeitraege(beitraegeDaten !== null)}
               >
+                Beiträge erneut laden
+              </button>
             </div>
           {:else if beitraege.loading}
             <p class="text-sm text-neutral-700" role="status">Beiträge werden geladen …</p>
@@ -443,9 +450,9 @@
                           {:else if column.key === 'verwendungszweck'}
                             {#each beitraegeOf(beitraegeDaten, person) ?? [] as fee (fee.id)}
                               {#if fee.reference}
-                                <span class="my-1 block"
-                                  ><CopyCode code={fee.reference} compact /></span
-                                >
+                                <span class="my-1 block">
+                                  <CopyCode code={fee.reference} compact />
+                                </span>
                               {/if}
                             {/each}
                           {:else}
@@ -479,19 +486,19 @@
                     onclick={() => (selected = person)}
                   >
                     <span class="flex items-start justify-between gap-3">
-                      <span
-                        ><span class="font-semibold text-brand-900 group-hover:underline"
-                          >{formatName(person)}</span
-                        >{#if isIchCampflow(person, detail.ich)}
-                          <span class="text-neutral-700">(ich)</span>{/if}</span
-                      >
-                      <span class="text-sm"
-                        ><StatusLabel
+                      <span>
+                        <span class="font-semibold text-brand-900 group-hover:underline">
+                          {formatName(person)}
+                        </span>{#if isIchCampflow(person, detail.ich)}
+                          <span class="text-neutral-700">(ich)</span>{/if}
+                      </span>
+                      <span class="text-sm">
+                        <StatusLabel
                           label={PERSON_STATUS_LABEL[status]}
                           tone={STATUS_TONE[status]}
                           dot
-                        /></span
-                      >
+                        />
+                      </span>
                     </span>
                     <span class="mt-1 block space-y-0.5 text-sm text-neutral-700">
                       {#each shownColumns.filter((c) => !['name', 'status', 'verwendungszweck'].includes(c.key) && c.text(person)) as column (column.key)}

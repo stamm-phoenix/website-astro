@@ -73,8 +73,10 @@
                   class="inline-flex min-h-11 max-w-full items-center break-all text-link underline"
                   href={link.href}
                   target={link.href.startsWith('http') ? '_blank' : undefined}
-                  rel="noopener noreferrer">{link.text}</a
+                  rel="noopener noreferrer"
                 >
+                  {link.text}
+                </a>
               {/each}
             {:else}
               {field.text}

@@ -230,8 +230,10 @@
         <ActionButton
           type="button"
           aria-label={`${heldPerson?.name} ohne Posten lassen`}
-          onclick={() => place('parken')}>Hierher</ActionButton
+          onclick={() => place('parken')}
         >
+          Hierher
+        </ActionButton>
       {/if}
     </div>
     {#if idle.length === 0}
@@ -353,8 +355,10 @@
         <ActionButton
           type="button"
           aria-label={`${heldPerson?.name} in die Küche einteilen`}
-          onclick={() => place(KITCHEN)}>Hierher</ActionButton
+          onclick={() => place(KITCHEN)}
         >
+          Hierher
+        </ActionButton>
       {/if}
     </div>
     {#if kitchen.length === 0}

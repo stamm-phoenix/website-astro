@@ -567,11 +567,12 @@
               stroke="currentColor"
               stroke-width="2"
               stroke-linecap="round"
-              ><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5L20 20M8 10.5h5" /><path
+            >
+              <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5L20 20M8 10.5h5" /><path
                 class={['zoom-bar', zoomed && 'zoomed']}
                 d="M10.5 8v5"
-              /></svg
-            >
+              />
+            </svg>
           </button>
         {/if}
         <!-- svelte-ignore a11y_autofocus -->
@@ -589,8 +590,10 @@
             fill="none"
             stroke="currentColor"
             stroke-width="2"
-            stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg
+            stroke-linecap="round"
           >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
         </button>
       </div>
 
@@ -674,9 +677,9 @@
             class="viewer-button absolute inset-auto gap-2 px-5"
             onclick={() => (playingUrl = detail?.embedUrl ?? '')}
           >
-            <svg aria-hidden="true" class="size-6" viewBox="0 0 24 24" fill="currentColor"
-              ><path d="M8 5v14l11-7z" /></svg
-            >
+            <svg aria-hidden="true" class="size-6" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
             Video abspielen
           </button>
         {/if}
@@ -696,8 +699,10 @@
               stroke="currentColor"
               stroke-width="2"
               stroke-linecap="round"
-              stroke-linejoin="round"><path d="M15 6l-6 6 6 6" /></svg
+              stroke-linejoin="round"
             >
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
           </button>
         {/if}
         {#if index < files.length - 1}
@@ -715,8 +720,10 @@
               stroke="currentColor"
               stroke-width="2"
               stroke-linecap="round"
-              stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg
+              stroke-linejoin="round"
             >
+              <path d="M9 6l6 6-6 6" />
+            </svg>
           </button>
         {/if}
       </div>
@@ -730,8 +737,9 @@
             type="button"
             class="min-h-11 text-sm text-white/80 underline underline-offset-2"
             onclick={() => (playingUrl = detail?.embedUrl ?? '')}
-            >Im Player von SharePoint abspielen</button
           >
+            Im Player von SharePoint abspielen
+          </button>
         {/if}
         {#if downloadNote}
           <p class="text-sm" role="status">{downloadNote}</p>
@@ -760,8 +768,10 @@
               class="btn-secondary viewer-secondary"
               href={file.webUrl}
               target="_blank"
-              rel="noopener">In SharePoint öffnen<span class="sr-only"> (öffnet neuen Tab)</span></a
+              rel="noopener"
             >
+              In SharePoint öffnen<span class="sr-only"> (öffnet neuen Tab)</span>
+            </a>
           {/if}
         </div>
       </div>

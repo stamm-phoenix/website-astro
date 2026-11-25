@@ -142,13 +142,13 @@
                           <span>· Krampus</span>
                         {/if}
                       </span>
-                      <span class="mt-1 block"
-                        ><StatusLabel
+                      <span class="mt-1 block">
+                        <StatusLabel
                           label={STATUS_LABEL[booking.status]}
                           tone={STATUS_TONE[booking.status]}
                           dot
-                        /></span
-                      >
+                        />
+                      </span>
                       {#if index >= slot.capacity}
                         <span class="mt-1 block text-xs font-semibold text-danger">
                           kein Team frei – verlegen

@@ -114,14 +114,18 @@
           variant="secondary"
           type="button"
           disabled={locked}
-          onclick={photo.zuschnittAbbrechen}>Abbrechen</ActionButton
+          onclick={photo.zuschnittAbbrechen}
         >
+          Abbrechen
+        </ActionButton>
         <ActionButton
           variant="primary"
           type="button"
           disabled={locked}
-          onclick={photo.zuschnittFertig}>Zuschneiden fertig</ActionButton
+          onclick={photo.zuschnittFertig}
         >
+          Zuschneiden fertig
+        </ActionButton>
       </div>
     </div>
   {:else}
@@ -165,8 +169,10 @@
               stroke-width="1.8"
               stroke-linecap="round"
               stroke-linejoin="round"
-              aria-hidden="true"><path d={tool.icon} /></svg
+              aria-hidden="true"
             >
+              <path d={tool.icon} />
+            </svg>
             {#if tool.text}<span>{tool.text}</span>{/if}
           </button>
         {/each}

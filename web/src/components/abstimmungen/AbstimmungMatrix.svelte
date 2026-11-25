@@ -31,14 +31,16 @@
         <th
           scope="col"
           class="sticky left-0 z-10 bg-surface px-2 py-2 text-left align-bottom font-semibold text-brand-900"
-          >Name</th
         >
+          Name
+        </th>
         {#each ergebnis.optionen as option (option.id)}
           <th
             scope="col"
             class="min-w-24 max-w-40 px-2 py-2 text-center align-bottom font-semibold text-brand-900 [overflow-wrap:anywhere]"
-            >{option.text}</th
           >
+            {option.text}
+          </th>
         {/each}
       </tr>
     </thead>
@@ -48,21 +50,22 @@
           <th
             scope="row"
             class="sticky left-0 z-10 min-w-28 max-w-40 bg-surface px-2 py-2 text-left font-normal text-neutral-900 break-words"
-            >{antwort.name}</th
           >
+            {antwort.name}
+          </th>
           {#each ergebnis.optionen as option (option.id)}
             {#if antwort.gewaehlt.includes(option.id)}
-              <td class="px-2 py-2 text-center font-semibold text-success"
-                ><span aria-hidden="true">✓</span><span class="sr-only">Ja</span></td
-              >
+              <td class="px-2 py-2 text-center font-semibold text-success">
+                <span aria-hidden="true">✓</span><span class="sr-only">Ja</span>
+              </td>
             {:else if antwort.vielleicht.includes(option.id)}
-              <td class="px-2 py-2 text-center text-neutral-800"
-                ><span aria-hidden="true">(✓)</span><span class="sr-only">Vielleicht</span></td
-              >
+              <td class="px-2 py-2 text-center text-neutral-800">
+                <span aria-hidden="true">(✓)</span><span class="sr-only">Vielleicht</span>
+              </td>
             {:else}
-              <td class="px-2 py-2 text-center text-neutral-700"
-                ><span aria-hidden="true">–</span><span class="sr-only">Nein</span></td
-              >
+              <td class="px-2 py-2 text-center text-neutral-700">
+                <span aria-hidden="true">–</span><span class="sr-only">Nein</span>
+              </td>
             {/if}
           {/each}
         </tr>
@@ -73,8 +76,9 @@
         <th
           scope="row"
           class="sticky left-0 z-10 bg-surface px-2 py-2 text-left font-semibold text-brand-900"
-          >Ja</th
         >
+          Ja
+        </th>
         {#each ergebnis.optionen as option (option.id)}
           <td class="px-2 py-2 text-center font-semibold tabular-nums">{option.stimmen}</td>
         {/each}
@@ -84,8 +88,9 @@
           <th
             scope="row"
             class="sticky left-0 z-10 bg-surface px-2 py-2 text-left font-semibold text-brand-900"
-            >Vielleicht</th
           >
+            Vielleicht
+          </th>
           {#each ergebnis.optionen as option (option.id)}
             <td class="px-2 py-2 text-center tabular-nums">{option.vielleicht}</td>
           {/each}

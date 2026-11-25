@@ -217,22 +217,21 @@
       aria-label={ansehen
         ? `Verbrauch von ${name} bei ${kennung} ansehen`
         : `Verbrauch von ${name} bei ${kennung} eintragen`}
-      >{ansehen
+    >
+      {ansehen
         ? 'Verbrauch ansehen'
         : einplanung.status === 'gekocht'
           ? 'Verbrauch ändern'
-          : 'Verbrauch eintragen'}<AufklappPfeil class="text-link" /></summary
-    >
+          : 'Verbrauch eintragen'}<AufklappPfeil class="text-link" />
+    </summary>
     {#if offen && ansehen}
       <ul class="space-y-1 pb-2 text-sm" aria-label="Verbrauch von {name} bei {kennung}">
         {#each gespeichert as v (`${v.planungZutatId}:${v.einheit}`)}
           <li class="flex flex-wrap gap-2">
             <span class="min-w-0 flex-1 [overflow-wrap:anywhere]">{v.name}</span>
-            <span class="tabular-nums"
-              >{v.menge > 0
-                ? `${mengeFeld(v.menge)} ${einheitText(v.einheit)}`
-                : 'nicht verwendet'}</span
-            >
+            <span class="tabular-nums">
+              {v.menge > 0 ? `${mengeFeld(v.menge)} ${einheitText(v.einheit)}` : 'nicht verwendet'}
+            </span>
           </li>
         {:else}
           <li class="text-neutral-700">Das Gericht hat keine Zutaten mit Menge.</li>
@@ -287,26 +286,31 @@
             class="col-span-2"
             disabled={speichert || kontext.busy || !bearbeiten}
             onclick={() => void setzen('gekocht')}
-            >{einplanung.status === 'gekocht' ? 'Verbrauch speichern' : 'Gekocht'}</ActionButton
           >
+            {einplanung.status === 'gekocht' ? 'Verbrauch speichern' : 'Gekocht'}
+          </ActionButton>
           {#if einplanung.status !== 'ausgelassen'}
             <ActionButton
               type="button"
               disabled={speichert || kontext.busy || !bearbeiten}
-              onclick={() => void setzen('ausgelassen')}>Ausgelassen</ActionButton
+              onclick={() => void setzen('ausgelassen')}
             >
+              Ausgelassen
+            </ActionButton>
           {/if}
           {#if einplanung.status !== 'offen'}
             <ActionButton
               type="button"
               disabled={speichert || kontext.busy || !bearbeiten}
-              onclick={() => void setzen('offen')}>Wieder offen</ActionButton
+              onclick={() => void setzen('offen')}
             >
+              Wieder offen
+            </ActionButton>
           {/if}
           {#if geaendert}
-            <ActionButton type="button" class="col-span-2" disabled={speichert} onclick={fuelle}
-              >Eingaben verwerfen</ActionButton
-            >
+            <ActionButton type="button" class="col-span-2" disabled={speichert} onclick={fuelle}>
+              Eingaben verwerfen
+            </ActionButton>
           {/if}
         </Aktionsraster>
         {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}

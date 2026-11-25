@@ -25,8 +25,10 @@
   type="button"
   disabled={!bearbeiten || !katalog}
   aria-label="Gericht generieren lassen (KI): {gericht.name}"
-  onclick={() => (offen = true)}>Gericht generieren lassen (KI)</ActionButton
+  onclick={() => (offen = true)}
 >
+  Gericht generieren lassen (KI)
+</ActionButton>
 
 {#if katalog && offen}
   <RezeptImportDialog

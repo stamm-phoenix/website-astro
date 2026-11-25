@@ -97,8 +97,10 @@
       type="button"
       variant="primary"
       disabled={speichert || kontext.busy || !text.trim()}
-      onclick={() => void hinzufuegen()}>Auf die Liste</ActionButton
+      onclick={() => void hinzufuegen()}
     >
+      Auf die Liste
+    </ActionButton>
   </div>
   {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
 </div>

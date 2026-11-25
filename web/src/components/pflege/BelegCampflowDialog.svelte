@@ -59,9 +59,9 @@
     <div class="min-h-0 space-y-4 overflow-y-auto px-5 py-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <StatusLabel label={state.label} tone={state.tone} dot />
-        <a href={CAMPFLOW_BELEGE} class="btn-secondary" target="_blank" rel="noopener"
-          >In CampFlow öffnen</a
-        >
+        <a href={CAMPFLOW_BELEGE} class="btn-secondary" target="_blank" rel="noopener">
+          In CampFlow öffnen
+        </a>
       </div>
       <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         {#each details as [label, value] (label)}

@@ -106,15 +106,16 @@
 >
   {#if editing}
     <p class="font-semibold text-brand-900">{editing.name}</p>
-    <FormField id="order-status" label="Bestellstatus"
-      >{#snippet children(attrs)}<select {...attrs} class="form-input" bind:value={editing!.status}
-          >{#each SAMMEL_STATUS as status (status)}<option
+    <FormField id="order-status" label="Bestellstatus">
+      {#snippet children(attrs)}<select {...attrs} class="form-input" bind:value={editing!.status}>
+          {#each SAMMEL_STATUS as status (status)}<option
               value={status}
               disabled={editing?.payment?.locked && !['Bestellt', 'Eingetroffen'].includes(status)}
-              >{status}</option
-            >{/each}</select
-        >{/snippet}</FormField
-    >
+            >
+              {status}
+            </option>{/each}
+        </select>{/snippet}
+    </FormField>
     {#if editing.status === 'Eingereicht'}<p class="text-sm text-neutral-700">
         Mitglieder können ihre Bestellung im Bestellzeitraum noch ändern.
       </p>{:else if editing.status !== 'Storniert'}<p class="text-sm text-neutral-700">
@@ -125,7 +126,8 @@
       label="Endgültiger Gesamtbetrag in Euro (inkl. Versand)"
       optional
       hint="Leer lassen, solange der Betrag offen ist."
-      >{#snippet children(attrs)}<input
+    >
+      {#snippet children(attrs)}<input
           {...attrs}
           class="form-input"
           type="number"
@@ -134,15 +136,15 @@
           step="0.01"
           bind:value={total}
           disabled={editing?.payment?.locked}
-        />{/snippet}</FormField
-    >
-    <label class="flex items-center gap-2"
-      ><input
+        />{/snippet}
+    </FormField>
+    <label class="flex items-center gap-2">
+      <input
         type="checkbox"
         bind:checked={editing.paid}
         disabled={editing?.payment?.locked && editing.payment.state !== 'created'}
-      />Bezahlt</label
-    >
+      />Bezahlt
+    </label>
     {#if editing.payment?.locked}<p class="text-sm text-neutral-700">
         {#if editing.payment.state === 'created'}
           Der Beitrag ist in CampFlow angelegt; Betrag und Artikel sind gesperrt. Änderungen zuerst
@@ -155,8 +157,8 @@
           Erst in CampFlow prüfen, dann unter „Bezahlung verwalten“ zuordnen.
         {/if}
       </p>{/if}
-    <label class="flex items-center gap-2"
-      ><input type="checkbox" bind:checked={editing.delivered} />Ausgeliefert</label
-    >
+    <label class="flex items-center gap-2">
+      <input type="checkbox" bind:checked={editing.delivered} />Ausgeliefert
+    </label>
   {/if}
 </EditDialog>

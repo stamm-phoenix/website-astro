@@ -244,8 +244,9 @@
         href="/datenschutz#problem-melden"
         target="_blank"
         rel="noopener noreferrer"
-        >Was mit deiner Meldung passiert <span class="sr-only">(öffnet in neuem Tab)</span></a
       >
+        Was mit deiner Meldung passiert <span class="sr-only">(öffnet in neuem Tab)</span>
+      </a>
     </div>
   </form>
 {/if}

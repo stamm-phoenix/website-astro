@@ -222,8 +222,10 @@
         stroke="currentColor"
         stroke-width="1.8"
         stroke-linecap="round"
-        stroke-linejoin="round"><path d={flyout.icon} /></svg
-      >{/if}
+        stroke-linejoin="round"
+      >
+        <path d={flyout.icon} />
+      </svg>{/if}
     <span>{flyout.label}</span>
   </div>
 {/if}
@@ -271,17 +273,20 @@
       stroke-width="1.8"
       stroke-linecap="round"
       stroke-linejoin="round"
-      ><path d="M4 4h16v16H4zM9 4v16" /><path
+    >
+      <path d="M4 4h16v16H4zM9 4v16" /><path
         class="sidebar-arrow disclosure-icon"
         class:rotate-180={collapsed}
         d="M15.5 10l-2 2 2 2"
-      /></svg
-    >
+      />
+    </svg>
     <span
       class="staff-fold transition-opacity motion-reduce:transition-none {collapsed
         ? 'opacity-0'
-        : ''}">{collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}</span
+        : ''}"
     >
+      {collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}
+    </span>
   </button>
   <a
     href={STAFF_HOME.href}
@@ -298,13 +303,17 @@
       stroke="currentColor"
       stroke-width="1.8"
       stroke-linecap="round"
-      stroke-linejoin="round"><path d="M3 11l9-8 9 8M5 10v10h14V10" /></svg
+      stroke-linejoin="round"
     >
+      <path d="M3 11l9-8 9 8M5 10v10h14V10" />
+    </svg>
     <span
       class="staff-fold transition-opacity motion-reduce:transition-none {collapsed
         ? 'opacity-0'
-        : ''}">Übersicht</span
+        : ''}"
     >
+      Übersicht
+    </span>
   </a>
   <StaffModuleSearch
     {groups}
@@ -329,16 +338,17 @@
         <a
           href="mailto:{HELP_CONTACTS.technik}"
           class="text-link flex min-h-11 flex-col justify-center break-all"
-          ><span class="text-xs text-neutral-700">Technische Probleme</span
-          >{HELP_CONTACTS.technik}</a
         >
+          <span class="text-xs text-neutral-700">Technische Probleme</span>{HELP_CONTACTS.technik}
+        </a>
       </li>
       <li>
         <a
           href="mailto:{HELP_CONTACTS.allgemein}"
           class="text-link flex min-h-11 flex-col justify-center break-all"
-          ><span class="text-xs text-neutral-700">Alles andere</span>{HELP_CONTACTS.allgemein}</a
         >
+          <span class="text-xs text-neutral-700">Alles andere</span>{HELP_CONTACTS.allgemein}
+        </a>
       </li>
     </ul>
   </section>

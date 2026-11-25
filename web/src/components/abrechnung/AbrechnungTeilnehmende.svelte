@@ -458,8 +458,10 @@
                       <span class="tn-label" aria-hidden="true">Bezuschusst</span>
                       <span
                         class={zuschuss.subsidised ? '' : 'font-semibold text-warning'}
-                        data-testid="zuschuss-grund">{zuschuss.label}</span
+                        data-testid="zuschuss-grund"
                       >
+                        {zuschuss.label}
+                      </span>
                     </td>
                   {/if}
                 </tr>
@@ -521,9 +523,9 @@
       </FormField>
       <FormField id="extra-gender" label="Geschlecht" optional>
         {#snippet children(attrs)}<select {...attrs} bind:value={newGender} class="form-input">
-            <option value="">–</option><option value="w">weiblich</option><option value="m"
-              >männlich</option
-            ><option value="d">divers</option>
+            <option value="">–</option><option value="w">weiblich</option><option value="m">
+              männlich
+            </option><option value="d">divers</option>
           </select>{/snippet}
       </FormField>
       <FormField id="extra-age" label="Alter" optional error={formErrors.age}>

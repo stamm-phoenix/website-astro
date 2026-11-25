@@ -78,8 +78,10 @@
               class="h-3.5 w-3.5"
               fill="none"
               stroke="currentColor"
-              stroke-width="2.5"><path d="M6 6l12 12M18 6L6 18" /></svg
+              stroke-width="2.5"
             >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
           </button>
         </li>
       {/each}

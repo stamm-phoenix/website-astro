@@ -39,8 +39,9 @@
       aria-busy={store.loading}
       loadedAt={store.loadedAt}
       onclick={() => void abstimmungenStore.load({ force: true })}
-      >{store.loading && store.data ? 'Lädt …' : 'Neu laden'}</ReloadAction
     >
+      {store.loading && store.data ? 'Lädt …' : 'Neu laden'}
+    </ReloadAction>
   {/snippet}
 </StaffPageHead>
 
@@ -75,9 +76,9 @@
               class="flex min-h-11 flex-col gap-1 py-3 hover:bg-neutral-100 sm:flex-row sm:items-center sm:justify-between"
             >
               <span class="min-w-0">
-                <span class="block font-semibold text-link [overflow-wrap:anywhere]"
-                  >{abstimmung.titel}</span
-                >
+                <span class="block font-semibold text-link [overflow-wrap:anywhere]">
+                  {abstimmung.titel}
+                </span>
                 <span class="block text-sm text-neutral-700">
                   {abstimmung.eigene ? 'Von dir' : `Von ${abstimmung.erstelltVonName}`} · {formatDateTime(
                     abstimmung.erstelltAm

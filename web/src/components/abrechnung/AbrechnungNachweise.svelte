@@ -366,8 +366,9 @@
             <td class="py-2 pr-2 whitespace-nowrap tabular-nums">
               {formatDate(nachweis.date) || '–'}
             </td>
-            <td class="py-2 pr-2 whitespace-nowrap tabular-nums">{nachweis.receiptNumber ?? '–'}</td
-            >
+            <td class="py-2 pr-2 whitespace-nowrap tabular-nums">
+              {nachweis.receiptNumber ?? '–'}
+            </td>
             <td class="py-2 pr-2">
               {#if nachweis.virtual}
                 <span class="text-brand-900">{nachweis.description ?? '–'}</span>
@@ -468,8 +469,9 @@
             <span
               aria-hidden="true"
               class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-neutral-600"
-              >€</span
             >
+              €
+            </span>
           </div>
         {/snippet}
       </FormField>

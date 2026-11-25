@@ -106,8 +106,10 @@
         <span
           class="font-semibold [overflow-wrap:anywhere] {zeile.gepackt
             ? 'text-neutral-700 line-through'
-            : ''}">{zeile.name}</span
+            : ''}"
         >
+          {zeile.name}
+        </span>
       </label>
       {#if zeile.gepackt}<span class="text-xs font-semibold text-success">gepackt</span>{/if}
     {:else}
@@ -115,15 +117,17 @@
         class="inline-flex min-h-8 items-center font-semibold [overflow-wrap:anywhere] {bearbeiten &&
         zeile.gepackt
           ? 'text-neutral-700 line-through'
-          : ''}">{zeile.name}</span
+          : ''}"
       >
-      <span class="text-xs {zeile.gepackt ? 'font-semibold text-success' : 'text-neutral-700'}"
-        >· {zeile.gepackt
+        {zeile.name}
+      </span>
+      <span class="text-xs {zeile.gepackt ? 'font-semibold text-success' : 'text-neutral-700'}">
+        · {zeile.gepackt
           ? 'gepackt'
           : mehrere
             ? `${gepacktAnzahl} von ${zeile.personen.length} gepackt`
-            : 'noch einpacken'}</span
-      >
+            : 'noch einpacken'}
+      </span>
     {/if}
     {#if fuer}
       <span
@@ -152,17 +156,17 @@
                   aria-label="{person.name} hat {zeile.name} gepackt"
                   onchange={(event) => void anteilPacken(person, event.currentTarget)}
                 />
-                <span class={person.gepackt ? 'text-neutral-700 line-through' : ''}
-                  >{person.name}</span
-                >
+                <span class={person.gepackt ? 'text-neutral-700 line-through' : ''}>
+                  {person.name}
+                </span>
               </label>
             {:else}
-              <span class="text-sm [overflow-wrap:anywhere]"
-                >{person.name}:
-                <span class={person.gepackt ? 'font-semibold text-success' : 'text-neutral-700'}
-                  >{person.gepackt ? 'gepackt' : 'offen'}</span
-                ></span
-              >
+              <span class="text-sm [overflow-wrap:anywhere]">
+                {person.name}:
+                <span class={person.gepackt ? 'font-semibold text-success' : 'text-neutral-700'}>
+                  {person.gepackt ? 'gepackt' : 'offen'}
+                </span>
+              </span>
             {/if}
           </li>
         {/each}
@@ -182,8 +186,10 @@
       class="min-h-8 max-w-full justify-start truncate px-2 py-0.5 text-left text-sm any-pointer-coarse:min-h-11 md:w-full"
       aria-label="Wer packt {zeile.name} ein? {wer || 'Niemand zuständig'}"
       disabled={speichert}
-      onclick={() => onwer(zeile)}>{wer || 'Niemand zuständig'}</ActionButton
+      onclick={() => onwer(zeile)}
     >
+      {wer || 'Niemand zuständig'}
+    </ActionButton>
     <div class="md:text-right">
       {#if zeile.werkzeug === null}
         <ActionButton
@@ -192,8 +198,10 @@
           class="min-h-8 px-2 py-0.5 text-xs any-pointer-coarse:min-h-11"
           disabled={speichert || kontext.busy}
           aria-label="{zeile.name} entfernen"
-          onclick={() => void entfernen()}>Entfernen</ActionButton
+          onclick={() => void entfernen()}
         >
+          Entfernen
+        </ActionButton>
       {/if}
     </div>
   {/if}

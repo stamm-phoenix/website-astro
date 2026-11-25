@@ -115,13 +115,13 @@
         <p class="text-sm text-danger" role="alert">{downloadFehler}</p>
       {/if}
       <div class="flex flex-wrap gap-2">
-        <ActionButton onclick={() => void herunterladen()}
-          >{beleg.foto === 'pdf' ? 'PDF herunterladen' : 'Foto herunterladen'}</ActionButton
-        >
+        <ActionButton onclick={() => void herunterladen()}>
+          {beleg.foto === 'pdf' ? 'PDF herunterladen' : 'Foto herunterladen'}
+        </ActionButton>
         {#if beleg.original}
-          <ActionButton onclick={() => (original = !original)} aria-pressed={original}
-            >{original ? 'Bearbeitetes Foto zeigen' : 'Original zeigen'}</ActionButton
-          >
+          <ActionButton onclick={() => (original = !original)} aria-pressed={original}>
+            {original ? 'Bearbeitetes Foto zeigen' : 'Original zeigen'}
+          </ActionButton>
         {/if}
       </div>
     </div>

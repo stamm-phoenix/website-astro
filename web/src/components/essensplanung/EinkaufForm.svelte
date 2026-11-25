@@ -170,16 +170,18 @@
   </fieldset>
   {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
   <div class="flex flex-wrap gap-2">
-    <ActionButton type="submit" variant="primary" disabled={speichert || gesperrt || kontext.busy}
-      >{einkauf ? 'Speichern' : 'Einkauf anlegen'}</ActionButton
-    >
+    <ActionButton type="submit" variant="primary" disabled={speichert || gesperrt || kontext.busy}>
+      {einkauf ? 'Speichern' : 'Einkauf anlegen'}
+    </ActionButton>
     <ActionButton
       type="button"
       disabled={speichert}
       onclick={() => {
         geaendert = false;
         onfertig();
-      }}>Abbrechen</ActionButton
+      }}
     >
+      Abbrechen
+    </ActionButton>
   </div>
 </form>

@@ -34,9 +34,9 @@
 
 <div class="space-y-6">
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <button type="button" class="btn-primary" onclick={() => (anlegenOffen = true)}
-      >Neue Planung anlegen</button
-    >
+    <button type="button" class="btn-primary" onclick={() => (anlegenOffen = true)}>
+      Neue Planung anlegen
+    </button>
     <ReloadButton resource={essensplanungMeine} />
   </div>
 
@@ -63,8 +63,10 @@
               <a
                 class="inline-flex min-h-11 min-w-0 items-center font-semibold text-link underline [overflow-wrap:anywhere]"
                 href={planungUrl(planung.token)}
-                data-astro-reload>{planung.name}</a
+                data-astro-reload
               >
+                {planung.name}
+              </a>
               <span class="text-sm text-neutral-700">
                 {zeitraum(planung)} · {ROLLE[planung.rolle]}
               </span>

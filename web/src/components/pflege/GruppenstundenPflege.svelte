@@ -178,9 +178,9 @@
   {#snippet actions()}
     <a href="/leitendenbereich/gruppenstunden-hinweise" class="btn-secondary">Hinweise verwalten</a>
     {#if store.data && freeStufen.length > 0}
-      <ActionButton variant="primary" type="button" onclick={create}
-        >Neue Gruppenstunde</ActionButton
-      >
+      <ActionButton variant="primary" type="button" onclick={create}>
+        Neue Gruppenstunde
+      </ActionButton>
     {/if}
     <ReloadButton resource={gruppenstundenPflege} />
   {/snippet}
@@ -234,8 +234,10 @@
               </ActionButton>
               <a
                 href="/leitendenbereich/leitende?team={encodeURIComponent(item.stufe)}"
-                class="btn-secondary">Team bearbeiten</a
+                class="btn-secondary"
               >
+                Team bearbeiten
+              </a>
             </div>
           </div>
           <dl class="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">

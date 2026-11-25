@@ -302,14 +302,17 @@
               type="button"
               variant="secondary"
               disabled={tagsSaving || askingToDiscard}
-              onclick={reloadTags}>Aktuelle Fassung laden</ActionButton
-            >{/if}
+              onclick={reloadTags}
+            >
+              Aktuelle Fassung laden
+            </ActionButton>{/if}
           <span
             role="status"
             aria-live="polite"
             class="text-xs {tagsMessage?.error ? 'text-danger' : 'text-success'}"
-            >{#if tagsMessage}<MessageText text={tagsMessage.text} />{/if}</span
           >
+            {#if tagsMessage}<MessageText text={tagsMessage.text} />{/if}
+          </span>
         </div>
       </section>
 
@@ -361,8 +364,10 @@
           {#if booking.phone}
             <a
               class="text-link underline inline-flex min-h-11 items-center"
-              href="tel:{booking.phone.replace(/\s+/g, '')}">{booking.phone}</a
+              href="tel:{booking.phone.replace(/\s+/g, '')}"
             >
+              {booking.phone}
+            </a>
           {:else}
             –
           {/if}

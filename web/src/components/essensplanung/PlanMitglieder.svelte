@@ -201,25 +201,28 @@
                       mitglied,
                       mitglied.rolle === 'besitzer' ? 'bearbeiten' : 'besitzer'
                     )}
-                  >{mitglied.rolle === 'besitzer'
-                    ? 'Zu Bearbeiten'
-                    : 'Zur Besitzer:in'}</ActionButton
                 >
+                  {mitglied.rolle === 'besitzer' ? 'Zu Bearbeiten' : 'Zur Besitzer:in'}
+                </ActionButton>
               {/if}
               {#if mitglied.email && (besitzer || mitglied.rolle !== 'besitzer')}
                 <ActionButton
                   type="button"
                   disabled={kontext.busy}
-                  onclick={() => void neuerLink(mitglied)}>Neuen Link schicken</ActionButton
+                  onclick={() => void neuerLink(mitglied)}
                 >
+                  Neuen Link schicken
+                </ActionButton>
               {/if}
               {#if besitzer || mitglied.rolle !== 'besitzer'}
                 <ActionButton
                   type="button"
                   variant="danger"
                   disabled={kontext.busy}
-                  onclick={() => void entziehen(mitglied)}>Zugang entziehen</ActionButton
+                  onclick={() => void entziehen(mitglied)}
                 >
+                  Zugang entziehen
+                </ActionButton>
               {/if}
             </div>
           {/if}
@@ -228,9 +231,12 @@
     </ul>
     {#if vorschau}
       <p class="text-sm print:hidden">
-        Vorschau-Umgebung, Link statt Mail: <a class="break-all text-link underline" href={vorschau}
-          >{vorschau}</a
+        Vorschau-Umgebung, Link statt Mail: <a
+          class="break-all text-link underline"
+          href={vorschau}
         >
+          {vorschau}
+        </a>
       </p>
     {/if}
   </section>
@@ -293,8 +299,9 @@
             Als Besitzer:in einladen (darf alles, auch die Planung löschen)
           </label>
         {/if}
-        <ActionButton variant="primary" type="submit" disabled={kontext.busy}>Einladen</ActionButton
-        >
+        <ActionButton variant="primary" type="submit" disabled={kontext.busy}>
+          Einladen
+        </ActionButton>
       </form>
     </section>
 
@@ -326,8 +333,10 @@
               type="button"
               variant="danger"
               disabled={kontext.busy}
-              onclick={() => void link('beitritt', false)}>Abschalten</ActionButton
+              onclick={() => void link('beitritt', false)}
             >
+              Abschalten
+            </ActionButton>
           {/if}
         </div>
       </div>
@@ -355,8 +364,10 @@
               type="button"
               variant="danger"
               disabled={kontext.busy}
-              onclick={() => void link('lesen', false)}>Abschalten</ActionButton
+              onclick={() => void link('lesen', false)}
             >
+              Abschalten
+            </ActionButton>
           {/if}
         </div>
       </div>

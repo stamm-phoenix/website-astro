@@ -325,11 +325,9 @@
           <select {...attrs} class="form-input" disabled={busy} bind:value={linkId}>
             <option value="">Nicht verknüpfen</option>
             {#each linkOptions as { option, match } (option.id)}
-              <option value={option.id}
-                >{option.title} ({formatEventRange(option)}){match
-                  ? ' – passt vermutlich'
-                  : ''}</option
-              >
+              <option value={option.id}>
+                {option.title} ({formatEventRange(option)}){match ? ' – passt vermutlich' : ''}
+              </option>
             {/each}
           </select>
         {/snippet}
@@ -371,11 +369,11 @@
           >
             <option value="">Neuen Eintrag anlegen</option>
             {#each adoptOptions as { option, match } (option.id)}
-              <option value={option.id}
-                >{option.title || 'Ohne Titel'} ({formatDate(option.start) || 'ohne Datum'}){match
+              <option value={option.id}>
+                {option.title || 'Ohne Titel'} ({formatDate(option.start) || 'ohne Datum'}){match
                   ? ' – passt vermutlich'
-                  : ''}</option
-              >
+                  : ''}
+              </option>
             {/each}
           </select>
         {/snippet}
@@ -463,8 +461,10 @@
               onclick={() => {
                 form!.stufen = [...suggestedStufen];
                 stufenTouched = true;
-              }}>Übernehmen</button
+              }}
             >
+              Übernehmen
+            </button>
           </p>
         {/if}
         {#if errors.stufen}<p id="aktion-stufen-error" class="mt-1 text-sm text-danger">

@@ -58,13 +58,14 @@
             <a
               class="text-link inline-flex min-h-11 items-center break-words font-semibold"
               href="/leitendenbereich/aktionen/aktion?id={encodeURIComponent(event.id)}"
-              >{event.title}</a
             >
+              {event.title}
+            </a>
             <p class="text-sm text-neutral-700">{keineAktionHinweis(event)}</p>
           </div>
-          <ActionButton disabled={busy} onclick={() => void classify(event)}
-            >Aus Aktionen ausblenden</ActionButton
-          >
+          <ActionButton disabled={busy} onclick={() => void classify(event)}>
+            Aus Aktionen ausblenden
+          </ActionButton>
         </li>
       {/each}
     </ul>

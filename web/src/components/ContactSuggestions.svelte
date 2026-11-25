@@ -31,8 +31,9 @@
         <details>
           <summary
             class="min-h-11 cursor-pointer py-3 font-semibold text-brand-900 [overflow-wrap:anywhere]"
-            >{item.question}</summary
           >
+            {item.question}
+          </summary>
           <div class="answer prose max-w-none pb-4 text-neutral-800 [overflow-wrap:anywhere]">
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html sanitizeDescription(item.answer, 'public')}

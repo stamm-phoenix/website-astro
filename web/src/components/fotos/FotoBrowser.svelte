@@ -196,14 +196,15 @@
           href={data.webUrl}
           target="_blank"
           rel="noopener"
-          >In SharePoint öffnen<span aria-hidden="true">↗</span><span class="sr-only">
-            (öffnet neuen Tab)</span
-          ></a
         >
+          In SharePoint öffnen<span aria-hidden="true">↗</span><span class="sr-only">
+            (öffnet neuen Tab)
+          </span>
+        </a>
       {:else}
-        <span class="inline-flex min-h-11 items-center text-sm text-neutral-700" aria-hidden="true"
-          >In SharePoint öffnen</span
-        >
+        <span class="inline-flex min-h-11 items-center text-sm text-neutral-700" aria-hidden="true">
+          In SharePoint öffnen
+        </span>
       {/if}
     </div>
   </div>
@@ -247,10 +248,11 @@
                     stroke-width="1.8"
                     stroke-linecap="round"
                     stroke-linejoin="round"
-                    ><path
-                      d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"
-                    /></svg
                   >
+                    <path
+                      d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"
+                    />
+                  </svg>
                   <span class="min-w-0 flex-1">
                     <span class="block truncate font-semibold text-brand-900">{folder.name}</span>
                     {#if folder.childCount !== null}
@@ -324,10 +326,11 @@
                         stroke-width="1.6"
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        ><path
-                          d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6"
-                        /></svg
                       >
+                        <path
+                          d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6"
+                        />
+                      </svg>
                       <span class="line-clamp-2 break-all">{file.name}</span>
                     </span>
                   {/if}
@@ -335,9 +338,14 @@
                     <span
                       class="absolute bottom-1 left-1 flex items-center gap-1 rounded bg-black/65 px-1.5 py-0.5 text-xs text-white"
                     >
-                      <svg aria-hidden="true" class="size-3" viewBox="0 0 24 24" fill="currentColor"
-                        ><path d="M8 5v14l11-7z" /></svg
+                      <svg
+                        aria-hidden="true"
+                        class="size-3"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
                       >
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
                       {duration(file.durationMs) || 'Video'}
                     </span>
                   {/if}
@@ -356,8 +364,10 @@
                           stroke="currentColor"
                           stroke-width="3"
                           stroke-linecap="round"
-                          stroke-linejoin="round"><path d="M5 12l5 5 9-10" /></svg
+                          stroke-linejoin="round"
                         >
+                          <path d="M5 12l5 5 9-10" />
+                        </svg>
                       {/if}
                     </span>
                   {/if}

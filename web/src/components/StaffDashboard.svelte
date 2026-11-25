@@ -217,8 +217,10 @@
     stroke-width="2.2"
     stroke-linecap="round"
     stroke-linejoin="round"
-    aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg
+    aria-hidden="true"
   >
+    <path d="M5 12l5 5L20 7" />
+  </svg>
 {/snippet}
 
 {#snippet more(count: number)}
@@ -243,8 +245,10 @@
           <a
             class="text-link block truncate font-semibold"
             href="/leitendenbereich/aktionen/aktion?id={encodeURIComponent(event.id)}"
-            title={event.title}>{event.title}</a
+            title={event.title}
           >
+            {event.title}
+          </a>
           <p class="text-sm text-neutral-700">{formatEventRange(event)}</p>
         </li>{/each}
     </ul>
@@ -269,8 +273,10 @@
     {#if pendingCount > 0}<a
         class="text-link text-sm font-semibold"
         href="/leitendenbereich/aufgaben/vorschlaege"
-        >{pendingCount} {pendingCount === 1 ? 'Vorschlag' : 'Vorschläge'} prüfen</a
-      >{/if}
+      >
+        {pendingCount}
+        {pendingCount === 1 ? 'Vorschlag' : 'Vorschläge'} prüfen
+      </a>{/if}
     {@const shown = ownTasks.length ? ownTasks : openTasks}
     <ul class="mt-1 divide-y divide-neutral-200">
       {#each shown.slice(0, CARD_LIMIT) as task (task.id)}
@@ -278,8 +284,10 @@
           <a
             href="/leitendenbereich/aufgaben#aufgabe-{task.id}"
             class="text-link block truncate font-semibold"
-            title={task.title}>{task.title}</a
+            title={task.title}
           >
+            {task.title}
+          </a>
           <p class="text-sm text-neutral-700 break-words">
             {taskAssigneeNames(task, users)} ·
             <span class:text-warning={dueSoon(task)}>{dueLabel(task)}</span>
@@ -301,8 +309,10 @@
       <button
         type="button"
         class="text-link min-h-11 underline underline-offset-4"
-        onclick={() => belegePflege.load({ force: true })}>Erneut versuchen</button
+        onclick={() => belegePflege.load({ force: true })}
       >
+        Erneut versuchen
+      </button>
     </p>
   {/if}
   {#if campflowStore.loading && !campflowStore.data}
@@ -313,8 +323,10 @@
       <button
         type="button"
         class="text-link min-h-11 underline underline-offset-4"
-        onclick={() => campflowBelegeStore.load({ force: true })}>Erneut versuchen</button
+        onclick={() => campflowBelegeStore.load({ force: true })}
       >
+        Erneut versuchen
+      </button>
     </p>
   {/if}
   <ul class="mt-1 divide-y divide-neutral-200" data-testid="meine-belege">
@@ -324,11 +336,11 @@
         <a href="/leitendenbereich/belege" class="block min-h-11 py-2" title={beleg.title}>
           <span class="text-link block truncate font-semibold">{beleg.title}</span>
           <span class="flex flex-wrap items-center gap-x-2 text-sm text-neutral-700">
-            <span
-              >{[beleg.date ? formatIsoDate(beleg.date) : '', formatEuro(beleg.amountCent)]
+            <span>
+              {[beleg.date ? formatIsoDate(beleg.date) : '', formatEuro(beleg.amountCent)]
                 .filter(Boolean)
-                .join(' · ')}</span
-            >
+                .join(' · ')}
+            </span>
             <StatusLabel label={beleg.label} tone={beleg.tone} dot />
           </span>
         </a>
@@ -364,8 +376,10 @@
           <a
             href={beitrag.href}
             class="text-link flex items-center font-semibold any-pointer-coarse:min-h-11"
-            title={beitrag.title}><span class="truncate">{beitrag.title}</span></a
+            title={beitrag.title}
           >
+            <span class="truncate">{beitrag.title}</span>
+          </a>
           <span class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-700">
             <span class="tabular-nums">{formatEuro(beitrag.dueCent)}</span>
             {#if beitrag.reference}<CopyCode code={beitrag.reference} compact small />{/if}
@@ -395,8 +409,10 @@
           <a
             href="/leitendenbereich/abrechnung/{frist.event.id}"
             class="text-link block truncate font-semibold"
-            title="{frist.event.title} (Ende {formatDate(frist.ende)})">{frist.event.title}</a
+            title="{frist.event.title} (Ende {formatDate(frist.ende)})"
           >
+            {frist.event.title}
+          </a>
           <p class="text-sm text-neutral-700">
             <span class={frist.bald ? 'font-semibold text-warning' : ''}>
               Abgabe bis {formatDate(frist.frist)}, {kjrRestzeit(frist.tage)}
@@ -488,52 +504,53 @@
         data-testid="nothing-open"
       >
         {#if eventsEmpty}<li class="flex items-center gap-2">
-            {@render check()}<span
-              >Keine kommenden Aktionen in CampFlow ·
-              <a href="/leitendenbereich/aktionen" class="text-link">Alle Aktionen</a></span
-            >
+            {@render check()}<span>
+              Keine kommenden Aktionen in CampFlow ·
+              <a href="/leitendenbereich/aktionen" class="text-link">Alle Aktionen</a>
+            </span>
           </li>{/if}
         {#if postfaecher.length && mailsEmpty}<li class="flex items-center gap-2">
-            {@render check()}<span
-              >Keine neuen oder dir zugewiesenen E-Mails ·
-              <a href={postfaecher[0].href} class="text-link">Zum Postfach</a></span
-            >
+            {@render check()}<span>
+              Keine neuen oder dir zugewiesenen E-Mails ·
+              <a href={postfaecher[0].href} class="text-link">Zum Postfach</a>
+            </span>
           </li>{/if}
         {#if tasksEmpty}<li class="flex items-center gap-2">
-            {@render check()}<span
-              >Keine offenen Aufgaben ·
+            {@render check()}<span>
+              Keine offenen Aufgaben ·
               {#if pendingCount > 0}<a
                   class="text-link font-semibold"
                   href="/leitendenbereich/aufgaben/vorschlaege"
-                  >{pendingCount} {pendingCount === 1 ? 'Vorschlag' : 'Vorschläge'} prüfen</a
-                > ·
-              {/if}<a href="/leitendenbereich/aufgaben" class="text-link">Alle Aufgaben</a></span
-            >
+                >
+                  {pendingCount}
+                  {pendingCount === 1 ? 'Vorschlag' : 'Vorschläge'} prüfen
+                </a> ·
+              {/if}<a href="/leitendenbereich/aufgaben" class="text-link">Alle Aufgaben</a>
+            </span>
           </li>{/if}
         {#if belegeEmpty}<li class="flex items-center gap-2">
-            {@render check()}<span
-              >Keine offenen Belege ·
-              <a href="/leitendenbereich/belege" class="text-link">Beleg einreichen</a></span
-            >
+            {@render check()}<span>
+              Keine offenen Belege ·
+              <a href="/leitendenbereich/belege" class="text-link">Beleg einreichen</a>
+            </span>
           </li>{/if}
         {#if beitraegeEmpty}<li class="flex items-center gap-2">
-            {@render check()}<span
-              >Keine offenen Beiträge ·
-              <a href="/leitendenbereich/beitraege" class="text-link">Zu den Beiträgen</a></span
-            >
+            {@render check()}<span>
+              Keine offenen Beiträge ·
+              <a href="/leitendenbereich/beitraege" class="text-link">Zu den Beiträgen</a>
+            </span>
           </li>{/if}
         {#if essenEmpty}<li class="flex items-center gap-2">
-            {@render check()}<span
-              >Keine anstehenden Essensplanungen ·
-              <a href="/leitendenbereich/essensplanungen" class="text-link">Meine Planungen</a
-              ></span
-            >
+            {@render check()}<span>
+              Keine anstehenden Essensplanungen ·
+              <a href="/leitendenbereich/essensplanungen" class="text-link">Meine Planungen</a>
+            </span>
           </li>{/if}
         {#if fristenEmpty}<li class="flex items-center gap-2">
-            {@render check()}<span
-              >Keine offenen KJR-Fristen ·
-              <a href="/leitendenbereich/abrechnung" class="text-link">Zur Abrechnung</a></span
-            >
+            {@render check()}<span>
+              Keine offenen KJR-Fristen ·
+              <a href="/leitendenbereich/abrechnung" class="text-link">Zur Abrechnung</a>
+            </span>
           </li>{/if}
       </ul>
     {/if}

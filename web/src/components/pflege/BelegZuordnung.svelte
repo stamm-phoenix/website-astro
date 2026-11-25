@@ -67,8 +67,10 @@
             form.kostenstelle = bisher.unit!.name;
             onfield('kostenstelle');
             notifyEdited?.();
-          }}>„{bisher.unit.name}“ als Kostenstelle übernehmen</button
+          }}
         >
+          „{bisher.unit.name}“ als Kostenstelle übernehmen
+        </button>
       {/if}
     </p>
   {/if}
@@ -139,8 +141,10 @@
         type="button"
         class="text-link min-h-11 underline underline-offset-4"
         disabled={kostenstellenStore.loading}
-        onclick={() => void fetchKostenstellen({ force: true })}>Erneut versuchen</button
+        onclick={() => void fetchKostenstellen({ force: true })}
       >
+        Erneut versuchen
+      </button>
     </p>
   {/if}
 </div>

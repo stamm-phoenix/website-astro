@@ -134,8 +134,9 @@
                     <a
                       href={`/leitendenbereich/abrechnung/${event.id}`}
                       class="block min-h-11 content-center font-semibold text-link underline-offset-4 hover:underline"
-                      >{event.title}</a
                     >
+                      {event.title}
+                    </a>
                     <span class="mt-1 block text-sm text-neutral-700">
                       {formatEventRange(event)}
                       {#if duration(event)}· {duration(event)}{/if}

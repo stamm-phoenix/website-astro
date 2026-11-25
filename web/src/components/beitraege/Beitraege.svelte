@@ -73,13 +73,15 @@
       href={CAMPFLOW_URL}
       class="text-link inline-flex min-h-11 items-center underline underline-offset-4"
       target="_blank"
-      rel="noopener">Beiträge in CampFlow öffnen</a
+      rel="noopener"
     >
+      Beiträge in CampFlow öffnen
+    </a>
     {#if store.data}
       <span class="flex flex-wrap items-center gap-x-2">
-        <span data-testid="beitraege-stand"
-          >Stand aus CampFlow: {formatDateTime(store.data.loadedAt)} Uhr</span
-        >
+        <span data-testid="beitraege-stand">
+          Stand aus CampFlow: {formatDateTime(store.data.loadedAt)} Uhr
+        </span>
         <ReloadAction disabled={store.loading} onclick={refresh}>
           {store.loading ? 'Lädt … (bis zu 20 Sekunden)' : 'Neu aus CampFlow laden'}
         </ReloadAction>

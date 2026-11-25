@@ -432,15 +432,17 @@
         type="button"
         disabled={exporting !== null || data.persons.length === 0}
         onclick={() => exportEinteilung('pdf')}
-        >{exporting === 'pdf' ? 'Erstellt PDF …' : 'PDF herunterladen'}</ActionButton
       >
+        {exporting === 'pdf' ? 'Erstellt PDF …' : 'PDF herunterladen'}
+      </ActionButton>
       <ActionButton
         variant="secondary"
         type="button"
         disabled={exporting !== null || data.persons.length === 0}
         onclick={() => exportEinteilung('bild')}
-        >{exporting === 'bild' ? 'Exportiert …' : 'Bild exportieren'}</ActionButton
       >
+        {exporting === 'bild' ? 'Exportiert …' : 'Bild exportieren'}
+      </ActionButton>
     </PlanToolbar>
   </div>
 
@@ -464,10 +466,10 @@
               Kein Team kann losfahren – dafür braucht es {REQUIRED_ROLES.join(' und ')}.
             {:else}
               Leute für
-              <strong
-                >{cap.ready >= MAX_TEAMS_PER_DAY ? 'mindestens' : 'höchstens'}
-                {teamsText(cap.ready)}</strong
-              >{cap.complete > 0 ? `, ${cap.complete} davon komplett` : ''}.
+              <strong>
+                {cap.ready >= MAX_TEAMS_PER_DAY ? 'mindestens' : 'höchstens'}
+                {teamsText(cap.ready)}
+              </strong>{cap.complete > 0 ? `, ${cap.complete} davon komplett` : ''}.
             {/if}
             {#if official > cap.ready}
               <span class="text-warning">
@@ -520,8 +522,10 @@
             Dispo für diesen Tag noch nicht gespeichert – Merkmale der Familien zählen noch nicht.
             <a
               class="font-semibold underline"
-              href="/leitendenbereich/nikolaus-dispo?tag={day.date}">Zur Dispo</a
+              href="/leitendenbereich/nikolaus-dispo?tag={day.date}"
             >
+              Zur Dispo
+            </a>
           </p>
         {/if}
         {#each dayConflicts as c (c.personId + c.team)}

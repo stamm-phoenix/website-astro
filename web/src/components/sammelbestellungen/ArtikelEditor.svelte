@@ -220,17 +220,20 @@
                     type="button"
                     disabled={items.length >= 40}
                     onclick={() => add(article)}
-                    aria-label="{article.name} hinzufügen">Hinzufügen</ActionButton
+                    aria-label="{article.name} hinzufügen"
                   >
+                    Hinzufügen
+                  </ActionButton>
                   {#if article.reference.startsWith('https://')}
                     <a
                       class="text-sm font-semibold text-link"
                       href={article.reference}
                       target="_blank"
                       rel="noopener noreferrer"
-                      >Details bei {SAMMEL_SHOPS[getSammelShop(article.reference, article.shop)]
-                        .name} ↗</a
                     >
+                      Details bei {SAMMEL_SHOPS[getSammelShop(article.reference, article.shop)]
+                        .name} ↗
+                    </a>
                   {/if}
                 </div>
               </div>
@@ -248,9 +251,14 @@
     </h2>
     <div class="flex flex-wrap gap-x-5 gap-y-2">
       {#each Object.values(SAMMEL_SHOPS).filter((shop) => shop.hosts.length) as shop (shop.url)}
-        <a href={shop.url} target="_blank" rel="noopener noreferrer" class="font-semibold text-link"
-          >{shop.name} ↗</a
+        <a
+          href={shop.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="font-semibold text-link"
         >
+          {shop.name} ↗
+        </a>
       {/each}
     </div>
   </div>
@@ -266,9 +274,9 @@
         disabled={disabled || !!item.excluded}
         class="border-t border-neutral-200 py-5 *:clear-left"
       >
-        <legend class="float-left mb-3 w-full font-semibold text-brand-900"
-          >Artikel {index + 1}</legend
-        >
+        <legend class="float-left mb-3 w-full font-semibold text-brand-900">
+          Artikel {index + 1}
+        </legend>
         {#if item.excluded}<p class="mb-3 text-sm text-danger">
             Wird nicht mitbestellt{item.excluded.reason ? ': ' + item.excluded.reason : ''}
           </p>{/if}
@@ -282,8 +290,10 @@
                 onchange={(event) => (item.shop = event.currentTarget.value as SammelShop)}
               >
                 {#each Object.entries(SAMMEL_SHOPS).filter(([key]) => key !== 'stamm' || !!stock) as [key, shop] (key)}<option
-                    value={key}>{shop.name}</option
-                  >{/each}
+                    value={key}
+                  >
+                    {shop.name}
+                  </option>{/each}
               </select>{/snippet}
           </FormField>
           <FormField id="article-reference-{index}" label="Artikelnummer oder Produktlink">
@@ -351,8 +361,10 @@
             type="button"
             class="mt-3 text-sm font-semibold text-danger"
             onclick={() => void remove(index)}
-            aria-label="Artikel {index + 1} entfernen">Artikel entfernen</button
-          >{/if}
+            aria-label="Artikel {index + 1} entfernen"
+          >
+            Artikel entfernen
+          </button>{/if}
       </fieldset>
     {/each}
   </div>
@@ -362,8 +374,10 @@
       class="mt-4"
       disabled={items.length >= 40}
       bind:element={addOtherButton}
-      onclick={() => add()}>Anderen Artikel hinzufügen</ActionButton
-    >{/if}
+      onclick={() => add()}
+    >
+      Anderen Artikel hinzufügen
+    </ActionButton>{/if}
 </section>
 
 <Toast

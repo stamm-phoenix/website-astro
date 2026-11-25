@@ -31,10 +31,11 @@
 <details class="surface group/leiste text-sm" open={breit}>
   <summary
     class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-semibold text-brand-900 any-pointer-coarse:min-h-11 [&::-webkit-details-marker]:hidden"
-    >Alle Gerichte <span class="font-normal text-neutral-700"
-      >({kontext.ansicht.gerichte.length})</span
-    ><AufklappPfeil class="ml-auto" /></summary
   >
+    Alle Gerichte <span class="font-normal text-neutral-700">
+      ({kontext.ansicht.gerichte.length})
+    </span><AufklappPfeil class="ml-auto" />
+  </summary>
   <div class="space-y-2 border-t border-neutral-200 p-2">
     <label class="sr-only" for="leiste-suche">Gerichte durchsuchen</label>
     <input
@@ -56,8 +57,9 @@
             starte(event, { art: 'gericht', gerichtId: gericht.id, name: gericht.name })}
           ondragend={beende}
         >
-          {#if bearbeiten}<span class="text-neutral-500 select-none" aria-hidden="true">⠿</span
-            >{/if}
+          {#if bearbeiten}<span class="text-neutral-500 select-none" aria-hidden="true">
+              ⠿
+            </span>{/if}
           <!-- The name is where it is dragged from; a button there would not start dragging -->
           <span class="min-w-0 flex-1 font-semibold break-words hyphens-auto">{gericht.name}</span>
           <span
@@ -65,25 +67,29 @@
               ? 'text-neutral-700'
               : 'font-semibold text-warning'}"
             title={plaetze ? 'So oft eingeplant' : 'Nicht eingeplant'}
-            ><span aria-hidden="true">{plaetze}×</span><span class="sr-only"
-              >{plaetze ? `${plaetze}-mal eingeplant` : 'nicht eingeplant'}</span
-            ></span
           >
+            <span aria-hidden="true">{plaetze}×</span><span class="sr-only">
+              {plaetze ? `${plaetze}-mal eingeplant` : 'nicht eingeplant'}
+            </span>
+          </span>
           <button
             type="button"
             class="flex size-8 shrink-0 items-center justify-center rounded-sm text-neutral-700 hover:bg-neutral-100 hover:text-link any-pointer-coarse:size-11"
             title="Gericht öffnen"
             aria-label="{gericht.name} öffnen"
             onclick={() => kontext.oeffneGericht(gericht.id)}
-            ><svg
+          >
+            <svg
               viewBox="0 0 24 24"
               class="size-4"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
-              aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6" /></svg
-            ></button
-          >
+              aria-hidden="true"
+            >
+              <path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6" />
+            </svg>
+          </button>
         </li>
       {:else}
         <li class="px-1 text-neutral-700">

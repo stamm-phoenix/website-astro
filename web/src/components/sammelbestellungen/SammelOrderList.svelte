@@ -89,9 +89,9 @@
     <h2 id="orders-heading" class="mr-auto font-serif text-2xl font-semibold text-brand-900">
       Bestellungen
     </h2>
-    <ReloadAction type="button" disabled={loading || busy || !selected} onclick={onreload}
-      >Neu laden</ReloadAction
-    >
+    <ReloadAction type="button" disabled={loading || busy || !selected} onclick={onreload}>
+      Neu laden
+    </ReloadAction>
   </div>
   <Aktionsraster class="mt-3">
     <ActionButton
@@ -99,8 +99,9 @@
       type="button"
       disabled={pdfBusy || !filtered.some((order) => order.status !== 'Storniert')}
       onclick={() => void exportPdf()}
-      >{pdfBusy ? 'Erstellt PDF …' : 'Ausgabeliste als PDF'}</ActionButton
     >
+      {pdfBusy ? 'Erstellt PDF …' : 'Ausgabeliste als PDF'}
+    </ActionButton>
     <ActionButton
       variant="secondary"
       type="button"
@@ -141,8 +142,10 @@
             ])
           ),
         ])}
-      disabled={!orders.length}>Bestellungen als CSV</ActionButton
+      disabled={!orders.length}
     >
+      Bestellungen als CSV
+    </ActionButton>
   </Aktionsraster>
   <StatusNotice
     message={pdfNotice?.text ?? null}
@@ -168,8 +171,9 @@
             ? 'text-brand-900 underline decoration-accent-500'
             : 'text-neutral-700 hover:text-brand-900 hover:underline'}"
           onclick={() => (filters.activeFilters[filter.key] = !filters.activeFilters[filter.key])}
-          >{filter.label}</button
         >
+          {filter.label}
+        </button>
       {/each}
     </div>
   </fieldset>
@@ -208,35 +212,39 @@
             </p>{/if}
         {/if}
         <Aktionsraster class="mt-3">
-          <ActionButton variant="secondary" type="button" onclick={() => onpayment(order)}
-            >Bezahlung verwalten</ActionButton
-          >
-          <ActionButton variant="secondary" type="button" onclick={() => onedit(order)}
-            >Status bearbeiten</ActionButton
-          >
+          <ActionButton variant="secondary" type="button" onclick={() => onpayment(order)}>
+            Bezahlung verwalten
+          </ActionButton>
+          <ActionButton variant="secondary" type="button" onclick={() => onedit(order)}>
+            Status bearbeiten
+          </ActionButton>
           <ActionButton
             variant="secondary"
             type="button"
             onclick={() => {
               onmessage(order);
-            }}>Nachricht schreiben</ActionButton
+            }}
           >
+            Nachricht schreiben
+          </ActionButton>
         </Aktionsraster>
         <ul class="mt-3 space-y-1 text-sm">
           {#each order.items as item, index (item)}<li>
-              <span class={item.excluded ? 'line-through text-neutral-500' : ''}
-                >{item.quantity} × {item.name}{item.variant ? ` · ${item.variant}` : ''}</span
-              >
+              <span class={item.excluded ? 'line-through text-neutral-500' : ''}>
+                {item.quantity} × {item.name}{item.variant ? ` · ${item.variant}` : ''}
+              </span>
               {#if !item.excluded}<span
                   class="float-right ml-3 font-semibold tabular-nums text-brand-900"
-                  >{linePrice(item.reference, item.quantity)}</span
-                >{/if}<span class="block break-all text-xs text-neutral-700"
-                >{SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name} · {item.reference}</span
-              >
+                >
+                  {linePrice(item.reference, item.quantity)}
+                </span>{/if}<span class="block break-all text-xs text-neutral-700">
+                {SAMMEL_SHOPS[getSammelShop(item.reference, item.shop)].name} · {item.reference}
+              </span>
               {#if KNOWN_AVAILABILITY.includes(availability[item.reference] ?? '')}<span
                   class="block text-xs text-neutral-700"
-                  >{sammelAvailabilityLabel(availability[item.reference])}</span
-                >{/if}
+                >
+                  {sammelAvailabilityLabel(availability[item.reference])}
+                </span>{/if}
               {#if item.excluded}<p class="text-sm text-danger">
                   Wird nicht mitbestellt{item.excluded.reason ? ': ' + item.excluded.reason : ''}
                 </p>{/if}
@@ -246,8 +254,10 @@
                 disabled={busy || order.status === 'Storniert' || order.payment?.locked}
                 onclick={() => {
                   onitem(order, index);
-                }}>{item.excluded ? 'Wieder mitbestellen' : 'Nicht mitbestellen'}</button
+                }}
               >
+                {item.excluded ? 'Wieder mitbestellen' : 'Nicht mitbestellen'}
+              </button>
             </li>{/each}
         </ul>
         <p
@@ -266,8 +276,10 @@
             variant="secondary"
             type="button"
             class="mt-3"
-            onclick={showAllOrders}>Alle Bestellungen anzeigen</ActionButton
-          >{/if}
+            onclick={showAllOrders}
+          >
+            Alle Bestellungen anzeigen
+          </ActionButton>{/if}
       </div>{/each}
   </div>
 </section>

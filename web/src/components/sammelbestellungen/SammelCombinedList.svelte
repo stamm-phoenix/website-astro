@@ -111,24 +111,27 @@
         <label for="export-shop" class="form-label">Tabelle für</label>
         <select id="export-shop" class="form-input" bind:value={exportShop}>
           <option value="all">Alle Anbieter</option>
-          {#each Object.entries(SAMMEL_SHOPS) as [key, shop] (key)}<option value={key}
-              >{shop.name}</option
-            >{/each}
+          {#each Object.entries(SAMMEL_SHOPS) as [key, shop] (key)}<option value={key}>
+              {shop.name}
+            </option>{/each}
         </select>
       </div>
       <ActionButton
         variant="secondary"
         type="button"
         disabled={!exportItems.length || pricesLoading}
-        onclick={downloadReceipt}>Bestellliste herunterladen (CSV)</ActionButton
+        onclick={downloadReceipt}
       >
+        Bestellliste herunterladen (CSV)
+      </ActionButton>
       <ActionButton
         variant="secondary"
         type="button"
         disabled={!exportItems.length || pricesLoading || pdfBusy}
         onclick={() => void exportPdf()}
-        >{pdfBusy ? 'Erstellt PDF …' : 'Bestellliste herunterladen (PDF)'}</ActionButton
       >
+        {pdfBusy ? 'Erstellt PDF …' : 'Bestellliste herunterladen (PDF)'}
+      </ActionButton>
     </div>
   </div>
   <StatusNotice
@@ -152,31 +155,39 @@
       <table class="min-w-[760px] w-full text-left text-sm">
         <caption class="sr-only">Zusammengefasste Artikel nach Anbieter</caption><thead
           class="border-b-2 border-neutral-300 text-neutral-700"
-          ><tr
-            ><th scope="col" class="p-3">Anbieter</th><th scope="col" class="p-3">Artikel</th><th
-              scope="col"
-              class="p-3">Variante</th
-            ><th scope="col" class="p-3 text-right">Anzahl</th><th
-              scope="col"
-              class="p-3 text-right">Stückpreis</th
-            ><th scope="col" class="p-3 text-right">Summe</th></tr
-          ></thead
-        ><tbody
-          >{#each combined as row (row)}<tr class="border-t border-neutral-200"
-              ><td class="p-3">{SAMMEL_SHOPS[getSammelShop(row.reference, row.shop)].name}</td><td
-                class="p-3"
-                >{row.name}<span class="block max-w-xl break-all text-xs text-neutral-700"
-                  >{row.reference}</span
-                ></td
-              ><td class="p-3">{row.variant || '–'}</td><td
-                class="p-3 text-right font-semibold tabular-nums">{row.quantity}</td
-              ><td class="p-3 text-right whitespace-nowrap tabular-nums"
-                >{linePrice(row.reference)}</td
-              ><td class="p-3 text-right whitespace-nowrap font-semibold tabular-nums"
-                >{linePrice(row.reference, row.quantity)}</td
-              ></tr
-            >{/each}</tbody
         >
+          <tr>
+            <th scope="col" class="p-3">Anbieter</th><th scope="col" class="p-3">Artikel</th><th
+              scope="col"
+              class="p-3"
+            >
+              Variante
+            </th><th scope="col" class="p-3 text-right">Anzahl</th><th
+              scope="col"
+              class="p-3 text-right"
+            >
+              Stückpreis
+            </th><th scope="col" class="p-3 text-right">Summe</th>
+          </tr>
+        </thead><tbody>
+          {#each combined as row (row)}<tr class="border-t border-neutral-200">
+              <td class="p-3">{SAMMEL_SHOPS[getSammelShop(row.reference, row.shop)].name}</td><td
+                class="p-3"
+              >
+                {row.name}<span class="block max-w-xl break-all text-xs text-neutral-700">
+                  {row.reference}
+                </span>
+              </td><td class="p-3">{row.variant || '–'}</td><td
+                class="p-3 text-right font-semibold tabular-nums"
+              >
+                {row.quantity}
+              </td><td class="p-3 text-right whitespace-nowrap tabular-nums">
+                {linePrice(row.reference)}
+              </td><td class="p-3 text-right whitespace-nowrap font-semibold tabular-nums">
+                {linePrice(row.reference, row.quantity)}
+              </td>
+            </tr>{/each}
+        </tbody>
       </table>
     </div>
     <dl

@@ -359,15 +359,16 @@
                 <option value="">Bitte auswählen</option>
                 {#if selectedPerson && !candidates.some((person) => person.id === selectedPerson.id)}<option
                     value={selectedPerson.id}
-                    >{selectedPerson.name}{isIch({ ...selectedPerson, mitglied: true })
+                  >
+                    {selectedPerson.name}{isIch({ ...selectedPerson, mitglied: true })
                       ? ' (ich)'
-                      : ''}</option
-                  >{/if}
-                {#each candidates as person (person.id)}<option value={person.id}
-                    >{person.name}{isIch({ ...person, mitglied: true }) ? ' (ich)' : ''} · {person.emails.join(
+                      : ''}
+                  </option>{/if}
+                {#each candidates as person (person.id)}<option value={person.id}>
+                    {person.name}{isIch({ ...person, mitglied: true }) ? ' (ich)' : ''} · {person.emails.join(
                       ', '
-                    ) || 'Keine E-Mail-Adresse'}</option
-                  >{/each}
+                    ) || 'Keine E-Mail-Adresse'}
+                  </option>{/each}
               </select>{/snippet}
           </FormField>
           {#if !candidates.length}<p class="text-sm text-neutral-700">
@@ -387,10 +388,10 @@
                   bind:value={reason}></textarea>{/snippet}
             </FormField>
           {/if}
-          <label class="flex items-start gap-3 text-sm text-brand-900"
-            ><input type="checkbox" class="mt-1" bind:checked={confirmed} />Die ausgewählte Person
-            soll den gesamten Beitrag dieser Bestellung tragen.</label
-          >
+          <label class="flex items-start gap-3 text-sm text-brand-900">
+            <input type="checkbox" class="mt-1" bind:checked={confirmed} />Die ausgewählte Person
+            soll den gesamten Beitrag dieser Bestellung tragen.
+          </label>
         </section>
       {:else if mode === 'review' || mode === 'adopt'}
         <dl
@@ -423,60 +424,63 @@
               Beiträge können hier noch nicht angelegt werden. Lege den Beitrag in CampFlow an und
               ordne ihn hier zu.
             </p>
-          {:else}<label class="flex items-start gap-3 text-sm text-brand-900"
-              ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Person und endgültiger
-              Betrag sind geprüft; in CampFlow gibt es noch keinen Beitrag für diese Bestellung.</label
-            >{/if}
+          {:else}<label class="flex items-start gap-3 text-sm text-brand-900">
+              <input class="mt-1" type="checkbox" bind:checked={confirmed} />Person und endgültiger
+              Betrag sind geprüft; in CampFlow gibt es noch keinen Beitrag für diese Bestellung.
+            </label>{/if}
           {#if view.creationEnabled}<button
               type="button"
               class="text-sm font-semibold text-brand-800 underline underline-offset-4"
               disabled={busy}
-              onclick={() => changeMode('adopt')}>Vorhandenen Beitrag zuordnen</button
-            >{/if}
+              onclick={() => changeMode('adopt')}
+            >
+              Vorhandenen Beitrag zuordnen
+            </button>{/if}
         {:else}
           {#if operation?.attemptedAt}<p class="text-sm text-danger">
               Erstellungsversuch vom {formatDateTime(operation.attemptedAt)}: Erst in CampFlow
               prüfen, ob dabei ein Beitrag entstanden ist. Keinen neuen anlegen; bei Unklarheit den
               CampFlow-Support fragen.
             </p>{/if}
-          <FormField id="billing-fee" label="CampFlow-Beitrags-ID" error={fields.feeId}
-            >{#snippet children(attrs)}<input
+          <FormField id="billing-fee" label="CampFlow-Beitrags-ID" error={fields.feeId}>
+            {#snippet children(attrs)}<input
                 {...attrs}
                 class="form-input"
                 maxlength="255"
                 bind:value={feeId}
                 placeholder="fee_…"
-              />{/snippet}</FormField
-          >
-          <FormField id="billing-reference" label="Zahlungsreferenz" error={fields.reference}
-            >{#snippet children(attrs)}<input
+              />{/snippet}
+          </FormField>
+          <FormField id="billing-reference" label="Zahlungsreferenz" error={fields.reference}>
+            {#snippet children(attrs)}<input
                 {...attrs}
                 class="form-input"
                 maxlength="100"
                 bind:value={reference}
-              />{/snippet}</FormField
-          >
+              />{/snippet}
+          </FormField>
           <FormField
             id="billing-evidence"
             label="Nachweis der Prüfung"
             error={fields.evidence}
             hint="Keine Bankdaten eintragen."
-            >{#snippet children(attrs)}<textarea
+          >
+            {#snippet children(attrs)}<textarea
                 {...attrs}
                 class="form-input"
                 rows="3"
                 maxlength="1000"
                 placeholder="z. B. 3.5.: Person, Betrag und Bestellnummer in CampFlow geprüft"
-                bind:value={evidence}></textarea>{/snippet}</FormField
-          >
-          <label class="flex items-start gap-3 text-sm text-brand-900"
-            ><input class="mt-1" type="checkbox" bind:checked={executionEnded} />Es läuft kein alter
-            Erstellungsversuch mehr.</label
-          >
-          <label class="flex items-start gap-3 text-sm text-brand-900"
-            ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Der Beitrag in CampFlow
-            gehört zu dieser Person und hat genau diesen Betrag.</label
-          >
+                bind:value={evidence}></textarea>{/snippet}
+          </FormField>
+          <label class="flex items-start gap-3 text-sm text-brand-900">
+            <input class="mt-1" type="checkbox" bind:checked={executionEnded} />Es läuft kein alter
+            Erstellungsversuch mehr.
+          </label>
+          <label class="flex items-start gap-3 text-sm text-brand-900">
+            <input class="mt-1" type="checkbox" bind:checked={confirmed} />Der Beitrag in CampFlow
+            gehört zu dieser Person und hat genau diesen Betrag.
+          </label>
         {/if}
       {:else if mode === 'dispatch'}
         <h3 class="font-serif text-xl text-brand-900">Zahlungsaufforderung verschickt?</h3>
@@ -484,19 +488,19 @@
           Prüfe in CampFlow, ob die Zahlungsaufforderung verschickt wurde, auch an CC-Adressen, und
           verschicke sie dort bei Bedarf.
         </p>
-        <FormField id="dispatch-evidence" label="Versandnachweis" error={fields.evidence}
-          >{#snippet children(attrs)}<textarea
+        <FormField id="dispatch-evidence" label="Versandnachweis" error={fields.evidence}>
+          {#snippet children(attrs)}<textarea
               {...attrs}
               class="form-input"
               rows="3"
               maxlength="1000"
               placeholder="z. B. 3.5. an familie@…"
-              bind:value={evidence}></textarea>{/snippet}</FormField
-        >
-        <label class="flex items-start gap-3 text-sm text-brand-900"
-          ><input class="mt-1" type="checkbox" bind:checked={confirmed} />Die Zahlungsaufforderung
-          wurde im CampFlow-Dashboard verschickt.</label
-        >
+              bind:value={evidence}></textarea>{/snippet}
+        </FormField>
+        <label class="flex items-start gap-3 text-sm text-brand-900">
+          <input class="mt-1" type="checkbox" bind:checked={confirmed} />Die Zahlungsaufforderung
+          wurde im CampFlow-Dashboard verschickt.
+        </label>
       {:else}
         <dl
           class="grid min-w-0 gap-x-4 gap-y-3 text-sm sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] [&_dd]:min-w-0 [&_dd]:[overflow-wrap:anywhere] [&_dt]:[overflow-wrap:anywhere]"
@@ -516,9 +520,9 @@
           <dt class="text-neutral-700">CampFlow-Beitrag</dt>
           <dd>
             <StatusLabel {...summary} />
-            {#if view.record?.dispatch}<span class="block text-sm text-neutral-700"
-                >Manuell bestätigt am {formatDateTime(view.record.dispatch.confirmedAt)}</span
-              >{/if}
+            {#if view.record?.dispatch}<span class="block text-sm text-neutral-700">
+                Manuell bestätigt am {formatDateTime(view.record.dispatch.confirmedAt)}
+              </span>{/if}
           </dd>
           <dt class="text-neutral-700">Bezahlung</dt>
           <dd>
@@ -563,21 +567,25 @@
               type="button"
               class="text-sm font-semibold text-brand-800 underline underline-offset-4"
               disabled={busy || step.assignmentUnavailable}
-              onclick={() => void choosePerson()}>Person ändern</button
-            >{/if}
+              onclick={() => void choosePerson()}
+            >
+              Person ändern
+            </button>{/if}
           {#if operation?.state === 'created' && !view.record?.dispatch}<ActionButton
               variant="secondary"
               type="button"
               disabled={busy}
-              onclick={() => changeMode('dispatch')}>Versand bestätigen</ActionButton
-            >{/if}
+              onclick={() => changeMode('dispatch')}
+            >
+              Versand bestätigen
+            </ActionButton>{/if}
         </div>
       {/if}
       {#if view.events.length && mode === 'inspect'}
         <details class="border-t border-neutral-200 pt-4">
-          <summary class="cursor-pointer text-sm font-semibold text-brand-900"
-            >Zahlungsverlauf</summary
-          >
+          <summary class="cursor-pointer text-sm font-semibold text-brand-900">
+            Zahlungsverlauf
+          </summary>
           <ol class="mt-3 divide-y divide-neutral-200">
             {#each view.events as event, index (index)}<li class="py-3 text-sm">
                 <p class="font-semibold text-brand-900">{eventNames[event.action]}</p>

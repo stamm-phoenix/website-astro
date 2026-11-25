@@ -219,9 +219,9 @@
     <div class="space-y-3">
       <AnwesenheitDiagramm {stats} />
       <details>
-        <summary class="min-h-11 cursor-pointer py-3 text-sm font-semibold text-link"
-          >Zahlen pro Monat als Tabelle</summary
-        >
+        <summary class="min-h-11 cursor-pointer py-3 text-sm font-semibold text-link">
+          Zahlen pro Monat als Tabelle
+        </summary>
         {#if wideTable}<p class="text-xs text-neutral-700">Seitlich wischen ›</p>{/if}
         <div class="overflow-x-auto" use:watchTable>
           <table class="w-full text-left text-sm whitespace-nowrap">
@@ -238,17 +238,17 @@
             <tbody class="divide-y divide-neutral-200">
               {#each stats as row (row.month)}
                 <tr>
-                  <th scope="row" class="py-2 pr-4 font-normal"
-                    >{MONTH_LABEL.format(new Date(`${row.month}-01T00:00:00Z`))}</th
-                  >
+                  <th scope="row" class="py-2 pr-4 font-normal">
+                    {MONTH_LABEL.format(new Date(`${row.month}-01T00:00:00Z`))}
+                  </th>
                   <td class="py-2 pr-4 text-right tabular-nums">{row.termine}</td>
-                  <td class="py-2 pr-4 text-right tabular-nums"
-                    >{row.termine === 0
+                  <td class="py-2 pr-4 text-right tabular-nums">
+                    {row.termine === 0
                       ? '–'
                       : averageMembers(row).toLocaleString('de-DE', {
                           maximumFractionDigits: 1,
-                        })}</td
-                  >
+                        })}
+                  </td>
                   <td class="py-2 pr-4 text-right tabular-nums">{row.excused}</td>
                   <td class="py-2 pr-4 text-right tabular-nums">{row.guests}</td>
                   <td class="py-2 text-right tabular-nums">{row.cancelled}</td>
@@ -280,14 +280,14 @@
             >
               <span class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <span>{formatDate(meeting.date)}</span>
-                <span class="font-normal text-neutral-700"
-                  >{meeting.cancelled
+                <span class="font-normal text-neutral-700">
+                  {meeting.cancelled
                     ? 'Ausgefallen'
-                    : `${plural(meeting.members, 'Kind', 'Kinder')} · ${meeting.excused} entschuldigt · ${plural(meeting.guests, 'Gast', 'Gäste')}`}</span
-                >
-                <span class="text-link"
-                  >{expanded === meeting.date ? 'Details ausblenden' : 'Details ansehen'}</span
-                >
+                    : `${plural(meeting.members, 'Kind', 'Kinder')} · ${meeting.excused} entschuldigt · ${plural(meeting.guests, 'Gast', 'Gäste')}`}
+                </span>
+                <span class="text-link">
+                  {expanded === meeting.date ? 'Details ausblenden' : 'Details ansehen'}
+                </span>
               </span>
             </ActionButton>
             <p class={['text-sm whitespace-pre-line', { 'text-neutral-700': !notes }]}>
@@ -340,8 +340,9 @@
                         variant="secondary"
                         type="button"
                         onclick={() => onselect(meeting.date)}
-                        >{termin.editable ? 'Bearbeiten' : 'Ansehen'}</ActionButton
                       >
+                        {termin.editable ? 'Bearbeiten' : 'Ansehen'}
+                      </ActionButton>
                       {#if termin.editable}
                         <ActionButton
                           variant="danger"
@@ -349,8 +350,9 @@
                           disabled={deleting}
                           aria-busy={deleting}
                           onclick={() => remove(meeting.date, termin)}
-                          >Gruppenstunde löschen</ActionButton
                         >
+                          Gruppenstunde löschen
+                        </ActionButton>
                       {/if}
                     </div>
                   {/snippet}
