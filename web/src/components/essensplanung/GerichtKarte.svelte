@@ -137,8 +137,15 @@
       </div>
     </div>
 
-    {#if bearbeiten}
-      <GerichtKopf {kontext} {gericht} {editorGeladen} selbstGeloescht={() => selbstGeloescht} />
+    <!-- Also while read-only (maintenance), so typed input stays until it ends -->
+    {#if ansicht.zugang !== 'lesen'}
+      <GerichtKopf
+        {kontext}
+        {gericht}
+        {bearbeiten}
+        {editorGeladen}
+        selbstGeloescht={() => selbstGeloescht}
+      />
     {/if}
 
     <!-- Read-only and for the recipe card -->

@@ -8,7 +8,16 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { nachDemTippen } from '../../lib/nachDemTippen';
   import type { Gericht } from '../../../../api/lib/essen-gerichte-model';
-  import { FELD_NAMEN, KOPF_FELDER, gleich, kopfVon, textVon, type KopfFeld } from './gerichtKopf';
+  import {
+    FELD_NAMEN,
+    KOPF_FELDER,
+    gleich,
+    kopfVon,
+    nachFehler,
+    schritt,
+    textVon,
+    type KopfFeld,
+  } from './gerichtKopf';
   import { meldeVerloren, merkeSpeichern, type PlanKontext } from './planKontext';
 
   /**
@@ -21,12 +30,14 @@
   interface Props {
     kontext: PlanKontext;
     gericht: Gericht;
+    /** False while read-only (maintenance): the form hides, its input stays. */
+    bearbeiten: boolean;
     /** True once the card was shown, so the editor of the instructions loads. */
     editorGeladen: boolean;
     /** Whether the page deletes the dish itself, which needs no word about lost input. */
     selbstGeloescht: () => boolean;
   }
-  let { kontext, gericht, editorGeladen, selbstGeloescht }: Props = $props();
+  let { kontext, gericht, bearbeiten, editorGeladen, selbstGeloescht }: Props = $props();
 
   /** The saved fields each field started from, and the input. */
   let basis = $state(kopfVon(untrack(() => gericht)));
@@ -76,26 +87,36 @@
     );
   }
 
-  async function speichernJetzt(feld: KopfFeld, bewusst: boolean): Promise<boolean> {
-    if (konflikte.includes(feld) && !bewusst) return false;
-    konflikte = konflikte.filter((f) => f !== feld);
-    if (!geaendert(feld)) {
+  async function speichernJetzt(
+    feld: KopfFeld,
+    bewusst: boolean,
+    nochmal = true
+  ): Promise<boolean> {
+    const geprueft = basis[feld];
+    const jetzt = kopfVon(gericht)[feld];
+    const war = konflikte.includes(feld);
+    const was = schritt(kopf[feld], geprueft, jetzt, { konflikt: war, bewusst });
+    if (was === 'nichts') {
+      // Also a warning goes once the input says what is saved; a change of others that came in
+      // while the field had the focus shows now
+      konflikte = konflikte.filter((f) => f !== feld);
       fehlerWeg(feld);
-      // A change of others that came in while the field had the focus shows now
-      const aktuell = kopfVon(gericht)[feld];
-      basis = { ...basis, [feld]: aktuell };
-      kopf = { ...kopf, [feld]: aktuell };
+      basis = { ...basis, [feld]: jetzt };
+      kopf = { ...kopf, [feld]: jetzt };
       return true;
     }
-    // Someone else saved this field meanwhile: keep the input and let the person decide
-    const geprueft = basis[feld];
-    if (!bewusst && !gleich(kopfVon(gericht)[feld], geprueft)) {
-      basis = { ...basis, [feld]: kopfVon(gericht)[feld] };
-      konflikte = [...konflikte, feld];
+    if (was === 'konflikt') {
+      // Someone else saved this field meanwhile: keep the input and let the person decide
+      if (!war) {
+        basis = { ...basis, [feld]: jetzt };
+        konflikte = [...konflikte, feld];
+      }
       return false;
     }
+    konflikte = konflikte.filter((f) => f !== feld);
     // The version checked against; a change of others while this waits makes the server refuse it
     const geprueftEtag = gericht.etag;
+    let etagGesendet = geprueftEtag;
     const gesendet = $state.snapshot(kopf[feld]);
     // Empty links are left out; the form index of each sent one, for the errors coming back
     const linkIndex = kopf.links.flatMap((link, index) =>
@@ -114,11 +135,11 @@
     const name = feld === 'name' && kopf.name.trim() ? kopf.name.trim() : gericht.name;
     const ok = await kontext.aendern(async () => {
       // In the queue, the newest version counts as long as this field is still as checked
-      const etag =
+      etagGesendet =
         bewusst || gleich(kopfVon(gericht)[feld], geprueft) ? gericht.etag : geprueftEtag;
       try {
         return await kontext.api.senden('PATCH', `/gerichte/${gericht.id}`, {
-          etag,
+          etag: etagGesendet,
           [feld]: wert,
         });
       } catch (error: unknown) {
@@ -141,11 +162,18 @@
       basis = { ...basis, [feld]: aktuell };
       // Typed on while it saved: that input stays as a draft
       if (gleich(kopf[feld], gesendet)) kopf = { ...kopf, [feld]: aktuell };
-    } else if (!gleich(aktuell, geprueft)) {
+      return true;
+    }
+    const folge = bewusst ? 'fehler' : nachFehler(aktuell, geprueft, etagGesendet, gericht.etag);
+    if (folge === 'konflikt') {
       basis = { ...basis, [feld]: aktuell };
       konflikte = [...konflikte, feld];
+    } else if (folge === 'nochmal' && nochmal) {
+      // Only another field changed: the field goes again with the new version
+      basis = { ...basis, [feld]: aktuell };
+      return speichernJetzt(feld, false, false);
     }
-    return ok;
+    return false;
   }
 
   /** Saves a field after the click of the tap that left it, noted for actions that wait. */
@@ -203,180 +231,182 @@
   });
 </script>
 
-<form
-  class="space-y-3 print:hidden"
-  onsubmit={(event) => event.preventDefault()}
-  onfocusin={(event) => (fokusFeld = feldVon(event.target))}
-  onfocusout={verlassen}
->
-  <p class="text-sm text-neutral-700">Wird sofort gespeichert.</p>
-  <div class="grid gap-x-6 gap-y-3 lg:grid-cols-2">
-    <div class="space-y-3">
-      <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
-        <div data-feld="name">
-          <FormField id="gericht-{gericht.id}-name" label="Name" error={felder.name}>
-            {#snippet children(attrs)}
-              <input
-                {...attrs}
-                class="form-input"
-                maxlength="150"
-                bind:value={kopf.name}
-                onkeydown={taste}
-              />
-            {/snippet}
-          </FormField>
+{#if bearbeiten}
+  <form
+    class="space-y-3 print:hidden"
+    onsubmit={(event) => event.preventDefault()}
+    onfocusin={(event) => (fokusFeld = feldVon(event.target))}
+    onfocusout={verlassen}
+  >
+    <p class="text-sm text-neutral-700">Wird sofort gespeichert.</p>
+    <div class="grid gap-x-6 gap-y-3 lg:grid-cols-2">
+      <div class="space-y-3">
+        <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+          <div data-feld="name">
+            <FormField id="gericht-{gericht.id}-name" label="Name" error={felder.name}>
+              {#snippet children(attrs)}
+                <input
+                  {...attrs}
+                  class="form-input"
+                  maxlength="150"
+                  bind:value={kopf.name}
+                  onkeydown={taste}
+                />
+              {/snippet}
+            </FormField>
+          </div>
+          <div data-feld="personen">
+            <FormField
+              id="gericht-{gericht.id}-personen"
+              label="Personen"
+              error={felder.personen}
+              info="Für so viele Personen gelten die Mengen und wachsen mit den Essern. Leer gelten sie fest für jede Einplanung, z. B. 2 Brote fürs Frühstück."
+            >
+              {#snippet children(attrs)}
+                <input
+                  {...attrs}
+                  class="form-input"
+                  inputmode="numeric"
+                  placeholder="leer: feste Mengen"
+                  bind:value={kopf.personen}
+                  onkeydown={taste}
+                />
+              {/snippet}
+            </FormField>
+          </div>
         </div>
-        <div data-feld="personen">
+        <div data-feld="werkzeuge">
           <FormField
-            id="gericht-{gericht.id}-personen"
-            label="Personen"
-            error={felder.personen}
-            info="Für so viele Personen gelten die Mengen und wachsen mit den Essern. Leer gelten sie fest für jede Einplanung, z. B. 2 Brote fürs Frühstück."
+            id="gericht-{gericht.id}-werkzeuge"
+            label="Werkzeuge"
+            optional
+            error={felder.werkzeuge}
           >
             {#snippet children(attrs)}
-              <input
-                {...attrs}
-                class="form-input"
-                inputmode="numeric"
-                placeholder="leer: feste Mengen"
-                bind:value={kopf.personen}
-                onkeydown={taste}
+              <TagInput
+                id={attrs.id}
+                tags={kopf.werkzeuge}
+                placeholder="z. B. Pürierstab"
+                kompakt
+                onchange={(werkzeuge) => {
+                  kopf.werkzeuge = werkzeuge;
+                  speichernSpaeter('werkzeuge');
+                }}
+                ondraftchange={(text) => (werkzeugEntwurf = text)}
               />
             {/snippet}
           </FormField>
         </div>
+        <fieldset class="space-y-2" data-feld="links">
+          <legend class="form-label">Links</legend>
+          {#each kopf.links as link, index (index)}
+            <div class="flex flex-wrap items-end gap-2">
+              <FormField
+                id="gericht-{gericht.id}-link-{index}-titel"
+                label="Titel"
+                optional
+                class="min-w-0 flex-1"
+                error={felder[`links.${index}.titel`]}
+              >
+                {#snippet children(attrs)}
+                  <input
+                    {...attrs}
+                    class="form-input"
+                    maxlength="100"
+                    bind:value={link.titel}
+                    onkeydown={taste}
+                  />
+                {/snippet}
+              </FormField>
+              <FormField
+                id="gericht-{gericht.id}-link-{index}-url"
+                label="Adresse"
+                class="min-w-0 flex-[2]"
+                error={felder[`links.${index}.url`]}
+              >
+                {#snippet children(attrs)}
+                  <input
+                    {...attrs}
+                    class="form-input"
+                    type="url"
+                    placeholder="https://"
+                    bind:value={link.url}
+                    onkeydown={taste}
+                  />
+                {/snippet}
+              </FormField>
+              <ActionButton
+                type="button"
+                aria-label="Link {index + 1} entfernen"
+                onclick={() => {
+                  kopf.links.splice(index, 1);
+                  fehlerWeg('links');
+                  speichernSpaeter('links');
+                }}
+              >
+                Entfernen
+              </ActionButton>
+            </div>
+          {/each}
+          <ActionButton
+            type="button"
+            disabled={kopf.links.length >= 10}
+            onclick={() => kopf.links.push({ titel: '', url: '' })}
+          >
+            Link hinzufügen
+          </ActionButton>
+        </fieldset>
+        <div data-feld="notiz">
+          <FormField id="gericht-{gericht.id}-notiz" label="Notiz" optional error={felder.notiz}>
+            {#snippet children(attrs)}
+              <textarea {...attrs} class="form-input min-h-20" bind:value={kopf.notiz}></textarea>
+            {/snippet}
+          </FormField>
+        </div>
       </div>
-      <div data-feld="werkzeuge">
+      <div data-feld="anleitung">
         <FormField
-          id="gericht-{gericht.id}-werkzeuge"
-          label="Werkzeuge"
+          id="gericht-{gericht.id}-anleitung"
+          label="Anleitung"
+          labelAs="span"
           optional
-          error={felder.werkzeuge}
+          error={felder.anleitung}
         >
           {#snippet children(attrs)}
-            <TagInput
-              id={attrs.id}
-              tags={kopf.werkzeuge}
-              placeholder="z. B. Pürierstab"
-              kompakt
-              onchange={(werkzeuge) => {
-                kopf.werkzeuge = werkzeuge;
-                speichernSpaeter('werkzeuge');
-              }}
-              ondraftchange={(text) => (werkzeugEntwurf = text)}
-            />
-          {/snippet}
-        </FormField>
-      </div>
-      <fieldset class="space-y-2" data-feld="links">
-        <legend class="form-label">Links</legend>
-        {#each kopf.links as link, index (index)}
-          <div class="flex flex-wrap items-end gap-2">
-            <FormField
-              id="gericht-{gericht.id}-link-{index}-titel"
-              label="Titel"
-              optional
-              class="min-w-0 flex-1"
-              error={felder[`links.${index}.titel`]}
-            >
-              {#snippet children(attrs)}
-                <input
-                  {...attrs}
-                  class="form-input"
-                  maxlength="100"
-                  bind:value={link.titel}
-                  onkeydown={taste}
-                />
-              {/snippet}
-            </FormField>
-            <FormField
-              id="gericht-{gericht.id}-link-{index}-url"
-              label="Adresse"
-              class="min-w-0 flex-[2]"
-              error={felder[`links.${index}.url`]}
-            >
-              {#snippet children(attrs)}
-                <input
-                  {...attrs}
-                  class="form-input"
-                  type="url"
-                  placeholder="https://"
-                  bind:value={link.url}
-                  onkeydown={taste}
-                />
-              {/snippet}
-            </FormField>
-            <ActionButton
-              type="button"
-              aria-label="Link {index + 1} entfernen"
-              onclick={() => {
-                kopf.links.splice(index, 1);
-                fehlerWeg('links');
-                speichernSpaeter('links');
-              }}
-            >
-              Entfernen
-            </ActionButton>
-          </div>
-        {/each}
-        <ActionButton
-          type="button"
-          disabled={kopf.links.length >= 10}
-          onclick={() => kopf.links.push({ titel: '', url: '' })}
-        >
-          Link hinzufügen
-        </ActionButton>
-      </fieldset>
-      <div data-feld="notiz">
-        <FormField id="gericht-{gericht.id}-notiz" label="Notiz" optional error={felder.notiz}>
-          {#snippet children(attrs)}
-            <textarea {...attrs} class="form-input min-h-20" bind:value={kopf.notiz}></textarea>
+            {#if editorGeladen}
+              <LazyTextEditor
+                id={attrs.id}
+                labelledBy="{attrs.id}-label"
+                describedBy={attrs['aria-describedby']}
+                invalid={attrs['aria-invalid'] === 'true'}
+                placeholder="z. B. Zwiebeln anbraten, dann …"
+                maxLength={20_000}
+                bind:value={kopf.anleitung}
+              />
+            {/if}
           {/snippet}
         </FormField>
       </div>
     </div>
-    <div data-feld="anleitung">
-      <FormField
-        id="gericht-{gericht.id}-anleitung"
-        label="Anleitung"
-        labelAs="span"
-        optional
-        error={felder.anleitung}
-      >
-        {#snippet children(attrs)}
-          {#if editorGeladen}
-            <LazyTextEditor
-              id={attrs.id}
-              labelledBy="{attrs.id}-label"
-              describedBy={attrs['aria-describedby']}
-              invalid={attrs['aria-invalid'] === 'true'}
-              placeholder="z. B. Zwiebeln anbraten, dann …"
-              maxLength={20_000}
-              bind:value={kopf.anleitung}
-            />
-          {/if}
-        {/snippet}
-      </FormField>
-    </div>
-  </div>
-  {#each konflikte as feld (feld)}
-    <div class="space-y-2 border-l-4 border-warning py-1 pl-3" role="alert">
-      <p class="text-sm text-warning">
-        Jemand anderes hat {FELD_NAMEN[feld]} gerade geändert. Deine Eingabe steht noch im Feld.
-      </p>
-      <div class="flex flex-wrap gap-2">
-        <ActionButton
-          type="button"
-          variant="primary"
-          disabled={kontext.busy}
-          onclick={() => void speichern(feld, true)}
-        >
-          Trotzdem speichern
-        </ActionButton>
-        <ActionButton type="button" onclick={() => verwerfen(feld)}>
-          Neuen Stand nehmen
-        </ActionButton>
+    {#each konflikte as feld (feld)}
+      <div class="space-y-2 border-l-4 border-warning py-1 pl-3" role="alert">
+        <p class="text-sm text-warning">
+          Jemand anderes hat {FELD_NAMEN[feld]} gerade geändert. Deine Eingabe steht noch im Feld.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <ActionButton
+            type="button"
+            variant="primary"
+            disabled={kontext.busy}
+            onclick={() => void speichern(feld, true)}
+          >
+            Trotzdem speichern
+          </ActionButton>
+          <ActionButton type="button" onclick={() => verwerfen(feld)}>
+            Neuen Stand nehmen
+          </ActionButton>
+        </div>
       </div>
-    </div>
-  {/each}
-</form>
+    {/each}
+  </form>
+{/if}
