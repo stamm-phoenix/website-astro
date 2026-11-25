@@ -1,6 +1,5 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import ActionButton from '../ui/ActionButton.svelte';
   import FormField from '../pflege/FormField.svelte';
   import TagInput from '../pflege/TagInput.svelte';
   import LazyTextEditor from '../ui/LazyTextEditor.svelte';
@@ -8,6 +7,8 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import { nachDemTippen } from '../../lib/nachDemTippen';
   import type { Gericht } from '../../../../api/lib/essen-gerichte-model';
+  import GerichtKopfHinweise from './GerichtKopfHinweise.svelte';
+  import GerichtLinksFeld from './GerichtLinksFeld.svelte';
   import {
     FELD_NAMEN,
     KOPF_FELDER,
@@ -15,7 +16,10 @@
     kopfVon,
     nachFehler,
     schritt,
+    sendewert,
     textVon,
+    uebernommen,
+    vergleichswert,
     type KopfFeld,
   } from './gerichtKopf';
   import { meldeVerloren, merkeSpeichern, type PlanKontext } from './planKontext';
@@ -25,6 +29,7 @@
    * (a tool or a removed link at once), so the others see it right away. A field keeps the
    * version it was typed on: when someone else saved the same field meanwhile, it warns and
    * saves only on „Trotzdem speichern“; changes of others to other fields come in as they are.
+   * A field whose save failed says so under the fields, with a button to save it again.
    */
 
   interface Props {
@@ -45,25 +50,47 @@
   let felder = $state<Record<string, string>>({});
   /** Fields someone else saved under the typed input; they save only when asked to. */
   let konflikte = $state<KopfFeld[]>([]);
+  /** Fields whose save failed (no connection, a refused value); the input stays. */
+  let ungespeichert = $state<KopfFeld[]>([]);
   /** A tool name typed but not yet added. */
   let werkzeugEntwurf = $state('');
   /** The field that has the focus; a change of others does not replace it under the cursor. */
   let fokusFeld = $state<KopfFeld | null>(null);
 
-  const geaendert = (feld: KopfFeld): boolean => !gleich(kopf[feld], basis[feld]);
+  const aktuellVon = (feld: KopfFeld) => kopfVon(gericht)[feld];
+  /** Empty rows of links are no input: they are never sent. */
+  const geaendert = (feld: KopfFeld): boolean =>
+    !gleich(vergleichswert(feld, kopf[feld]), vergleichswert(feld, basis[feld]));
   /** Whether a field holds input; a function too, as a derived read when the card goes may be stale. */
   const offen = (): boolean => KOPF_FELDER.some(geaendert) || werkzeugEntwurf.trim() !== '';
   $effect(() => guardUnsavedChanges(offen));
+
+  /** Takes the saved value into a field, as its basis and into the input. */
+  function nimm(feld: KopfFeld, aktuell = aktuellVon(feld)): void {
+    basis = { ...basis, [feld]: aktuell };
+    kopf = { ...kopf, [feld]: uebernommen(feld, aktuell, kopf[feld]) };
+  }
+  const ohne = (liste: KopfFeld[], feld: KopfFeld) => liste.filter((f) => f !== feld);
 
   // Fields without input follow the saved state, also those of others
   $effect(() => {
     const neu = kopfVon(gericht);
     untrack(() => {
-      for (const feld of KOPF_FELDER) {
-        if (geaendert(feld) || fokusFeld === feld) continue;
-        basis = { ...basis, [feld]: neu[feld] };
-        kopf = { ...kopf, [feld]: neu[feld] };
-      }
+      for (const feld of KOPF_FELDER)
+        if (!geaendert(feld) && fokusFeld !== feld) nimm(feld, neu[feld]);
+    });
+  });
+
+  // While read-only the form is gone, so is its focus; afterwards input left there is saved
+  let warBearbeiten = untrack(() => bearbeiten);
+  $effect(() => {
+    const jetzt = bearbeiten;
+    untrack(() => {
+      if (!jetzt) fokusFeld = null;
+      else if (!warBearbeiten)
+        for (const feld of KOPF_FELDER)
+          if (geaendert(feld) && !konflikte.includes(feld)) speichernSpaeter(feld);
+      warBearbeiten = jetzt;
     });
   });
 
@@ -93,16 +120,21 @@
     nochmal = true
   ): Promise<boolean> {
     const geprueft = basis[feld];
-    const jetzt = kopfVon(gericht)[feld];
+    const jetzt = aktuellVon(feld);
     const war = konflikte.includes(feld);
-    const was = schritt(kopf[feld], geprueft, jetzt, { konflikt: war, bewusst });
+    const was = schritt(
+      vergleichswert(feld, kopf[feld]),
+      vergleichswert(feld, geprueft),
+      vergleichswert(feld, jetzt),
+      { konflikt: war, bewusst }
+    );
+    if (was !== 'senden') ungespeichert = ohne(ungespeichert, feld);
     if (was === 'nichts') {
       // Also a warning goes once the input says what is saved; a change of others that came in
       // while the field had the focus shows now
-      konflikte = konflikte.filter((f) => f !== feld);
+      konflikte = ohne(konflikte, feld);
       fehlerWeg(feld);
-      basis = { ...basis, [feld]: jetzt };
-      kopf = { ...kopf, [feld]: jetzt };
+      nimm(feld, jetzt);
       return true;
     }
     if (was === 'konflikt') {
@@ -113,32 +145,18 @@
       }
       return false;
     }
-    konflikte = konflikte.filter((f) => f !== feld);
+    konflikte = ohne(konflikte, feld);
     // The errors of the last try go; what the server still refuses comes back with its answer
     fehlerWeg(feld);
     // The version checked against; a change of others while this waits makes the server refuse it
     const geprueftEtag = gericht.etag;
     let etagGesendet = geprueftEtag;
-    const gesendet = $state.snapshot(kopf[feld]);
-    // Empty links are left out; the form index of each sent one, for the errors coming back
-    const linkIndex = kopf.links.flatMap((link, index) =>
-      link.url.trim() || link.titel.trim() ? [index] : []
-    );
-    const wert =
-      feld === 'personen'
-        ? kopf.personen.trim() === ''
-          ? null
-          : Number.isInteger(Number(kopf.personen))
-            ? Number(kopf.personen)
-            : kopf.personen
-        : feld === 'links'
-          ? linkIndex.map((index) => kopf.links[index])
-          : gesendet;
+    const gesendet = vergleichswert(feld, $state.snapshot(kopf[feld]));
+    const { wert, linkIndex } = sendewert(feld, $state.snapshot(kopf));
     const name = feld === 'name' && kopf.name.trim() ? kopf.name.trim() : gericht.name;
     const ok = await kontext.aendern(async () => {
       // In the queue, the newest version counts as long as this field is still as checked
-      etagGesendet =
-        bewusst || gleich(kopfVon(gericht)[feld], geprueft) ? gericht.etag : geprueftEtag;
+      etagGesendet = bewusst || gleich(aktuellVon(feld), geprueft) ? gericht.etag : geprueftEtag;
       try {
         return await kontext.api.senden('PATCH', `/gerichte/${gericht.id}`, {
           etag: etagGesendet,
@@ -158,24 +176,26 @@
         throw error;
       }
     }, `${name} gespeichert.`);
-    const aktuell = kopfVon(gericht)[feld];
+    const aktuell = aktuellVon(feld);
     if (ok) {
+      ungespeichert = ohne(ungespeichert, feld);
       fehlerWeg(feld);
-      basis = { ...basis, [feld]: aktuell };
       // Typed on while it saved: that input stays as a draft
-      if (gleich(kopf[feld], gesendet)) kopf = { ...kopf, [feld]: aktuell };
+      if (gleich(vergleichswert(feld, kopf[feld]), gesendet)) nimm(feld, aktuell);
+      else basis = { ...basis, [feld]: aktuell };
       return true;
     }
     // A failed „Trotzdem speichern“ keeps the choice under the fields
     const folge = bewusst ? 'konflikt' : nachFehler(aktuell, geprueft, etagGesendet, gericht.etag);
-    if (folge === 'konflikt') {
-      basis = { ...basis, [feld]: aktuell };
-      konflikte = [...konflikte, feld];
-    } else if (folge === 'nochmal' && nochmal) {
+    if (folge === 'nochmal' && nochmal) {
       // Only another field changed: the field goes again with the new version
       basis = { ...basis, [feld]: aktuell };
       return speichernJetzt(feld, false, false);
     }
+    if (folge === 'konflikt') {
+      basis = { ...basis, [feld]: aktuell };
+      konflikte = [...ohne(konflikte, feld), feld];
+    } else if (!ungespeichert.includes(feld)) ungespeichert = [...ungespeichert, feld];
     return false;
   }
 
@@ -213,10 +233,9 @@
   }
 
   function verwerfen(feld: KopfFeld): void {
-    const aktuell = kopfVon(gericht)[feld];
-    basis = { ...basis, [feld]: aktuell };
-    kopf = { ...kopf, [feld]: aktuell };
-    konflikte = konflikte.filter((f) => f !== feld);
+    nimm(feld);
+    konflikte = ohne(konflikte, feld);
+    ungespeichert = ohne(ungespeichert, feld);
     fehlerWeg(feld);
   }
 
@@ -224,7 +243,7 @@
   $effect(() => () => {
     if (selbstGeloescht() || !offen()) return;
     const eingaben = KOPF_FELDER.filter(geaendert)
-      .map((feld) => `${FELD_NAMEN[feld]}: ${textVon(kopf[feld])}`)
+      .map((feld) => `${FELD_NAMEN[feld]}: ${textVon(vergleichswert(feld, kopf[feld]))}`)
       .concat(werkzeugEntwurf.trim() ? [`${FELD_NAMEN.werkzeuge}: ${werkzeugEntwurf.trim()}`] : [])
       .join(' · ');
     meldeVerloren(
@@ -299,65 +318,17 @@
             {/snippet}
           </FormField>
         </div>
-        <fieldset class="space-y-2" data-feld="links">
-          <legend class="form-label">Links</legend>
-          {#each kopf.links as link, index (index)}
-            <div class="flex flex-wrap items-end gap-2">
-              <FormField
-                id="gericht-{gericht.id}-link-{index}-titel"
-                label="Titel"
-                optional
-                class="min-w-0 flex-1"
-                error={felder[`links.${index}.titel`]}
-              >
-                {#snippet children(attrs)}
-                  <input
-                    {...attrs}
-                    class="form-input"
-                    maxlength="100"
-                    bind:value={link.titel}
-                    onkeydown={taste}
-                  />
-                {/snippet}
-              </FormField>
-              <FormField
-                id="gericht-{gericht.id}-link-{index}-url"
-                label="Adresse"
-                class="min-w-0 flex-[2]"
-                error={felder[`links.${index}.url`]}
-              >
-                {#snippet children(attrs)}
-                  <input
-                    {...attrs}
-                    class="form-input"
-                    type="url"
-                    placeholder="https://"
-                    bind:value={link.url}
-                    onkeydown={taste}
-                  />
-                {/snippet}
-              </FormField>
-              <ActionButton
-                type="button"
-                aria-label="Link {index + 1} entfernen"
-                onclick={() => {
-                  kopf.links.splice(index, 1);
-                  fehlerWeg('links');
-                  speichernSpaeter('links');
-                }}
-              >
-                Entfernen
-              </ActionButton>
-            </div>
-          {/each}
-          <ActionButton
-            type="button"
-            disabled={kopf.links.length >= 10}
-            onclick={() => kopf.links.push({ titel: '', url: '' })}
-          >
-            Link hinzufügen
-          </ActionButton>
-        </fieldset>
+        <GerichtLinksFeld
+          gerichtId={gericht.id}
+          bind:links={kopf.links}
+          {felder}
+          onkeydown={taste}
+          onentfernen={(index) => {
+            kopf.links.splice(index, 1);
+            fehlerWeg('links');
+            speichernSpaeter('links');
+          }}
+        />
         <div data-feld="notiz">
           <FormField id="gericht-{gericht.id}-notiz" label="Notiz" optional error={felder.notiz}>
             {#snippet children(attrs)}
@@ -390,25 +361,12 @@
         </FormField>
       </div>
     </div>
-    {#each konflikte as feld (feld)}
-      <div class="space-y-2 border-l-4 border-warning py-1 pl-3" role="alert">
-        <p class="text-sm text-warning">
-          Jemand anderes hat {FELD_NAMEN[feld]} gerade geändert. Deine Eingabe steht noch im Feld.
-        </p>
-        <div class="flex flex-wrap gap-2">
-          <ActionButton
-            type="button"
-            variant="primary"
-            disabled={kontext.busy}
-            onclick={() => void speichern(feld, true)}
-          >
-            Trotzdem speichern
-          </ActionButton>
-          <ActionButton type="button" onclick={() => verwerfen(feld)}>
-            Neuen Stand nehmen
-          </ActionButton>
-        </div>
-      </div>
-    {/each}
+    <GerichtKopfHinweise
+      {konflikte}
+      {ungespeichert}
+      busy={kontext.busy}
+      onspeichern={(feld, bewusst) => void speichern(feld, bewusst)}
+      onverwerfen={verwerfen}
+    />
   </form>
 {/if}
