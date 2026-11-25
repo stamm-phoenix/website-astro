@@ -1,5 +1,11 @@
 import { EINHEITEN_JE_ART, MAX_WERKZEUGE } from '../../../../api/lib/essen-gerichte-model';
-import { mengeFeld, zutatWahl, type ZutatWahl } from '../../lib/essensplanungGerichte';
+import {
+  gleicherName,
+  mengeFeld,
+  nurNeu,
+  zutatWahl,
+  type ZutatWahl,
+} from '../../lib/essensplanungGerichte';
 import { vorschlagKey, type KiRezeptZeile, type VorschauMenge } from '../../lib/essensplanungKi';
 import type {
   EssenKatalog,
@@ -18,6 +24,8 @@ export interface VorschauZeile {
   original: string;
   zutatText: string;
   auswahl: ZutatWahl | null;
+  /** The name that counts as new: the one the AI read, or one picked as „… neu anlegen“. */
+  neuerName: string | null;
   menge: string;
   einheit: GerichtEinheit;
   hinweis: string;
@@ -62,6 +70,7 @@ export function vorschauZeile(
     original: ki.original,
     zutatText: vorschlag?.value ?? ki.name,
     auswahl,
+    neuerName: vorschlag ? null : ki.name.trim() || null,
     menge: mengeFeld(ki.menge),
     einheit,
     hinweis: ki.hinweis,
@@ -73,6 +82,18 @@ export function vorschauZeile(
       : null,
     fehler: {},
   };
+}
+
+/**
+ * Why the name of a line without a choice is no new ingredient: a half-typed name of the lists
+ * („Zwieb“) counts only when the AI read it or it was picked as „… neu anlegen“.
+ */
+export function neuerNameFehler(zeile: VorschauZeile, vorschlaege: Vorschlag[]): string | null {
+  const name = zeile.zutatText.trim();
+  if (zeile.auswahl || !name) return null;
+  if (zeile.neuerName !== null && gleicherName(zeile.neuerName, name)) return null;
+  if (nurNeu(vorschlaege, name)) return null;
+  return `Wähle eine Zutat aus der Liste oder ganz unten „${name}“ neu anlegen.`;
 }
 
 /** Whether the line has an ingredient to take over: a chosen one or a new name. */

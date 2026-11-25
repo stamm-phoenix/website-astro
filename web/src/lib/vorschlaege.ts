@@ -10,6 +10,8 @@ export interface Vorschlag {
   gruppe?: string;
   /** Unique key, when the same value may appear twice. */
   key?: string;
+  /** Always offered when it matches, after all others and never cut off by the limit. */
+  zuletzt?: boolean;
 }
 
 export interface VorschlagTreffer {
@@ -66,7 +68,13 @@ export function filterVorschlaege(
         rangVon.get(a)! - rangVon.get(b)!
     );
   }
-  return { matches: all.slice(0, max), total: all.length };
+  // Suggestions that end the list keep their place, whatever the limit cuts off
+  const zuletzt = all.filter((option) => option.zuletzt);
+  const andere = all.filter((option) => !option.zuletzt);
+  return {
+    matches: [...andere.slice(0, Math.max(0, max - zuletzt.length)), ...zuletzt],
+    total: all.length,
+  };
 }
 
 export interface TextTeil {

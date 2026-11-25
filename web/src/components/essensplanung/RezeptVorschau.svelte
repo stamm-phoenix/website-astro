@@ -45,6 +45,7 @@
   function waehle(zeile: VorschauZeile, option: Vorschlag): void {
     if (istNeueZutat(option)) {
       zeile.auswahl = null;
+      zeile.neuerName = option.value;
       zeile.zutatText = option.value;
       zeile.an = true;
       zeile.fehler = {};

@@ -87,6 +87,8 @@ dbTest('a new name adds an ingredient of its own, and the AI fills in what is op
   ansicht = await zeile(t, token, id, { neueZutat: 'Hokkaido', menge: null, einheit: null });
   const hokkaido = finde(ansicht, 'Hokkaido');
   assert.equal(hokkaido.einheitenart, 'stueck');
+  // The AI will say nothing about this one
+  await zeile(t, token, id, { neueZutat: 'Geheimzutat', menge: null, einheit: null });
 
   const gemuese = katalog.kategorien.find((k) => k.id !== sonstiges)!.id;
   const gluten = katalog.unvertraeglichkeiten[0].id;
@@ -126,10 +128,13 @@ dbTest('a new name adds an ingredient of its own, and the AI fills in what is op
     [sonstiges, 'masse', true, false, [gluten], 'ki']
   );
 
-  // Nothing open: the AI is not asked again
+  // Without an answer it stays open and is not reported as filled in
+  assert.equal(finde(ergebnis.ansicht, 'Geheimzutat').angaben, 'offen');
+
+  // Asking again fills in nothing: nothing is saved or logged
   const nochmal = await call(t, EssensplanungKiZutaten, 'POST', 'planung/ki/zutaten', { token });
   assert.deepEqual(json<{ ergaenzt: string[] }>(nochmal).ergaenzt, []);
-  assert.equal(zaehler.aufrufe, 1);
+  assert.equal(zaehler.aufrufe, 2);
 
   // Saving the ingredient checks its details
   const gespeichert = json<PlanungAnsicht>(

@@ -25,6 +25,7 @@
     vorschauZeile,
     werkzeugeFehler,
     zeileFuerSammel,
+    neuerNameFehler,
     wirdUebernommen,
     type VorschauZeile,
   } from './rezeptVorschau';
@@ -232,6 +233,8 @@
         zeile.fehler.menge = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
       else if (menge !== null && !zeile.einheit)
         zeile.fehler.einheit = 'Bitte eine Einheit eintragen, z. B. g oder Bund.';
+      const neu = neuerNameFehler(zeile, vorschlaege);
+      if (neu) zeile.fehler.zutat = neu;
       return zeileFuerSammel(zeile, menge);
     });
     if (gesendet.some((zeile) => Object.keys(zeile.fehler).length)) return;

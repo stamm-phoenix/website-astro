@@ -7,7 +7,9 @@ import {
   nurNeu,
 } from '../src/lib/essensplanungGerichte.ts';
 import { ergaenztText, wartendeZutaten } from '../src/components/essensplanung/zutatenErgaenzen.ts';
+import { filterVorschlaege } from '../src/lib/vorschlaege.ts';
 import {
+  neuerNameFehler,
   wirdUebernommen,
   zeileFuerSammel,
   type VorschauZeile,
@@ -31,6 +33,7 @@ describe('the suggestion to add a new name', () => {
       value: 'Mais',
       label: '„Mais“ neu anlegen',
       gruppe: 'Neue Zutat',
+      zuletzt: true,
     });
     assert.equal(istNeueZutat(mais.at(-1)!), true);
     assert.equal(istNeueZutat(mais[0]), false);
@@ -69,6 +72,14 @@ function zutat(id: number, name: string, angaben: PlanungZutat['angaben']): Plan
   };
 }
 
+test('the suggestion to add stays visible when more names of the lists contain it', () => {
+  const viele = Array.from({ length: 12 }, (_, i) => ({ key: `z:${i}`, value: `Brot ${i}` }));
+  const { matches, total } = filterVorschlaege(mitNeuerZutat(viele, 'Brot'), 'Brot', 8);
+  assert.equal(matches.length, 8);
+  assert.equal(total, 13);
+  assert.equal(matches.at(-1)?.label, '„Brot“ neu anlegen');
+});
+
 describe('asking the AI in the background', () => {
   const ansicht = {
     zugang: 'bearbeiten',
@@ -99,6 +110,7 @@ describe('a recipe line in neither list', () => {
     original: '1 Hokkaido',
     zutatText: ' Hokkaido ',
     auswahl: null,
+    neuerName: 'Hokkaido',
     menge: '1',
     einheit: 'stueck',
     hinweis: '',
@@ -108,6 +120,20 @@ describe('a recipe line in neither list', () => {
     alternative: null,
     fehler: {},
   };
+
+  test('a half-typed name of the lists counts only when read by the AI or picked as new', () => {
+    assert.equal(neuerNameFehler(zeile, VORSCHLAEGE), null);
+    const zwieb = { ...zeile, zutatText: 'Zwieb' };
+    assert.equal(
+      neuerNameFehler(zwieb, VORSCHLAEGE),
+      'Wähle eine Zutat aus der Liste oder ganz unten „Zwieb“ neu anlegen.'
+    );
+    assert.equal(neuerNameFehler({ ...zwieb, neuerName: 'Zwieb' }, VORSCHLAEGE), null);
+    assert.equal(
+      neuerNameFehler({ ...zwieb, auswahl: { art: 'zentral', id: 1 } }, VORSCHLAEGE),
+      null
+    );
+  });
 
   test('is taken over as a new ingredient under its name', () => {
     assert.equal(wirdUebernommen(zeile), true);

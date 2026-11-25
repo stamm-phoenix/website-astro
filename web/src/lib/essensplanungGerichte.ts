@@ -118,7 +118,13 @@ export function mitNeuerZutat(vorschlaege: Vorschlag[], text: string): Vorschlag
   if (name.length < 2 || getippteZutat(vorschlaege, name)) return vorschlaege;
   return [
     ...vorschlaege,
-    { key: NEUE_ZUTAT, value: name, label: `„${name}“ neu anlegen`, gruppe: 'Neue Zutat' },
+    {
+      key: NEUE_ZUTAT,
+      value: name,
+      label: `„${name}“ neu anlegen`,
+      gruppe: 'Neue Zutat',
+      zuletzt: true,
+    },
   ];
 }
 

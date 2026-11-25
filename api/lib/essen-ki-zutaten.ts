@@ -63,12 +63,12 @@ interface OffeneZutat {
 async function offeneZutaten(db: Db, zugang: Zugang): Promise<OffeneZutat[]> {
   const rows = await db
     .selectFrom('essen.planung_zutat')
+    .top(MAX_JE_FRAGE)
     .select(['id', 'version', 'name', 'angaben_offen'])
     .where('planung_id', '=', zugang.planungId)
     .where('zutat_id', 'is', null)
     .where('angaben_offen', 'is not', null)
     .orderBy('id')
-    .limit(MAX_JE_FRAGE)
     .execute();
   return rows.map((row) => ({ ...row, version: row.version as Buffer, name: row.name ?? '' }));
 }
@@ -92,41 +92,68 @@ async function einheitenJeZutat(db: Db, ids: number[]): Promise<Map<number, stri
   return map;
 }
 
-/** Saves what is still open of each ingredient; one changed meanwhile keeps its values. */
+/** Nothing was saved, so the change is rolled back and not logged. */
+class NichtsErgaenzt extends Error {}
+
+/**
+ * What the AI fills in of one ingredient: only open details it knows; null when it knows none of
+ * them, so the ingredient stays open and „Angaben ergänzen (KI)“ can ask again.
+ */
+function aenderungFuer(zutat: OffeneZutat, ki: KiZutatAngaben | undefined) {
+  if (!ki) return null;
+  const offen = angabenListe(zutat.angaben_offen);
+  const merkmale = offen.includes('merkmale') && ki.vegetarisch !== null;
+  const werte = {
+    ...(ki.kategorieId && offen.includes('kategorie') ? { kategorie_id: ki.kategorieId } : {}),
+    ...(ki.einheitenart && offen.includes('einheitenart') ? { einheitenart: ki.einheitenart } : {}),
+    ...(merkmale ? { vegetarisch: ki.vegetarisch, vegan: ki.vegan } : {}),
+  };
+  if (!Object.keys(werte).length) return null;
+  return { werte, allergene: merkmale ? (ki.allergene ?? []) : null };
+}
+
+/**
+ * Saves what the AI knew of each ingredient; one changed meanwhile keeps its values. Names only
+ * the ingredients it filled in; with none, nothing is logged.
+ */
 async function speichere(
   zugang: Zugang,
   zutaten: readonly OffeneZutat[],
   angaben: readonly KiZutatAngaben[]
 ): Promise<string[]> {
-  return aendere(zugang, 'zutat-ki', async (trx) => {
-    const namen: string[] = [];
-    for (const zutat of zutaten) {
-      const ki = angaben.find((eintrag) => eintrag.planungZutatId === zutat.id);
-      const offen = angabenListe(zutat.angaben_offen);
-      const merkmale = ki && offen.includes('merkmale') && ki.vegetarisch !== null;
-      const result = await trx
-        .updateTable('essen.planung_zutat')
-        .set({
-          ...(ki?.kategorieId && offen.includes('kategorie')
-            ? { kategorie_id: ki.kategorieId }
-            : {}),
-          ...(ki?.einheitenart && offen.includes('einheitenart')
-            ? { einheitenart: ki.einheitenart }
-            : {}),
-          ...(merkmale ? { vegetarisch: ki.vegetarisch, vegan: ki.vegan } : {}),
+  const plan = zutaten
+    .map((zutat) => ({
+      zutat,
+      aenderung: aenderungFuer(
+        zutat,
+        angaben.find((eintrag) => eintrag.planungZutatId === zutat.id)
+      ),
+    }))
+    .filter((eintrag) => eintrag.aenderung !== null);
+  if (!plan.length) return [];
+  try {
+    return await aendere(zugang, 'zutat-ki', async (trx) => {
+      const namen: string[] = [];
+      for (const { zutat, aenderung } of plan) {
+        const result = await trx
+          .updateTable('essen.planung_zutat')
           // Asked once: what the AI did not know stays a stand-in for the member to fill in
-          angaben_offen: null,
-        })
-        .where('id', '=', zutat.id)
-        .where('version', '=', zutat.version)
-        .where('angaben_offen', 'is not', null)
-        .executeTakeFirst();
-      if (Number(result.numUpdatedRows) === 0) continue;
-      if (merkmale) await setzeAllergene(trx, zutat.id, ki.allergene ?? []);
-      namen.push(zutat.name);
-    }
-    return { result: namen, details: { namen } };
-  });
+          .set({ ...aenderung!.werte, angaben_offen: null })
+          .where('id', '=', zutat.id)
+          .where('version', '=', zutat.version)
+          .where('angaben_offen', 'is not', null)
+          .executeTakeFirst();
+        if (Number(result.numUpdatedRows) === 0) continue;
+        if (aenderung!.allergene) await setzeAllergene(trx, zutat.id, aenderung!.allergene);
+        namen.push(zutat.name);
+      }
+      if (!namen.length) throw new NichtsErgaenzt();
+      return { result: namen, details: { namen } };
+    });
+  } catch (error: unknown) {
+    if (error instanceof NichtsErgaenzt) return [];
+    throw error;
+  }
 }
 
 /**
