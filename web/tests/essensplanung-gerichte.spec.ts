@@ -61,12 +61,12 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await chili.getByRole('button', { name: 'Link hinzufügen' }).click();
   await chili.getByRole('button', { name: 'Link hinzufügen' }).click();
   await chili.getByLabel('Titel (optional)').nth(1).fill('Originalrezept');
-  await chili.getByRole('button', { name: 'Gericht speichern' }).click();
+  await chili.getByLabel('Titel (optional)').nth(1).press('Enter');
   const adressen = chili.getByLabel('Adresse', { exact: true });
   await expect(adressen.nth(1)).toHaveAttribute('aria-invalid', 'true');
   await expect(adressen.nth(0)).not.toHaveAttribute('aria-invalid', 'true');
   await adressen.nth(1).fill('https://example.org/chili');
-  await chili.getByRole('button', { name: 'Gericht speichern' }).click();
+  await adressen.nth(1).press('Enter');
   await expect(page.getByText('Chili gespeichert.').first()).toBeVisible();
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
   await anderes.getByText('Chili', { exact: true }).click();
@@ -188,9 +188,10 @@ test('a dish deleted by someone else shows the unsaved input', async ({ page, br
   await page.getByRole('button', { name: 'Anlegen' }).click();
   await expect(page.getByText('Waffeln angelegt.').first()).toBeVisible();
   const waffeln = page.locator('li', { has: page.getByText('Waffeln', { exact: true }) }).first();
+  // A field saves when it is left; a tool typed but not yet added is still input
   await waffeln.getByLabel('Notiz (optional)').fill('Eisen vorheizen');
-  // A tool typed but not yet added counts as input too
   await waffeln.getByLabel('Werkzeuge (optional)').fill('Waffeleisen');
+  await expect(page.getByText('Waffeln gespeichert.').first()).toBeVisible();
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
@@ -202,7 +203,7 @@ test('a dish deleted by someone else shows the unsaved input', async ({ page, br
   await expect(
     page
       .getByText(
-        '„Waffeln“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: Notiz: Eisen vorheizen · Werkzeuge: Waffeleisen'
+        '„Waffeln“ wurde gerade gelöscht. Deine ungespeicherten Eingaben: Werkzeuge: Waffeleisen'
       )
       .first()
   ).toBeVisible({ timeout: 15_000 });
@@ -301,7 +302,7 @@ test('a dish changed during the delete question is not deleted', async ({ page, 
     .locator('li[id^="gericht-"]')
     .getByLabel('Name', { exact: true })
     .fill('Kürbissuppe');
-  await anderes.getByRole('button', { name: 'Gericht speichern' }).click();
+  await anderes.locator('li[id^="gericht-"]').getByLabel('Name', { exact: true }).press('Enter');
   await expect(anderes.getByText('Kürbissuppe gespeichert.').first()).toBeVisible();
   await expect(suppe.getByText('Kürbissuppe', { exact: true })).toBeAttached({ timeout: 15_000 });
 
