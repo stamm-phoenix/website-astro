@@ -100,7 +100,7 @@
     felder = {};
     fehler = null;
     geoeffnet++;
-    neuGewaehlt = false;
+    neuName = null;
     geaendert = false;
     const z = zeile;
     if (z) {
@@ -171,16 +171,16 @@
   });
 
   function waehle(option: Vorschlag): void {
-    neuGewaehlt = istNeueZutat(option);
-    if (neuGewaehlt) {
+    neuName = istNeueZutat(option) ? option.value : null;
+    if (neuName !== null) {
       auswahl = null;
       geaendert = true;
     } else nimm(option);
     zutatText = option.value;
   }
 
-  /** „… neu anlegen“ was picked for the name as it stands. */
-  let neuGewaehlt = $state(false);
+  /** The name „… neu anlegen“ was picked for; typing another name drops it. */
+  let neuName = $state<string | null>(null);
 
   function nimm(option: Vorschlag): void {
     auswahl = zutatWahl(option);
@@ -193,7 +193,8 @@
   /** A typed name of the list counts as chosen; the text stays as typed. */
   function getippt(text: string): void {
     geaendert = true;
-    neuGewaehlt = false;
+    // Picking calls this too, with the picked name, which must stay picked
+    if (neuName !== null && !gleicherName(neuName, text)) neuName = null;
     const treffer = getippteZutat(vorschlaege, text);
     if (treffer) nimm(treffer);
     else auswahl = null;
@@ -229,7 +230,7 @@
     const name = zutatText.trim();
     if (!auswahl && !name) felder.zutat = 'Bitte eine Zutat wählen oder ihren Namen eintragen.';
     // A half-typed name of the list („Zwieb“) is no new ingredient unless picked as one
-    else if (!auswahl && !neuGewaehlt && !nurNeu(vorschlaege, name))
+    else if (!auswahl && neuName === null && !nurNeu(vorschlaege, name))
       felder.zutat = `Wähle eine Zutat aus der Liste oder ganz unten „${name}“ neu anlegen.`;
     if (Object.keys(felder).length) return;
 

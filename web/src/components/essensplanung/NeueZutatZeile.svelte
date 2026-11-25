@@ -27,6 +27,7 @@
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import {
     getippteZutat,
+    gleicherName,
     istNeueZutat,
     mitNeuerZutat,
     nurNeu,
@@ -105,19 +106,20 @@
 
   function waehle(option: Vorschlag): void {
     eingabe.name = option.value;
-    neuGewaehlt = istNeueZutat(option);
-    if (neuGewaehlt) {
+    neuName = istNeueZutat(option) ? option.value : null;
+    if (neuName !== null) {
       auswahl = null;
       fehler = null;
     } else nimm(option);
   }
 
-  /** „… neu anlegen“ was picked for the name as it stands. */
-  let neuGewaehlt = $state(false);
+  /** The name „… neu anlegen“ was picked for; typing another name drops it. */
+  let neuName = $state<string | null>(null);
 
   /** A typed name of the list counts as chosen; the text stays as typed. */
   function getippt(text: string): void {
-    neuGewaehlt = false;
+    // Picking calls this too, with the picked name, which must stay picked
+    if (neuName !== null && !gleicherName(neuName, text)) neuName = null;
     fehler = null;
     const treffer = getippteZutat(vorschlaege, text);
     if (treffer) nimm(treffer);
@@ -133,7 +135,7 @@
       return;
     }
     // A half-typed name of the list („Zwieb“) is no new ingredient unless picked as one
-    if (!auswahl && !neuGewaehlt && !nurNeu(vorschlaege, eingabe.name)) {
+    if (!auswahl && neuName === null && !nurNeu(vorschlaege, eingabe.name)) {
       fehler = `Wähle eine Zutat aus der Liste oder ganz unten „${eingabe.name.trim()}“ neu anlegen.`;
       return;
     }
@@ -177,7 +179,7 @@
     // The next line starts right away, as in a sheet
     eingabe = leereZeile();
     auswahl = null;
-    neuGewaehlt = false;
+    neuName = null;
     // The field is enabled again only after the update
     await tick();
     zutatFeld?.focus();
@@ -277,7 +279,7 @@
           };
           eingabe = leereZeile();
           auswahl = null;
-          neuGewaehlt = false;
+          neuName = null;
           onmehr(vorgabe);
         }}
       >

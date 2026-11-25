@@ -39,6 +39,11 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   await expect(
     gericht.getByText('Wähle eine Zutat aus der Liste oder ganz unten „Hackf“ neu anlegen.')
   ).toBeVisible();
+  // A new name the list contains in longer ones is added when picked as new
+  await zutat.fill('Kokos');
+  await gericht.getByRole('option', { name: '„Kokos“ neu anlegen' }).click();
+  await hinzufuegen.click();
+  await expect(gericht.getByLabel('Menge von Kokos', { exact: true })).toBeVisible();
   await zutat.fill('Drachenfrucht-Sirup');
   await expect(
     gericht.getByText('„Drachenfrucht-Sirup“ wird als neue Zutat angelegt.')
@@ -46,7 +51,7 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   await hinzufuegen.click();
   await expect(gericht.getByLabel('Menge von Drachenfrucht-Sirup')).toBeVisible();
   await expect(
-    page.getByText(/Angaben zu Drachenfrucht-Sirup von der KI ergänzt/).first()
+    page.getByText(/Angaben zu .*Drachenfrucht-Sirup.* von der KI ergänzt/).first()
   ).toBeVisible();
 
   // Changing the amount in the row saves when the row is left

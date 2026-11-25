@@ -46,6 +46,14 @@ const keinLebensmittel = (name: string) =>
  */
 export type ZutatWahl = { zutatId: number } | { planungZutatId: number } | { neu: string };
 
+/**
+ * Serialises adding or renaming ingredients of the Planung's own by name, so two at the same
+ * moment never both find the name free (unique index `uq_essen_planung_zutat_name`).
+ */
+export async function sperreNamen(trx: Transaction<Database>, zugang: Zugang): Promise<void> {
+  await lockResource(trx, `essen-planung-zutat-name:${zugang.planungId}`);
+}
+
 /** Refuses one more ingredient when the Planung has the most it may have. */
 async function pruefeAnzahl(trx: Db, zugang: Zugang): Promise<void> {
   const anzahl = await trx
@@ -154,6 +162,7 @@ export async function sonstigesDerPlanung(
   name: string,
   einheit: GerichtEinheit | null
 ): Promise<{ id: number; name: string; einheitenart: EssenEinheitenart }> {
+  await sperreNamen(trx, zugang);
   const zentral = await trx
     .selectFrom('essen.zutat')
     .select('id')
@@ -198,8 +207,7 @@ async function neueZutatDerPlanung(
   einheit: GerichtEinheit | null,
   { lebensmittel }: { lebensmittel: boolean }
 ): Promise<{ id: number; name: string; einheitenart: EssenEinheitenart }> {
-  // Two lines with the same new name at the same moment add it once
-  await lockResource(trx, `essen-planung-zutat-name:${zugang.planungId}`);
+  await sperreNamen(trx, zugang);
   const zentral = await trx
     .selectFrom('essen.zutat')
     .select('id')

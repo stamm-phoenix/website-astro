@@ -16,7 +16,7 @@ import { aendere } from './essen-aendern';
 import { listKategorien, listUnvertraeglichkeiten, listZutaten } from './essen-steuerung';
 import { COLLATOR } from './essen-validation';
 import { ValidationError } from './validation/errors';
-import { zutatDerPlanung } from './essen-planung-zutat';
+import { sperreNamen, zutatDerPlanung } from './essen-planung-zutat';
 import { angabenStand } from './essen-zutat-angaben';
 
 /**
@@ -304,6 +304,7 @@ export async function eigeneZutatAnlegen(
           name: `Eine Planung hat höchstens ${MAX_PLANUNG_ZUTATEN} Zutaten.`,
         });
       }
+      await sperreNamen(trx, zugang);
       await pruefeEigenenNamen(trx, input.name!);
       await pruefeVerweise(trx, input.kategorieId, input.allergene ?? []);
       const { id } = await trx
@@ -339,6 +340,7 @@ export async function planungZutatAendern(
       const zutat = await zutatDerPlanung(trx, zugang, id);
       const eigene = zutat.zutat_id === null;
       const input: PlanungZutatInput = validatePlanungZutat(body, { eigene });
+      if (eigene) await sperreNamen(trx, zugang);
       if (eigene && input.name !== zutat.name) await pruefeEigenenNamen(trx, input.name!);
       await pruefeVerweise(trx, input.kategorieId, input.allergene ?? []);
       const result = await trx
