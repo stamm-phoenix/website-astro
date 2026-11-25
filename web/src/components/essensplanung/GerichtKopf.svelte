@@ -114,6 +114,8 @@
       return false;
     }
     konflikte = konflikte.filter((f) => f !== feld);
+    // The errors of the last try go; what the server still refuses comes back with its answer
+    fehlerWeg(feld);
     // The version checked against; a change of others while this waits makes the server refuse it
     const geprueftEtag = gericht.etag;
     let etagGesendet = geprueftEtag;
@@ -164,7 +166,8 @@
       if (gleich(kopf[feld], gesendet)) kopf = { ...kopf, [feld]: aktuell };
       return true;
     }
-    const folge = bewusst ? 'fehler' : nachFehler(aktuell, geprueft, etagGesendet, gericht.etag);
+    // A failed „Trotzdem speichern“ keeps the choice under the fields
+    const folge = bewusst ? 'konflikt' : nachFehler(aktuell, geprueft, etagGesendet, gericht.etag);
     if (folge === 'konflikt') {
       basis = { ...basis, [feld]: aktuell };
       konflikte = [...konflikte, feld];
@@ -238,7 +241,6 @@
     onfocusin={(event) => (fokusFeld = feldVon(event.target))}
     onfocusout={verlassen}
   >
-    <p class="text-sm text-neutral-700">Wird sofort gespeichert.</p>
     <div class="grid gap-x-6 gap-y-3 lg:grid-cols-2">
       <div class="space-y-3">
         <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">

@@ -241,6 +241,9 @@
       disabled={!katalog}
       erstellen={alleRezeptkarten}
     />
+    {#if bearbeiten}
+      <p class="text-sm text-neutral-700">Wird sofort gespeichert.</p>
+    {/if}
     <ul class="space-y-3">
       {#each ansicht.gerichte as gericht (gericht.id)}
         <li id="gericht-{gericht.id}" class="surface scroll-mt-24 lg:scroll-mt-0">
