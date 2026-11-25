@@ -57,6 +57,7 @@ function modell(t: TestContext, antwort: () => unknown): { aufrufe: number } {
 const finde = (ansicht: PlanungAnsicht, name: string): PlanungZutat =>
   ansicht.zutaten.find((zutat) => zutat.name === name)!;
 
+// Names that are not in the start data of the central list
 dbTest('a new name adds an ingredient of its own, and the AI fills in what is open', async (t) => {
   const mails = captureMails(t);
   const { token } = await anlegen(t, mails);
@@ -67,8 +68,8 @@ dbTest('a new name adds an ingredient of its own, and the AI fills in what is op
   const sonstiges = katalog.kategorien.find((k) => k.name === 'Sonstiges')!.id;
 
   // The unit of the amount tells the kind of unit; the rest are stand-ins
-  let ansicht = await zeile(t, token, id, { neueZutat: 'Zucchini', menge: 2, einheit: 'kg' });
-  const zucchini = finde(ansicht, 'Zucchini');
+  let ansicht = await zeile(t, token, id, { neueZutat: 'Omas Gemüsemix', menge: 2, einheit: 'kg' });
+  const zucchini = finde(ansicht, 'Omas Gemüsemix');
   assert.equal(zucchini.zutatId, null);
   assert.equal(zucchini.lebensmittel, true);
   assert.equal(zucchini.einheitenart, 'masse');
@@ -78,8 +79,8 @@ dbTest('a new name adds an ingredient of its own, and the AI fills in what is op
   assert.equal(ansicht.gerichte[0].zutaten[0].planungZutatId, zucchini.id);
 
   // The same name again, in other case, is the same ingredient; a name of the list is that one
-  ansicht = await zeile(t, token, id, { neueZutat: 'zucchini', menge: 1, einheit: 'stueck' });
-  assert.equal(ansicht.zutaten.filter((z) => z.name.toLowerCase() === 'zucchini').length, 1);
+  ansicht = await zeile(t, token, id, { neueZutat: 'omas gemüsemix', menge: 1, einheit: 'stueck' });
+  assert.equal(ansicht.zutaten.filter((z) => z.name.toLowerCase() === 'omas gemüsemix').length, 1);
   ansicht = await zeile(t, token, id, { neueZutat: 'Zwiebeln', menge: 3, einheit: 'stueck' });
   assert.notEqual(finde(ansicht, 'Zwiebeln').zutatId, null);
 
@@ -94,7 +95,7 @@ dbTest('a new name adds an ingredient of its own, and the AI fills in what is op
   const gluten = katalog.unvertraeglichkeiten[0].id;
   const zaehler = modell(t, () => ({
     zutaten: [
-      // The kind of unit of Zucchini came from its line and stays
+      // The kind of unit of Omas Gemüsemix came from its line and stays
       {
         schluessel: `z${zucchini.id}`,
         kategorie: gemuese,
@@ -116,8 +117,8 @@ dbTest('a new name adds an ingredient of its own, and the AI fills in what is op
   const antwort = await call(t, EssensplanungKiZutaten, 'POST', 'planung/ki/zutaten', { token });
   assert.equal(antwort.status, 200, JSON.stringify(antwort.jsonBody));
   const ergebnis = json<{ ansicht: PlanungAnsicht; ergaenzt: string[] }>(antwort);
-  assert.deepEqual(ergebnis.ergaenzt.sort(), ['Hokkaido', 'Zucchini']);
-  const z = finde(ergebnis.ansicht, 'Zucchini');
+  assert.deepEqual(ergebnis.ergaenzt.sort(), ['Hokkaido', 'Omas Gemüsemix']);
+  const z = finde(ergebnis.ansicht, 'Omas Gemüsemix');
   assert.deepEqual(
     [z.kategorieId, z.einheitenart, z.vegetarisch, z.vegan, z.allergene, z.angaben],
     [gemuese, 'masse', true, true, [], 'ki']
