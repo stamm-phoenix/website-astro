@@ -19,6 +19,7 @@ const zutat = (id: number, name: string): PlanungZutat => ({
   abweichend: { kategorie: false, einheitenart: false },
   zeilen: 1,
   geschaeftId: null,
+  angaben: 'geprueft',
 });
 
 const zeile = (id: number, planungZutatId: number, menge: number | null) => ({

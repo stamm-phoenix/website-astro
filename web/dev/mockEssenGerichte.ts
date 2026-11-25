@@ -3,6 +3,8 @@ import { ValidationError } from '../../api/lib/validation/errors';
 import { essenEinstellungen, essenKatalog } from './mock-data/essensplanung';
 import type * as essenPlanung from './mock-data/essensplanung-planung';
 import * as essenGerichte from './mock-data/essensplanung-gerichte';
+import * as essenZutaten from './mock-data/essensplanung-zutaten';
+import * as essenKiZutaten from './mock-data/essensplanung-ki-zutaten';
 import * as essenEinplanung from './mock-data/essensplanung-einplanung';
 import * as essenTeilnehmende from './mock-data/essensplanung-teilnehmende';
 import * as essenEinkauf from './mock-data/essensplanung-einkauf';
@@ -25,7 +27,7 @@ import {
 import { readPosition, validateEinplanung } from '../../api/lib/essen-planung-validation';
 import { error, json, route, str } from './mockCore';
 import type { MockRequest, MockResult } from './mockCore';
-import { essenAendern, essenFehler, essenZugang } from './mockEssenCommon';
+import { essenAendern, essenAnsicht, essenFehler, essenZugang } from './mockEssenCommon';
 
 // Invented Leitende for „Leitende einladen“; the real API reads the team „Leitende“
 route('GET', '/api/essensplanung/planung/leitende', (req) => {
@@ -57,17 +59,17 @@ route('GET', '/api/essensplanung/planung/katalog', (req) => {
 
 route('POST', '/api/essensplanung/planung/zutaten', (req) => {
   const input = validatePlanungZutat(req.json, { eigene: true });
-  return essenAendern(req, (z) => ({ id: essenGerichte.eigeneZutatAnlegen(z, input) }), 201);
+  return essenAendern(req, (z) => ({ id: essenZutaten.eigeneZutatAnlegen(z, input) }), 201);
 });
 
 route(['PATCH', 'DELETE'], '/api/essensplanung/planung/zutaten/:id', (req) => {
   const id = Number(req.params.id);
   if (req.method === 'DELETE')
     return essenAendern(req, (z) =>
-      essenGerichte.planungZutatLoeschen(z, id, req.headers['if-match'])
+      essenZutaten.planungZutatLoeschen(z, id, req.headers['if-match'])
     );
   return essenAendern(req, (z) =>
-    essenGerichte.planungZutatAendern(z, id, req.json, req.json?.etag)
+    essenZutaten.planungZutatAendern(z, id, req.json, req.json?.etag)
   );
 });
 
@@ -325,6 +327,13 @@ route('PUT', '/api/essensplanung/planung/zutaten/:id/einheiten', (req) => {
     essenEinheiten.einheitenUebernehmen(z, Number(req.params.id), zeilen)
   );
 });
+
+route('POST', '/api/essensplanung/planung/ki/zutaten', (req) =>
+  essenKiFrage(req, (z, wartung) => ({
+    ...essenKiZutaten.kiZutatenErgaenzen(z, wartung),
+    ansicht: essenAnsicht(z),
+  }))
+);
 
 route('POST', '/api/essensplanung/planung/ki/einheiten', (req) => {
   const id = Number(req.json?.planungZutatId);

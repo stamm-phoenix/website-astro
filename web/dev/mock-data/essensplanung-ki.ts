@@ -29,9 +29,9 @@ export class MockKiBesetzt extends Error {
   readonly message = `KI gerade nicht verfügbar, bitte in etwa ${this.retryAfter} Sekunden noch einmal versuchen. Alles andere funktioniert wie gewohnt.`;
 }
 
-const FEHLER = /KI-Fehler/i;
+export const FEHLER = /KI-Fehler/i;
 
-function pruefeZugang(z: MockZugang, wartung: boolean): void {
+export function pruefeZugang(z: MockZugang, wartung: boolean): void {
   if (z.zugang === 'lesen')
     throw new MockPlanungFehler(
       403,

@@ -196,7 +196,7 @@ test('an ingredient first used meanwhile is still recognised from the list', asy
   freigeben();
 
   await expect(dialog.getByLabel('Zutat für 500 g Zwiebeln')).toHaveValue('Zwiebeln');
-  await expect(dialog.getByText('nicht in der Liste, bitte wählen')).toHaveCount(0);
+  await expect(dialog.getByText('– neue Zutat')).toHaveCount(0);
   await expect(dialog.getByRole('checkbox', { name: '500 g Zwiebeln übernehmen' })).toBeChecked();
   await expect(dialog.getByLabel('Einheit für 500 g Zwiebeln')).toHaveValue('g');
 });

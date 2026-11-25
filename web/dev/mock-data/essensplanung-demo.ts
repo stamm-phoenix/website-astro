@@ -8,7 +8,7 @@
 import type { GerichtEinheit, GerichtZutat } from '../../../api/lib/essen-gerichte-model';
 import type { Ernaehrung } from '../../../api/lib/essen-teilnehmende-model';
 import { essenKatalog } from './essensplanung';
-import { zutatFuer } from './essensplanung-gerichte';
+import { zutatFuer } from './essensplanung-zutaten';
 import type { MockEinplanung, MockPlanung } from './essensplanung-planung';
 import { DEMO_TOKEN, neueId, neuesEtag, neuesMockToken, zugangVon } from './essensplanung-planung';
 

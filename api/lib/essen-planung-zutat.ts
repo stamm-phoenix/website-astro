@@ -3,6 +3,7 @@ import type { Db } from './db';
 import type { Database } from './db-schema';
 import { RecordNotFoundError, lockResource } from './db';
 import { MAX_PLANUNG_ZUTATEN, einheitenartVon, zutatSperre } from './essen-gerichte-model';
+import { angabenText } from './essen-zutat-angaben';
 import type { GerichtEinheit } from './essen-gerichte-model';
 import type { Zugang } from './essen-zugang';
 import { katalogGeaendert } from './essen-katalog-stand';
@@ -39,19 +40,38 @@ export async function zutatDerPlanung(trx: Db, zugang: Zugang, id: number) {
 const keinLebensmittel = (name: string) =>
   new ValidationError({ zutat: `${name} ist kein Lebensmittel und gehört in kein Gericht.` });
 
-/** What picks an ingredient: one of the Planung, or one of the central list. */
-export type ZutatWahl = { zutatId: number } | { planungZutatId: number };
+/**
+ * What picks an ingredient: one of the Planung, one of the central list, or a name in neither
+ * list (`neu`), added as one of the Planung's own.
+ */
+export type ZutatWahl = { zutatId: number } | { planungZutatId: number } | { neu: string };
+
+/** Refuses one more ingredient when the Planung has the most it may have. */
+async function pruefeAnzahl(trx: Db, zugang: Zugang): Promise<void> {
+  const anzahl = await trx
+    .selectFrom('essen.planung_zutat')
+    .select((eb) => eb.fn.countAll<number>().as('count'))
+    .where('planung_id', '=', zugang.planungId)
+    .executeTakeFirstOrThrow();
+  if (Number(anzahl.count) >= MAX_PLANUNG_ZUTATEN) {
+    throw new ValidationError({
+      zutat: `Eine Planung hat höchstens ${MAX_PLANUNG_ZUTATEN} Zutaten.`,
+    });
+  }
+}
 
 /**
- * The ingredient of the Planung that `wahl` picks; a central one is added to the Planung first.
+ * The ingredient of the Planung that `wahl` picks; a central one is added to the Planung first,
+ * a new name as one of its own (`einheit`, the unit of the amount, tells its kind of unit).
  * With `lebensmittel` (lines of dishes), things that are not food are refused.
  */
 export async function zutatDerPlanungFuer(
   trx: Transaction<Database>,
   zugang: Zugang,
   wahl: ZutatWahl,
-  { lebensmittel }: { lebensmittel: boolean }
+  { lebensmittel, einheit = null }: { lebensmittel: boolean; einheit?: GerichtEinheit | null }
 ): Promise<{ id: number; name: string; einheitenart: EssenEinheitenart }> {
+  if ('neu' in wahl) return neueZutatDerPlanung(trx, zugang, wahl.neu, einheit, { lebensmittel });
   if ('planungZutatId' in wahl) {
     const row = await zutatDerPlanung(trx, zugang, wahl.planungZutatId).catch(() => null);
     if (!row) throw new ValidationError({ zutat: 'Bitte eine Zutat wählen.' });
@@ -90,16 +110,7 @@ export async function zutatDerPlanungFuer(
       einheitenart: vorhanden.einheitenart ?? zentral.einheitenart,
     };
   }
-  const anzahl = await trx
-    .selectFrom('essen.planung_zutat')
-    .select((eb) => eb.fn.countAll<number>().as('count'))
-    .where('planung_id', '=', zugang.planungId)
-    .executeTakeFirstOrThrow();
-  if (Number(anzahl.count) >= MAX_PLANUNG_ZUTATEN) {
-    throw new ValidationError({
-      zutat: `Eine Planung hat höchstens ${MAX_PLANUNG_ZUTATEN} Zutaten.`,
-    });
-  }
+  await pruefeAnzahl(trx, zugang);
   const { id } = await trx
     .insertInto('essen.planung_zutat')
     .values({ planung_id: zugang.planungId, zutat_id: zentral.id })
@@ -157,16 +168,7 @@ export async function sonstigesDerPlanung(
     .where('name', '=', name)
     .executeTakeFirst();
   if (eigene) return { id: eigene.id, name: eigene.name!, einheitenart: eigene.einheitenart! };
-  const anzahl = await trx
-    .selectFrom('essen.planung_zutat')
-    .select((eb) => eb.fn.countAll<number>().as('count'))
-    .where('planung_id', '=', zugang.planungId)
-    .executeTakeFirstOrThrow();
-  if (Number(anzahl.count) >= MAX_PLANUNG_ZUTATEN) {
-    throw new ValidationError({
-      zutat: `Eine Planung hat höchstens ${MAX_PLANUNG_ZUTATEN} Zutaten.`,
-    });
-  }
+  await pruefeAnzahl(trx, zugang);
   const kategorieId = await sonstigesKategorie(trx);
   const einheitenart = (einheit === null ? null : einheitenartVon(einheit)) ?? 'stueck';
   const { id } = await trx
@@ -177,6 +179,55 @@ export async function sonstigesDerPlanung(
       kategorie_id: kategorieId,
       einheitenart,
       lebensmittel: false,
+    })
+    .output('inserted.id')
+    .executeTakeFirstOrThrow();
+  return { id, name, einheitenart };
+}
+
+/**
+ * A name typed for a line that is in neither list (`docs/essensplanung.md`, „Zutaten schnell
+ * anlegen“): added as a food of the Planung's own, in „Sonstiges“ and measured as the unit of the
+ * amount says (pieces without a known one), with the diet unknown. What is a stand-in stays open
+ * for the AI (`angaben_offen`). A name that is in a list by now picks that ingredient.
+ */
+async function neueZutatDerPlanung(
+  trx: Transaction<Database>,
+  zugang: Zugang,
+  name: string,
+  einheit: GerichtEinheit | null,
+  { lebensmittel }: { lebensmittel: boolean }
+): Promise<{ id: number; name: string; einheitenart: EssenEinheitenart }> {
+  // Two lines with the same new name at the same moment add it once
+  await lockResource(trx, `essen-planung-zutat-name:${zugang.planungId}`);
+  const zentral = await trx
+    .selectFrom('essen.zutat')
+    .select('id')
+    .where('name', '=', name)
+    .executeTakeFirst();
+  if (zentral) return zutatDerPlanungFuer(trx, zugang, { zutatId: zentral.id }, { lebensmittel });
+  const eigene = await trx
+    .selectFrom('essen.planung_zutat')
+    .select('id')
+    .where('planung_id', '=', zugang.planungId)
+    .where('name', '=', name)
+    .executeTakeFirst();
+  if (eigene)
+    return zutatDerPlanungFuer(trx, zugang, { planungZutatId: eigene.id }, { lebensmittel });
+  await pruefeAnzahl(trx, zugang);
+  const bekannt = einheit === null ? null : einheitenartVon(einheit);
+  const einheitenart = bekannt ?? 'stueck';
+  const { id } = await trx
+    .insertInto('essen.planung_zutat')
+    .values({
+      planung_id: zugang.planungId,
+      name,
+      kategorie_id: await sonstigesKategorie(trx),
+      einheitenart,
+      angaben_offen: angabenText(
+        bekannt ? ['kategorie', 'merkmale'] : ['kategorie', 'einheitenart', 'merkmale']
+      ),
+      angaben_geprueft: false,
     })
     .output('inserted.id')
     .executeTakeFirstOrThrow();

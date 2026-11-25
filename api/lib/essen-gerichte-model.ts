@@ -1,4 +1,5 @@
 import type { EssenEinheitenart } from './essen-validation';
+import type { ZutatAngabenStand } from './essen-zutat-angaben';
 
 /**
  * Dishes of a Planung and the ingredients they use: types, units and the warnings the page shows.
@@ -197,6 +198,8 @@ export interface PlanungZutat {
   zeilen: number;
   /** The shop it is bought at; null: none yet. */
   geschaeftId: number | null;
+  /** Whether the details of one added by its name alone are filled in and checked. */
+  angaben: ZutatAngabenStand;
 }
 
 export interface GerichtLink {
@@ -348,7 +351,8 @@ export interface GerichtInput {
 
 /** A line of a dish; the ingredient is a central one or one of the Planung. */
 export interface GerichtZutatInput {
-  zutat: { zutatId: number } | { planungZutatId: number };
+  /** `neu`: a name in neither list, added as an ingredient of the Planung's own. */
+  zutat: { zutatId: number } | { planungZutatId: number } | { neu: string };
   menge: number | null;
   einheit: GerichtEinheit | null;
   fest: boolean;

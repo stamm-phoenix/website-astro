@@ -23,6 +23,7 @@ const zutat = (
   abweichend: { kategorie: false, einheitenart: false },
   zeilen: 1,
   geschaeftId,
+  angaben: 'geprueft',
 });
 
 const zeile = (id: number, planungZutatId: number, menge: number, einheit: 'g' | 'stueck') => ({

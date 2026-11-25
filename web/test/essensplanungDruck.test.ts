@@ -27,6 +27,7 @@ const zutat = (id: number, name: string, extra: Partial<PlanungZutat> = {}): Pla
   abweichend: { kategorie: false, einheitenart: false },
   zeilen: 1,
   geschaeftId: null,
+  angaben: 'geprueft',
   ...extra,
 });
 

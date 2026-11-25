@@ -14,6 +14,7 @@ import {
   umrechnungSchaetzen,
 } from '../lib/essen-ki';
 import { einheitenVorschlagen } from '../lib/essen-ki-einheiten';
+import { zutatenErgaenzen } from '../lib/essen-ki-zutaten';
 import { gerichtGenerieren } from '../lib/essen-ki-generieren';
 import { KI_MASSE, MAX_GERICHT_BESCHREIBUNG, MAX_REZEPT_TEXT } from '../lib/essen-ki-model';
 import type { KiMass } from '../lib/essen-ki-model';
@@ -115,6 +116,15 @@ export const EssensplanungKiEinheiten = planungHandler(async (request) => {
 });
 
 /**
+ * POST: the AI fills in the open details of the ingredients added by their name alone; answers
+ * `{ ansicht, ergaenzt }` with the names it filled in.
+ */
+export const EssensplanungKiZutaten = planungHandler(async (request) => {
+  const zugang = await zugangVon(request);
+  return kiAntwort(() => zutatenErgaenzen(zugang));
+});
+
+/**
  * The lines of a batch; an error of a line names its field as `zeilen.<index>.<field>`. None is
  * only enough when the batch sets fields of the dish (`leer`).
  */
@@ -194,6 +204,13 @@ app.http('essensplanungKiUmrechnung', {
   authLevel: 'anonymous',
   route: 'essensplanung/planung/ki/umrechnung',
   handler: EssensplanungKiUmrechnung,
+});
+
+app.http('essensplanungKiZutaten', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  route: 'essensplanung/planung/ki/zutaten',
+  handler: EssensplanungKiZutaten,
 });
 
 app.http('essensplanungKiEinheiten', {

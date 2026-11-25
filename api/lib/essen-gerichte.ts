@@ -17,6 +17,7 @@ import { listKategorien, listUnvertraeglichkeiten, listZutaten } from './essen-s
 import { COLLATOR } from './essen-validation';
 import { ValidationError } from './validation/errors';
 import { zutatDerPlanung } from './essen-planung-zutat';
+import { angabenStand } from './essen-zutat-angaben';
 
 /**
  * Dishes of a Planung and the ingredients they use (`docs/essensplanung.md`, „Gerichte“). Every
@@ -85,6 +86,8 @@ export async function ladeGerichte(
         'pz.vegetarisch',
         'pz.vegan',
         'pz.lebensmittel',
+        'pz.angaben_offen',
+        'pz.angaben_geprueft',
         'z.name as z_name',
         'z.kategorie_id as z_kategorie_id',
         'z.einheitenart as z_einheitenart',
@@ -178,6 +181,9 @@ export async function ladeGerichte(
           },
           zeilen: Number(row.zeilen),
           geschaeftId: row.geschaeft_id,
+          angaben: zentral
+            ? 'geprueft'
+            : angabenStand(row.angaben_offen, Boolean(row.angaben_geprueft)),
         };
       })
       .sort((a, b) => COLLATOR.compare(a.name, b.name)),
@@ -271,7 +277,7 @@ async function pruefeEigenenNamen(trx: Db, name: string): Promise<void> {
   if (zentral) throw new ValidationError({ name: EIGENE_ZUTAT_GIBT_ES });
 }
 
-async function setzeAllergene(trx: Db, planungZutatId: number, allergene: number[]) {
+export async function setzeAllergene(trx: Db, planungZutatId: number, allergene: number[]) {
   await trx
     .deleteFrom('essen.planung_zutat_unvertraeglichkeit')
     .where('planung_zutat_id', '=', planungZutatId)
@@ -345,6 +351,9 @@ export async function planungZutatAendern(
                 einheitenart: input.einheitenart,
                 vegetarisch: input.vegetarisch ?? null,
                 vegan: input.vegan ?? null,
+                // Whoever saves them has seen them; the AI fills in nothing any more
+                angaben_offen: null,
+                angaben_geprueft: true,
               }
             : { kategorie_id: input.kategorieId, einheitenart: input.einheitenart }
         )

@@ -41,7 +41,10 @@ export function zutatVon(
     : katalog.zutaten.find((z) => z.id === auswahl.id);
 }
 
-/** A line of the AI's answer as the preview shows it; unknown ingredients start unticked. */
+/**
+ * A line of the AI's answer as the preview shows it. An ingredient in neither list is taken over
+ * as a new one of the Planung's own under the name the AI read.
+ */
 export function vorschauZeile(
   ki: KiRezeptZeile,
   vorschlaege: readonly Vorschlag[],
@@ -55,7 +58,7 @@ export function vorschauZeile(
   // Without an amount the unit follows the ingredient; an amount keeps the recipe's unit
   const einheit = ki.einheit ?? (art ? EINHEITEN_JE_ART[art][0] : 'g');
   return {
-    an: Boolean(vorschlag),
+    an: Boolean(vorschlag || ki.name.trim()),
     original: ki.original,
     zutatText: vorschlag?.value ?? ki.name,
     auswahl,
@@ -72,12 +75,18 @@ export function vorschauZeile(
   };
 }
 
-/** A line as `…/zutaten/sammel` takes it. */
+/** Whether the line has an ingredient to take over: a chosen one or a new name. */
+export const wirdUebernommen = (zeile: VorschauZeile): boolean =>
+  Boolean(zeile.auswahl || zeile.zutatText.trim());
+
+/** A line as `…/zutaten/sammel` takes it; without a choice its name is a new ingredient. */
 export function zeileFuerSammel(zeile: VorschauZeile, menge: number | null) {
   return {
-    ...(zeile.auswahl!.art === 'planung'
-      ? { planungZutatId: zeile.auswahl!.id }
-      : { zutatId: zeile.auswahl!.id }),
+    ...(!zeile.auswahl
+      ? { neueZutat: zeile.zutatText.trim() }
+      : zeile.auswahl.art === 'planung'
+        ? { planungZutatId: zeile.auswahl.id }
+        : { zutatId: zeile.auswahl.id }),
     menge,
     einheit: menge === null ? null : zeile.einheit,
     fuerAlles: zeile.fuerAlles,

@@ -100,7 +100,10 @@ async function fuegeZeileEin(
   input: GerichtZutatInput,
   position: number
 ): Promise<{ id: number; name: string }> {
-  const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: true });
+  const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, {
+    lebensmittel: true,
+    einheit: input.einheit,
+  });
   const { id } = await trx
     .insertInto('essen.gericht_zutat')
     .values({ gericht_id: gerichtId, position, ...zeilenWerte(input, zutat.id) })
@@ -262,7 +265,10 @@ export async function gerichtZutatAendern(
     const zeile = await zeileDerPlanung(trx, zugang, id);
     await lockResource(trx, gerichtSperre(zeile.gericht_id));
     await pruefePersonen(trx, zeile.gericht_id, personen);
-    const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, { lebensmittel: true });
+    const zutat = await zutatDerPlanungFuer(trx, zugang, input.zutat, {
+      lebensmittel: true,
+      einheit: input.einheit,
+    });
     const result = await trx
       .updateTable('essen.gericht_zutat')
       .set(zeilenWerte(input, zutat.id))

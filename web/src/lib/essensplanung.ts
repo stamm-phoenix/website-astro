@@ -175,6 +175,7 @@ const AENDERUNGEN: Record<string, string> = {
   'gericht-zutat-geaendert': 'hat eine Zutat geändert',
   'gericht-zutat-geloescht': 'hat eine Zutat entfernt',
   'zutat-neu': 'hat eine eigene Zutat angelegt',
+  'zutat-ki': 'hat Angaben zu Zutaten von der KI ergänzen lassen',
   'zutat-geaendert': 'hat eine Zutat der Planung geändert',
   'zutat-geloescht': 'hat eine Zutat der Planung gelöscht',
   'einplanung-neu': 'hat ein Gericht eingeplant',

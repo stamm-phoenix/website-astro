@@ -16,6 +16,7 @@
   import PlanEinstellungen from './PlanEinstellungen.svelte';
   import PlanAenderungen from './PlanAenderungen.svelte';
   import type { PlanKontext } from './planKontext';
+  import { zutatenErgaenzung } from './zutatenErgaenzen';
 
   /**
    * The page of a Planung. The token comes from the link (`#t=…`); the page asks every 2.5
@@ -100,6 +101,7 @@
     if (!token) return;
     try {
       zeige(await planungApi(token).laden());
+      ergaenzung.pruefe();
       ladeFehler = null;
     } catch (error: unknown) {
       if (error instanceof ApiError && error.code === 'LINK_UNGUELTIG') ungueltig = true;
@@ -142,6 +144,7 @@
       const result = await work();
       if (result && 'ansicht' in result) zeige(result.ansicht);
       else if (result) zeige(result);
+      ergaenzung.pruefe();
       if (erfolg) hinweis(erfolg);
       return true;
     } catch (error: unknown) {
@@ -188,6 +191,10 @@
       zielGericht = { id, n: (zielGericht?.n ?? 0) + 1 };
     },
   };
+
+  // Ingredients added by their name alone get their details from the AI in the background. Only
+  // after the page's own changes and loading, so pages open elsewhere do not all ask at once
+  const ergaenzung = zutatenErgaenzung(kontext);
 
   onMount(() => {
     // Another link opened in this tab gets a fresh start; another fragment like „Zum Inhalt

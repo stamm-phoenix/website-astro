@@ -31,6 +31,7 @@ const zutat = (
   abweichend: { kategorie: false, einheitenart: false },
   zeilen: 1,
   geschaeftId,
+  angaben: 'geprueft',
 });
 
 const zeile = (

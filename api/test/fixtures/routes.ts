@@ -1054,6 +1054,12 @@ export const ROUTES: RegisteredRoute[] = [
     route: 'essensplanung/planung/ki/umrechnung',
   },
   {
+    name: 'essensplanungKiZutaten',
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'essensplanung/planung/ki/zutaten',
+  },
+  {
     name: 'essensplanungKiEinheiten',
     methods: ['POST'],
     authLevel: 'anonymous',

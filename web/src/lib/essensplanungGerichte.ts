@@ -4,6 +4,7 @@ import type {
   PlanungZutat,
 } from '../../../api/lib/essen-gerichte-model';
 import type { Vorschlag } from './vorschlaege';
+import { filterVorschlaege } from './vorschlaege';
 
 /** Helpers of the area „Gerichte“ of a Planung (`docs/essensplanung.md`). */
 
@@ -106,6 +107,29 @@ export function zutatVorschlaege(
   ];
 }
 
+const NEUE_ZUTAT = 'neu';
+
+/**
+ * The suggestions and, for a typed name in neither list, „„Mais“ neu anlegen“ at the end: Enter
+ * still takes the best match of the lists, so a half-typed name never becomes a new ingredient.
+ */
+export function mitNeuerZutat(vorschlaege: Vorschlag[], text: string): Vorschlag[] {
+  const name = text.trim().replace(/\s+/g, ' ');
+  if (name.length < 2 || getippteZutat(vorschlaege, name)) return vorschlaege;
+  return [
+    ...vorschlaege,
+    { key: NEUE_ZUTAT, value: name, label: `„${name}“ neu anlegen`, gruppe: 'Neue Zutat' },
+  ];
+}
+
+/** Whether a typed name matches nothing in the lists, so adding it makes a new ingredient. */
+export function nurNeu(vorschlaege: Vorschlag[], text: string): boolean {
+  return text.trim().length > 1 && filterVorschlaege(vorschlaege, text, 1).total === 0;
+}
+
+/** Whether the suggestion is the one of `mitNeuerZutat`. */
+export const istNeueZutat = (option: Vorschlag): boolean => option.key === NEUE_ZUTAT;
+
 /** An ingredient chosen for a line: from the central list or of the Planung. */
 export interface ZutatWahl {
   art: 'zentral' | 'planung';
@@ -133,12 +157,14 @@ export function gewaehlteZutat(
   return zutaten.find((z) => z.zutatId === id) ?? katalog?.zutaten.find((z) => z.id === id);
 }
 
-/** The suggestion whose name was typed, ignoring case but not umlauts (Ol is not Öl). */
+/** Whether two names are the same, ignoring case but not umlauts (Ol is not Öl). */
+export function gleicherName(a: string, b: string): boolean {
+  return a.trim().localeCompare(b.trim(), 'de', { sensitivity: 'accent' }) === 0;
+}
+
+/** The suggestion whose name was typed. */
 export function getippteZutat(vorschlaege: Vorschlag[], text: string): Vorschlag | undefined {
-  const name = text.trim();
-  return vorschlaege.find(
-    (option) => option.value.localeCompare(name, 'de', { sensitivity: 'accent' }) === 0
-  );
+  return vorschlaege.find((option) => gleicherName(option.value, text));
 }
 
 /** „vegan“, „vegetarisch“, „nicht vegetarisch“ or null while unknown. */

@@ -25,7 +25,11 @@
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import {
     getippteZutat,
+    istNeueZutat,
+    mitNeuerZutat,
+    nurNeu,
     gewaehlteZutat,
+    gleicherName,
     leseMenge,
     mengeFeld,
     zutatVorschlaege,
@@ -35,11 +39,6 @@
   import { EINHEITEN_JE_ART, einheitText } from '../../../../api/lib/essen-gerichte-model';
   import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
   import EinheitFeld from './EinheitFeld.svelte';
-  import EigeneZutatFelder, {
-    eigeneBody,
-    neueEigene,
-    type EigeneZutat,
-  } from './EigeneZutatFelder.svelte';
   import ZeileGeschaeftFeld from './ZeileGeschaeftFeld.svelte';
   import type { EssenEinheitenart } from '../../../../api/lib/essen-schema';
   import type {
@@ -48,13 +47,12 @@
     GerichtEinheit,
     GerichtZutat,
   } from '../../../../api/lib/essen-gerichte-model';
-  import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
   import type { Vorschlag } from '../../lib/vorschlaege';
   import type { PlanKontext } from './planKontext';
 
   /**
-   * Adds or changes a line of a dish: the ingredient from the list or the Planung (or a new one
-   * of the Planung's own), amount and unit, for whom it is, the intolerances and the shop of the
+   * Adds or changes a line of a dish: the ingredient from the list or the Planung (a name in
+   * neither becomes a new one of the Planung's own, filled in by the AI), amount and unit, for whom it is, the intolerances and the shop of the
    * ingredient.
    */
 
@@ -86,8 +84,6 @@
   let felder = $state<Record<string, string>>({});
   /** Why the last save failed, shown in the dialog, which covers the page's notice. */
   let fehler = $state<string | null>(null);
-  /** A new ingredient of the Planung's own, for a name that is not in the list. */
-  let eigene = $state<EigeneZutat | null>(null);
   let geaendert = $state(false);
   let geschaeftFeld = $state<ZeileGeschaeftFeld>();
 
@@ -104,7 +100,7 @@
     felder = {};
     fehler = null;
     geoeffnet++;
-    eigene = null;
+    neuGewaehlt = false;
     geaendert = false;
     const z = zeile;
     if (z) {
@@ -144,9 +140,7 @@
   /** The chosen ingredient, as it applies in this Planung. */
   const gewaehlt = $derived(gewaehlteZutat(auswahl, ansicht.zutaten, katalog));
   /** The kind of unit of the chosen ingredient. */
-  const einheitenart = $derived<EssenEinheitenart | null>(
-    eigene ? eigene.einheitenart : (gewaehlt?.einheitenart ?? null)
-  );
+  const einheitenart = $derived<EssenEinheitenart | null>(gewaehlt?.einheitenart ?? null);
   const einheiten = $derived<readonly string[]>(einheitenart ? EINHEITEN_JE_ART[einheitenart] : []);
 
   /** The central ingredient behind the choice, for converting TL, EL or pieces into grams. */
@@ -170,11 +164,6 @@
   $effect(() => {
     if (!menge.trim()) passendeEinheit();
   });
-  // The kind of unit of a new own ingredient is always chosen here
-  $effect(() => {
-    // A typed amount keeps its unit: nothing is converted
-    if (eigene?.einheitenart && !untrack(() => menge.trim())) untrack(passendeEinheit);
-  });
   /** TL, EL or pieces typed: the conversion into grams starts with them. */
   const umrechnenVon = $derived.by(() => {
     const mass = ({ TL: 'tl', EL: 'el', stueck: 'stueck' } as const)[einheit];
@@ -182,13 +171,19 @@
   });
 
   function waehle(option: Vorschlag): void {
-    nimm(option);
+    neuGewaehlt = istNeueZutat(option);
+    if (neuGewaehlt) {
+      auswahl = null;
+      geaendert = true;
+    } else nimm(option);
     zutatText = option.value;
   }
 
+  /** „… neu anlegen“ was picked for the name as it stands. */
+  let neuGewaehlt = $state(false);
+
   function nimm(option: Vorschlag): void {
     auswahl = zutatWahl(option);
-    eigene = null;
     geaendert = true;
     // An explicit choice: its unit, e.g. kg instead of ml after picking flour, unless an amount is
     // typed already
@@ -198,6 +193,7 @@
   /** A typed name of the list counts as chosen; the text stays as typed. */
   function getippt(text: string): void {
     geaendert = true;
+    neuGewaehlt = false;
     const treffer = getippteZutat(vorschlaege, text);
     if (treffer) nimm(treffer);
     else auswahl = null;
@@ -206,7 +202,8 @@
   /** The chosen ingredient once it is in the Planung, with its shop. */
   const planungZutat = $derived(gewaehlt && 'geschaeftId' in gewaehlt ? gewaehlt : undefined);
 
-  const ohneTreffer = $derived(!auswahl && zutatText.trim().length > 1 && !eigene);
+  /** A name in neither list: saving adds it as an ingredient of the Planung's own. */
+  const ohneTreffer = $derived(!auswahl && nurNeu(vorschlaege, zutatText));
 
   /** True while saving; the form is disabled meanwhile. */
   let speichert = $state(false);
@@ -229,43 +226,22 @@
     if (Number.isNaN(zahl)) felder.menge = 'Bitte eine Zahl wie 1,5 eintragen oder leer lassen.';
     if (zahl !== null && !einheit)
       felder.einheit = 'Bitte eine Einheit eintragen, z. B. g oder Bund.';
-    if (!auswahl && !eigene) felder.zutat = 'Bitte eine Zutat aus der Liste wählen.';
-    if (eigene && !eigene.kategorieId) felder.kategorie = 'Bitte eine Kategorie wählen.';
-    if (eigene && !eigene.einheitenart)
-      felder.einheitenart = 'Bitte wählen, worin sie gemessen wird.';
+    const name = zutatText.trim();
+    if (!auswahl && !name) felder.zutat = 'Bitte eine Zutat wählen oder ihren Namen eintragen.';
+    // A half-typed name of the list („Zwieb“) is no new ingredient unless picked as one
+    else if (!auswahl && !neuGewaehlt && !nurNeu(vorschlaege, name))
+      felder.zutat = `Wähle eine Zutat aus der Liste oder ganz unten „${name}“ neu anlegen.`;
     if (Object.keys(felder).length) return;
 
-    let ziel = auswahl;
-    if (eigene) {
-      const neu = eigene;
-      let id = 0;
-      const angelegt = await kontext.aendern(async () => {
-        try {
-          const antwort = await kontext.api.senden<{ id: number; ansicht: PlanungAnsicht }>(
-            'POST',
-            '/zutaten',
-            eigeneBody(zutatText.trim(), neu)
-          );
-          id = antwort.id;
-          return antwort;
-        } catch (error: unknown) {
-          if (error instanceof ApiError && error.fields)
-            felder = { zutat: error.fields.name ?? '' };
-          throw error;
-        }
-      });
-      if (!angelegt) {
-        if (!Object.keys(felder).length) fehler = kontext.fehler;
-        return;
-      }
-      ziel = { art: 'planung', id };
-      auswahl = ziel;
-      eigene = null;
-    }
+    const ziel = auswahl;
     // The shop before the line, so a failure there leaves the line unsaved; a new one of the
-    // central list is in the Planung only with its line
+    // central list or a new name is in the Planung only with its line
     const vorher = await geschaeftFeld?.vorDerZeile(
-      ziel!.art === 'planung' ? ziel!.id : ansicht.zutaten.find((z) => z.zutatId === ziel!.id)?.id
+      !ziel
+        ? undefined
+        : ziel.art === 'planung'
+          ? ziel.id
+          : ansicht.zutaten.find((z) => z.zutatId === ziel.id)?.id
     );
     if (vorher && !vorher.ok) {
       if (!vorher.feld) fehler = kontext.fehler;
@@ -273,7 +249,11 @@
     }
     let abgelehnt: unknown = null;
     const body = {
-      ...(ziel!.art === 'planung' ? { planungZutatId: ziel!.id } : { zutatId: ziel!.id }),
+      ...(!ziel
+        ? { neueZutat: name }
+        : ziel.art === 'planung'
+          ? { planungZutatId: ziel.id }
+          : { zutatId: ziel.id }),
       menge: zahl,
       einheit: zahl === null ? null : einheit,
       fest: zahl !== null && fest,
@@ -305,10 +285,16 @@
           throw error;
         }
       },
-      zeile ? `${zutatText} geändert.` : `${zutatText} hinzugefügt.`
+      zeile
+        ? `${name} geändert.`
+        : ziel
+          ? `${name} hinzugefügt.`
+          : `${name} als neue Zutat hinzugefügt.`
     );
     if (ok) {
-      const neu = ansicht.zutaten.find((z) => ziel!.art === 'zentral' && z.zutatId === ziel!.id);
+      const neu = !ziel
+        ? ansicht.zutaten.find((z) => gleicherName(z.name, name))
+        : ansicht.zutaten.find((z) => ziel.art === 'zentral' && z.zutatId === ziel.id);
       // The line is saved: the dialog closes also when the shop fails, the page says why
       if (neu && geschaeftFeld?.nachDerZeile())
         await geschaeftFeld.setzen(neu.id, `${zutatText} hinzugefügt.`);
@@ -381,7 +367,7 @@
         {#snippet children(attrs)}
           <VorschlagFeld
             {...attrs}
-            options={vorschlaege}
+            options={mitNeuerZutat(vorschlaege, zutatText)}
             bind:value={zutatText}
             listLabel="Zutaten"
             placeholder="z. B. Spaghetti"
@@ -393,24 +379,9 @@
         {/snippet}
       </FormField>
       {#if ohneTreffer}
-        <p class="text-sm text-neutral-700">
-          „{zutatText.trim()}“ steht nicht in der Liste.
-          <button
-            type="button"
-            class="min-h-11 font-semibold text-link underline"
-            onclick={() => (eigene = neueEigene())}
-          >
-            Als eigene Zutat dieser Planung anlegen
-          </button>
+        <p class="text-sm text-neutral-700" role="status">
+          „{zutatText.trim()}“ wird als neue Zutat angelegt.
         </p>
-      {/if}
-      {#if eigene}
-        <EigeneZutatFelder
-          {katalog}
-          name={zutatText.trim()}
-          {felder}
-          bind:eigene={() => eigene!, (wert) => (eigene = wert)}
-        />
       {/if}
 
       <div class="grid grid-cols-2 gap-3">
@@ -454,7 +425,7 @@
             onuebernehmen={uebernehmen}
           />{/key}
       {/if}
-      {#if gewaehlt && einheitenart === 'masse' && !eigene}
+      {#if gewaehlt && einheitenart === 'masse'}
         {#key geoeffnet}<KiUmrechnung
             {kontext}
             {katalog}

@@ -34,20 +34,27 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
     chili.getByText('Für vegetarisch Essende gibt es in diesem Gericht keine Zutat.')
   ).toBeVisible();
 
-  // An ingredient of the Planung's own, without an amount
+  // A name in neither list is added as an ingredient of the Planung's own, without an amount;
+  // the AI fills in its details, which stay unchecked until someone saves them
   await chili.getByRole('button', { name: 'Mehr Angaben …' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Omas Chiligewürz');
-  await dialog.getByRole('button', { name: 'Als eigene Zutat dieser Planung anlegen' }).click();
-  await dialog.getByLabel('Kategorie', { exact: true }).selectOption({ label: 'Gewürz' });
-  await dialog.getByLabel('Gemessen in', { exact: true }).selectOption({ label: 'Gewicht (g/kg)' });
-  await dialog.getByLabel('Ernährung', { exact: true }).selectOption('vegan');
-  await dialog.getByRole('checkbox', { name: 'Sellerie' }).check();
+  await expect(dialog.getByText('„Omas Chiligewürz“ wird als neue Zutat angelegt.')).toBeVisible();
   await dialog.getByLabel('Hinweis (optional)').fill('nach Geschmack');
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
-  await expect(chili.getByText('Omas Chiligewürz')).toBeVisible();
   await expect(chili.getByLabel('Hinweis zu Omas Chiligewürz')).toHaveValue('nach Geschmack');
-  await expect(chili.getByText('enthält Sellerie')).toBeVisible();
+  await expect(
+    page.getByText(/Angaben zu Omas Chiligewürz von der KI ergänzt/).first()
+  ).toBeVisible();
   await expect(chili.getByText(/Für vegetarisch Essende/)).toHaveCount(0);
+  const zutatenListe = page.getByRole('group').filter({ hasText: 'Zutaten dieser Planung' });
+  await zutatenListe.getByText(/Zutaten dieser Planung/).click();
+  await expect(zutatenListe.getByText('Von der KI ergänzt, ungeprüft')).toBeVisible();
+  await zutatenListe.getByRole('button', { name: 'Omas Chiligewürz ändern' }).click();
+  const zutatDialog = page.getByRole('dialog', { name: 'Omas Chiligewürz' });
+  await zutatDialog.getByRole('checkbox', { name: 'Sellerie' }).check();
+  await zutatDialog.getByRole('button', { name: 'Geprüft, speichern' }).click();
+  await expect(zutatenListe.getByText('Von der KI ergänzt, ungeprüft')).toHaveCount(0);
+  await expect(chili.getByText('enthält Sellerie')).toBeVisible();
 
   // Instructions and tools; the other window sees them
   // Formatted text: bold appears bold on the recipe card
@@ -231,14 +238,12 @@ test('drained weight is marked; a typed unit is saved when others change the ing
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect.poll(() => zeilenMenge(eintopf, 'Kidneybohnen')).toBe('2 kg (ATG)');
 
-  // An own ingredient without an amount
+  // An own ingredient without an amount; the AI is done before the other window opens
   await eintopf.getByRole('button', { name: 'Mehr Angaben …' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Hausbrühe');
-  await dialog.getByRole('button', { name: 'Als eigene Zutat dieser Planung anlegen' }).click();
-  await dialog.getByLabel('Kategorie', { exact: true }).selectOption({ label: 'Gewürz' });
-  await dialog.getByLabel('Gemessen in', { exact: true }).selectOption({ label: 'Volumen (ml/l)' });
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
-  await expect(eintopf.getByText('Hausbrühe')).toBeVisible();
+  await expect(eintopf.getByLabel('Menge von Hausbrühe')).toBeVisible();
+  await expect(page.getByText(/Angaben zu Hausbrühe von der KI ergänzt/).first()).toBeVisible();
 
   // A types 1,5 l while B measures the ingredient in packs: the line keeps its own unit
   await eintopf.getByRole('button', { name: 'Hausbrühe ändern' }).click();

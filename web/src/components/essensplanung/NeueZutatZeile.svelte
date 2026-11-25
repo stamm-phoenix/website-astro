@@ -27,6 +27,9 @@
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import {
     getippteZutat,
+    istNeueZutat,
+    mitNeuerZutat,
+    nurNeu,
     gewaehlteZutat,
     leseMenge,
     zutatVorschlaege,
@@ -47,8 +50,9 @@
 
   /**
    * The empty row at the end of a dish: ingredient, amount, unit and note typed in one go, like a
-   * new row in a sheet. Enter adds the line and starts the next one. A name not in the list and
-   * the rest (for whom, intolerances, fixed) go to the dialog behind „Mehr Angaben …“.
+   * new row in a sheet. Enter adds the line and starts the next one. A name in neither list is
+   * added as a new ingredient of the Planung's own, whose details the AI fills in afterwards. The
+   * rest (for whom, intolerances, fixed) go to the dialog behind „Mehr Angaben …“.
    */
 
   interface Props {
@@ -90,7 +94,7 @@
       if (!eingabe.menge.trim() && unpassend) eingabe.einheit = passend[0];
     });
   });
-  const ohneTreffer = $derived(!auswahl && eingabe.name.trim().length > 1);
+  const ohneTreffer = $derived(!auswahl && nurNeu(vorschlaege, eingabe.name));
   /** Picking an ingredient picks its unit, unless an amount is typed already in another one. */
   function nimm(option: Vorschlag): void {
     auswahl = zutatWahl(option);
@@ -101,11 +105,20 @@
 
   function waehle(option: Vorschlag): void {
     eingabe.name = option.value;
-    nimm(option);
+    neuGewaehlt = istNeueZutat(option);
+    if (neuGewaehlt) {
+      auswahl = null;
+      fehler = null;
+    } else nimm(option);
   }
+
+  /** „… neu anlegen“ was picked for the name as it stands. */
+  let neuGewaehlt = $state(false);
 
   /** A typed name of the list counts as chosen; the text stays as typed. */
   function getippt(text: string): void {
+    neuGewaehlt = false;
+    fehler = null;
     const treffer = getippteZutat(vorschlaege, text);
     if (treffer) nimm(treffer);
     else auswahl = null;
@@ -115,10 +128,13 @@
     if (speichert) return;
     fehler = null;
     const zahl = leseMenge(eingabe.menge);
-    if (!auswahl) {
-      fehler = eingabe.name.trim()
-        ? `„${eingabe.name.trim()}“ steht nicht in der Liste. Lege sie über „Mehr Angaben …“ als eigene Zutat an.`
-        : 'Bitte eine Zutat aus der Liste wählen.';
+    if (!auswahl && !eingabe.name.trim()) {
+      fehler = 'Bitte eine Zutat wählen oder ihren Namen eintragen.';
+      return;
+    }
+    // A half-typed name of the list („Zwieb“) is no new ingredient unless picked as one
+    if (!auswahl && !neuGewaehlt && !nurNeu(vorschlaege, eingabe.name)) {
+      fehler = `Wähle eine Zutat aus der Liste oder ganz unten „${eingabe.name.trim()}“ neu anlegen.`;
       return;
     }
     if (Number.isNaN(zahl)) {
@@ -136,7 +152,11 @@
     const ok = await kontext.aendern(
       () =>
         kontext.api.senden('POST', `/gerichte/${gericht.id}/zutaten`, {
-          ...(ziel.art === 'planung' ? { planungZutatId: ziel.id } : { zutatId: ziel.id }),
+          ...(!ziel
+            ? { neueZutat: name }
+            : ziel.art === 'planung'
+              ? { planungZutatId: ziel.id }
+              : { zutatId: ziel.id }),
           menge: zahl,
           einheit: zahl === null ? null : einheit,
           fest: false,
@@ -147,7 +167,7 @@
           nur: [],
           hinweis: hinweis.trim(),
         }),
-      `${name} hinzugefügt.`
+      ziel ? `${name} hinzugefügt.` : `${name} als neue Zutat hinzugefügt.`
     );
     speichert = false;
     if (!ok) {
@@ -157,19 +177,20 @@
     // The next line starts right away, as in a sheet
     eingabe = leereZeile();
     auswahl = null;
+    neuGewaehlt = false;
     // The field is enabled again only after the update
     await tick();
     zutatFeld?.focus();
   }
 
   /**
-   * Enter in the name adds the line once an ingredient is chosen, also without an amount. When
-   * the field takes a suggestion with this Enter, it says so by `preventDefault`.
+   * Enter in the name adds the line, also without an amount and for a new name. When the field
+   * takes a suggestion with this Enter, it says so by `preventDefault`.
    */
   function namenTaste(event: KeyboardEvent): void {
     if (event.key !== 'Enter') return;
     queueMicrotask(() => {
-      if (!event.defaultPrevented && auswahl) void hinzufuegen();
+      if (!event.defaultPrevented && eingabe.name.trim()) void hinzufuegen();
     });
   }
 
@@ -193,7 +214,7 @@
     <VorschlagFeld
       id="gericht-{gericht.id}-neu-zutat"
       wrapperClass="col-span-3 sm:col-span-1"
-      options={vorschlaege}
+      options={mitNeuerZutat(vorschlaege, eingabe.name)}
       bind:value={eingabe.name}
       bind:input={zutatFeld}
       listLabel="Zutaten"
@@ -256,6 +277,7 @@
           };
           eingabe = leereZeile();
           auswahl = null;
+          neuGewaehlt = false;
           onmehr(vorgabe);
         }}
       >
@@ -266,9 +288,8 @@
   {#if fehler}
     <p class="text-sm text-danger" role="alert">{fehler}</p>
   {:else if ohneTreffer}
-    <p class="text-sm text-neutral-700">
-      „{eingabe.name.trim()}“ steht nicht in der Liste. Über „Mehr Angaben …“ legst du sie als
-      eigene Zutat an.
+    <p class="text-sm text-neutral-700" role="status">
+      „{eingabe.name.trim()}“ wird als neue Zutat angelegt.
     </p>
   {/if}
 </div>

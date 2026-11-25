@@ -25,6 +25,7 @@
     vorschauZeile,
     werkzeugeFehler,
     zeileFuerSammel,
+    wirdUebernommen,
     type VorschauZeile,
   } from './rezeptVorschau';
 
@@ -203,7 +204,7 @@
     fehler = null;
   }
 
-  const gewaehlt = $derived(zeilen.filter((zeile) => zeile.an && zeile.auswahl));
+  const gewaehlt = $derived(zeilen.filter((zeile) => zeile.an && wirdUebernommen(zeile)));
 
   /** Instructions and tools to set with the lines, with the version they replace. */
   const kopf = $derived.by(() => {
@@ -411,7 +412,6 @@
             Das Rezept nennt keine Personenzahl: Die Mengen stehen wie im Rezept, bitte für
             {rezept.personen} Personen anpassen.
           {/if}
-          Zutaten, die nicht in der Liste stehen, sind markiert und erst nach einer Wahl dabei.
         </p>
         {#if !bearbeiten}
           <p class="text-sm text-warning" role="status">

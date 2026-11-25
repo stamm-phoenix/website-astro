@@ -2,18 +2,23 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import EinheitFeld from './EinheitFeld.svelte';
-  import { getippteZutat, zutatWahl } from '../../lib/essensplanungGerichte';
+  import {
+    getippteZutat,
+    istNeueZutat,
+    mitNeuerZutat,
+    zutatWahl,
+  } from '../../lib/essensplanungGerichte';
   import { mengeFuerZutat, vorschauText } from '../../lib/essensplanungKi';
   import { eigeneEinheiten } from '../../lib/essensplanungEinheiten';
   import type { EssenKatalog } from '../../../../api/lib/essen-gerichte-model';
   import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
   import type { Vorschlag } from '../../lib/vorschlaege';
-  import { zutatVon, type VorschauZeile } from './rezeptVorschau';
+  import { wirdUebernommen, zutatVon, type VorschauZeile } from './rezeptVorschau';
 
   /**
    * The lines of a recipe the AI read or wrote, to check before they are taken over: each can be
-   * unticked, and its ingredient, amount, unit and note changed. Unknown ingredients are marked
-   * and only count once one of the lists is chosen.
+   * unticked, and its ingredient, amount, unit and note changed. A name in neither list is marked
+   * and taken over as a new ingredient of the Planung's own.
    */
 
   interface Props {
@@ -38,6 +43,13 @@
   }
 
   function waehle(zeile: VorschauZeile, option: Vorschlag): void {
+    if (istNeueZutat(option)) {
+      zeile.auswahl = null;
+      zeile.zutatText = option.value;
+      zeile.an = true;
+      zeile.fehler = {};
+      return;
+    }
     const wahl = zutatWahl(option);
     // Picking and typing the same name both land here; the second must not undo the first
     if (zeile.auswahl?.art === wahl.art && zeile.auswahl.id === wahl.id) {
@@ -69,7 +81,8 @@
     if (treffer) waehle(zeile, treffer);
     else {
       zeile.auswahl = null;
-      zeile.an = false;
+      // An emptied name takes nothing over
+      if (!eingabe.trim()) zeile.an = false;
     }
   }
 </script>
@@ -87,7 +100,7 @@
           type="checkbox"
           class="form-check"
           aria-label="{zeile.original} übernehmen"
-          disabled={!zeile.auswahl}
+          disabled={!wirdUebernommen(zeile)}
           bind:checked={zeile.an}
         />
         <span>
@@ -95,8 +108,8 @@
           {#if zeile.auswahl && !(zeile.fuerVegetarisch && zeile.fuerVegan)}
             <span>({zeile.fuerVegetarisch ? 'nicht für vegan' : 'nur für mit allem'})</span>
           {/if}
-          {#if !zeile.auswahl}
-            <span class="font-semibold text-warning">– nicht in der Liste, bitte wählen</span>
+          {#if !zeile.auswahl && zeile.zutatText.trim()}
+            <span class="font-semibold">– neue Zutat</span>
           {/if}
         </span>
       </label>
@@ -105,7 +118,7 @@
           <label class="sr-only" for="rezept-{index}-zutat">Zutat für {zeile.original}</label>
           <VorschlagFeld
             id="rezept-{index}-zutat"
-            options={vorschlaege}
+            options={mitNeuerZutat(vorschlaege, zeile.zutatText)}
             bind:value={zeile.zutatText}
             listLabel="Zutaten"
             pickFirstOnEnter

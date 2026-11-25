@@ -39,10 +39,10 @@ test('a pasted recipe becomes lines after checking the preview', async ({ page }
   await expect(dialog.getByLabel('Einheit für 2 EL Olivenöl')).toHaveValue('ml');
   await expect(dialog.getByLabel('Menge für 2 Zwiebeln')).toHaveValue('332');
   await expect(dialog.getByLabel('Hinweis für 1 Prise Salz')).toHaveValue('1 Prise');
-  // Unknown: marked and left out until something of the list is chosen
+  // Unknown: marked and taken over as a new ingredient, unless something of the list is chosen
   const frucht = zeilen.filter({ hasText: '3 Stück Drachenfrucht' });
-  await expect(frucht.getByText('nicht in der Liste, bitte wählen')).toBeVisible();
-  await expect(frucht.getByRole('checkbox')).toBeDisabled();
+  await expect(frucht.getByText('– neue Zutat')).toBeVisible();
+  await expect(frucht.getByRole('checkbox')).toBeChecked();
   // Converted into ml; the recipe's own amount can be taken instead, and back
   const olivenoel = 'Für 2 EL Olivenöl stattdessen';
   await dialog.getByRole('button', { name: `${olivenoel} 4 EL übernehmen` }).click();

@@ -15,7 +15,7 @@ import {
 } from '../../../api/lib/essen-einkaeufe-model';
 import { einheitSchluessel } from '../../../api/lib/essen-gerichte-model';
 import type { GerichtEinheit } from '../../../api/lib/essen-gerichte-model';
-import { zutatFuer } from './essensplanung-gerichte';
+import { zutatFuer } from './essensplanung-zutaten';
 import type { MockZugang } from './essensplanung-planung';
 import { aendere, feld, konflikt, neueId, neuesEtag, nichtGefunden } from './essensplanung-planung';
 

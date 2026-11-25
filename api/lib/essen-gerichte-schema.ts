@@ -188,6 +188,8 @@ const unlessFalse = z.preprocess((value) => value !== false, z.boolean());
 export const gerichtZutatSchema = lenientObject({
   zutatId: id,
   planungZutatId: id,
+  /** A name in neither list: added as an ingredient of the Planung's own. */
+  neueZutat: line(150),
   menge,
   einheit,
   fest: z.preprocess((value) => value === true, z.boolean()),
@@ -198,11 +200,14 @@ export const gerichtZutatSchema = lenientObject({
   nur: ids,
   hinweis: line(100),
 })
-  .refine((value) => value.zutatId !== null || value.planungZutatId !== null, {
-    error: 'Bitte eine Zutat wählen.',
-    path: ['zutat'],
-    when: ALWAYS,
-  })
+  .refine(
+    (value) => value.zutatId !== null || value.planungZutatId !== null || value.neueZutat !== '',
+    {
+      error: 'Bitte eine Zutat wählen oder ihren Namen eintragen.',
+      path: ['zutat'],
+      when: ALWAYS,
+    }
+  )
   .refine((value) => value.menge === null || value.einheit !== null, {
     error: 'Bitte eine Einheit wählen.',
     path: ['einheit'],
@@ -219,7 +224,11 @@ export const gerichtZutatSchema = lenientObject({
     when: ALWAYS,
   })
   .transform((value) => ({
-    zutat: value.zutatId ? { zutatId: value.zutatId } : { planungZutatId: value.planungZutatId! },
+    zutat: value.zutatId
+      ? { zutatId: value.zutatId }
+      : value.planungZutatId
+        ? { planungZutatId: value.planungZutatId }
+        : { neu: value.neueZutat },
     menge: value.menge,
     einheit: value.menge === null ? null : value.einheit,
     fest: value.fest && value.menge !== null,

@@ -24,6 +24,7 @@ const petersilie: PlanungZutat = {
   abweichend: { kategorie: false, einheitenart: false },
   zeilen: 2,
   geschaeftId: null,
+  angaben: 'geprueft',
 };
 
 const zeile = (id: number, menge: number, einheit: string) => ({

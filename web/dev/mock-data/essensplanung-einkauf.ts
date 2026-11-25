@@ -8,7 +8,7 @@ import type {
   ZusatzPosten,
 } from '../../../api/lib/essen-einkauf-model';
 import { MAX_GESCHAEFTE, MAX_POSTEN } from '../../../api/lib/essen-einkauf-model';
-import { sonstigesFuer, zutatFuer } from './essensplanung-gerichte';
+import { sonstigesFuer, zutatFuer } from './essensplanung-zutaten';
 import type { MockZugang } from './essensplanung-planung';
 import { aendere, feld, konflikt, neueId, neuesEtag, nichtGefunden } from './essensplanung-planung';
 

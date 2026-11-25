@@ -32,11 +32,22 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   await expect(zutat).toHaveValue('');
   await expect(zutat).toBeFocused();
 
-  // A name not in the list points to the dialog
+  // A half-typed name of the list is no new ingredient; a name in neither list is one
+  const hinzufuegen = gericht.getByRole('button', { name: 'Zeile zu Nudeln mit Soße hinzufügen' });
+  await zutat.fill('Hackf');
+  await hinzufuegen.click();
+  await expect(
+    gericht.getByText('Wähle eine Zutat aus der Liste oder ganz unten „Hackf“ neu anlegen.')
+  ).toBeVisible();
   await zutat.fill('Drachenfrucht-Sirup');
-  await gericht.getByRole('button', { name: 'Zeile zu Nudeln mit Soße hinzufügen' }).click();
-  await expect(gericht.getByText(/steht nicht in der Liste/)).toBeVisible();
-  await zutat.fill('');
+  await expect(
+    gericht.getByText('„Drachenfrucht-Sirup“ wird als neue Zutat angelegt.')
+  ).toBeVisible();
+  await hinzufuegen.click();
+  await expect(gericht.getByLabel('Menge von Drachenfrucht-Sirup')).toBeVisible();
+  await expect(
+    page.getByText(/Angaben zu Drachenfrucht-Sirup von der KI ergänzt/).first()
+  ).toBeVisible();
 
   // Changing the amount in the row saves when the row is left
   const menge = gericht.getByLabel('Menge von Hackfleisch');

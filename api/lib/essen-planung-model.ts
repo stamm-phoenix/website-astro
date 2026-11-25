@@ -261,6 +261,7 @@ export const AENDERUNG_TEXTE: Record<string, string> = {
   'gericht-zutat-geaendert': 'Zutat in Gericht geändert',
   'gericht-zutat-geloescht': 'Zutat aus Gericht entfernt',
   'zutat-neu': 'Eigene Zutat angelegt',
+  'zutat-ki': 'Angaben zu Zutaten von der KI ergänzt',
   'zutat-geaendert': 'Zutat der Planung geändert',
   'zutat-geloescht': 'Zutat der Planung gelöscht',
   'einplanung-neu': 'Gericht eingeplant',

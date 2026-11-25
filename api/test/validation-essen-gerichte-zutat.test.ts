@@ -62,8 +62,26 @@ test('Zeile: the defaults of a line with only an ingredient', () => {
   });
 });
 
+test('Zeile: a name in neither list is a new ingredient, a chosen one wins', () => {
+  assert.deepEqual(validateGerichtZutat({ neueZutat: '  Zucchini ' }).zutat, { neu: 'Zucchini' });
+  assert.deepEqual(validateGerichtZutat({ zutatId: 3, neueZutat: 'Zucchini' }).zutat, {
+    zutatId: 3,
+  });
+  assert.deepEqual(validateGerichtZutat({ planungZutatId: 4, neueZutat: 'Zucchini' }).zutat, {
+    planungZutatId: 4,
+  });
+  assert.deepEqual(
+    fields(() => validateGerichtZutat({ neueZutat: 'x'.repeat(151) })),
+    { neueZutat: 'Höchstens 150 Zeichen.' }
+  );
+  assert.deepEqual(
+    fields(() => validateGerichtZutat({ neueZutat: '   ' })),
+    { zutat: 'Bitte eine Zutat wählen oder ihren Namen eintragen.' }
+  );
+});
+
 test('Zeile: without a valid ingredient the line is refused', () => {
-  const expected = { zutat: 'Bitte eine Zutat wählen.' };
+  const expected = { zutat: 'Bitte eine Zutat wählen oder ihren Namen eintragen.' };
   for (const input of [undefined, null, 'x', [], {}, { zutatId: '4' }, { zutatId: 1.5 }]) {
     assert.deepEqual(
       fields(() => validateGerichtZutat(input)),
@@ -184,7 +202,7 @@ test('Zeile: several faults report every field', () => {
       })
     ),
     {
-      zutat: 'Bitte eine Zutat wählen.',
+      zutat: 'Bitte eine Zutat wählen oder ihren Namen eintragen.',
       menge: MENGE_UNGUELTIG,
       einheit: 'Bitte eine Einheit wählen.',
       fuer: 'Die Zeile muss für mindestens eine Ernährungsform gelten.',

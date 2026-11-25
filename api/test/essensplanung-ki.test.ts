@@ -71,6 +71,7 @@ const SPAGHETTI: PlanungZutat = {
   abweichend: { kategorie: false, einheitenart: false },
   zeilen: 1,
   geschaeftId: null,
+  angaben: 'geprueft',
 };
 
 const HACK: PlanungZutat = {

@@ -3,6 +3,8 @@
   import { untrack } from 'svelte';
   import ModalDialog from '../ui/ModalDialog.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
+  import StatusLabel from '../ui/StatusLabel.svelte';
+  import { zutatenJetztErgaenzen } from './zutatenErgaenzen';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
@@ -12,10 +14,12 @@
   import type { EssenEinheitenart } from '../../../../api/lib/essen-schema';
   import type { EssenKatalog, PlanungZutat } from '../../../../api/lib/essen-gerichte-model';
   import type { PlanKontext } from './planKontext';
+  import type { ZutatAngabenStand } from '../../../../api/lib/essen-zutat-angaben';
 
   /**
    * The ingredients the dishes of a Planung use. Central ones may get another category or kind
-   * of unit for this Planung; own ones are changed entirely. Unused ones can be deleted.
+   * of unit for this Planung; own ones are changed entirely. Unused ones can be deleted. Own ones
+   * added by their name alone show whether the AI filled in their details; saving them checks them.
    */
 
   interface Props {
@@ -26,6 +30,13 @@
   let { kontext, katalog, bearbeiten }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
   const kategorien = $derived(new Map((katalog?.kategorien ?? []).map((k) => [k.id, k.name])));
+  const ungeprueft = $derived(ansicht.zutaten.filter((z) => z.angaben !== 'geprueft').length);
+  const offen = $derived(ansicht.zutaten.some((z) => z.angaben === 'offen'));
+  const ANGABEN_LABEL: Record<ZutatAngabenStand, string> = {
+    offen: 'Angaben fehlen noch',
+    ki: 'Von der KI ergänzt, ungeprüft',
+    geprueft: '',
+  };
 
   let auswahl = $state<PlanungZutat | null>(null);
   let form = $state({
@@ -164,8 +175,20 @@
     class="flex min-h-11 cursor-pointer list-none items-center gap-2 font-semibold text-brand-900 [&::-webkit-details-marker]:hidden"
   >
     Zutaten dieser Planung ({ansicht.zutaten.length})
+    {#if ungeprueft}<StatusLabel label="{ungeprueft} ungeprüft" tone="warning" dot />{/if}
     <AufklappPfeil />
   </summary>
+  {#if bearbeiten && offen}
+    <div class="mt-2">
+      <ActionButton
+        type="button"
+        disabled={kontext.busy}
+        onclick={() => void zutatenJetztErgaenzen(kontext)}
+      >
+        Angaben ergänzen (KI)
+      </ActionButton>
+    </div>
+  {/if}
   <ul class="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">
     {#each ansicht.zutaten as zutat (zutat.id)}
       <li class="flex flex-wrap items-center justify-between gap-2 py-2">
@@ -173,6 +196,9 @@
           <p class="text-neutral-900 [overflow-wrap:anywhere]">
             {zutat.name}
             {#if zutat.zutatId === null}<span class="text-sm text-neutral-700">(eigene)</span>{/if}
+            {#if zutat.angaben !== 'geprueft'}
+              <StatusLabel label={ANGABEN_LABEL[zutat.angaben]} tone="warning" dot />
+            {/if}
           </p>
           <p class="flex flex-wrap gap-x-3 text-sm text-neutral-700">
             <span>{kategorien.get(zutat.kategorieId) ?? ''}</span>
@@ -228,6 +254,9 @@
       <!-- Disabled while saving, so nothing typed meanwhile gets lost -->
       <fieldset class="min-w-0 space-y-4" disabled={speichert}>
         {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
+        {#if auswahl.angaben !== 'geprueft'}
+          <StatusLabel label={ANGABEN_LABEL[auswahl.angaben]} tone="warning" dot />
+        {/if}
         {#if auswahl.zutatId === null}
           <FormField id="pz-name" label="Name" error={felder.name}>
             {#snippet children(attrs)}
@@ -303,7 +332,7 @@
         <div class="flex flex-wrap justify-end gap-2 pt-2">
           <ActionButton type="button" onclick={() => void schliessen()}>Abbrechen</ActionButton>
           <ActionButton type="submit" variant="primary" disabled={kontext.busy}>
-            Speichern
+            {auswahl.angaben === 'geprueft' ? 'Speichern' : 'Geprüft, speichern'}
           </ActionButton>
         </div>
       </fieldset>

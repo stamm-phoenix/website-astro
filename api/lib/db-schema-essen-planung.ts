@@ -90,6 +90,13 @@ export interface EssenPlanungZutatTable {
   geschaeft_id: Generated<number | null>;
   /** Only for ingredients of the Planung's own; central ones take the value of the list. */
   lebensmittel: Generated<boolean>;
+  /**
+   * What the AI is still to fill in for one added by its name alone, comma-separated
+   * (`ZutatAngabe`); null: nothing.
+   */
+  angaben_offen: Generated<string | null>;
+  /** False while nobody saved the details of one added by its name alone. */
+  angaben_geprueft: Generated<boolean>;
 }
 
 export interface EssenPlanungZutatUnvertraeglichkeitTable {
