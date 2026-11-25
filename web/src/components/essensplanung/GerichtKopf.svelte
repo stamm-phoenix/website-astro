@@ -210,10 +210,28 @@
     return KOPF_FELDER.find((f) => f === feld) ?? null;
   }
 
+  /**
+   * The field a press began in, until just after it ends. Safari and Firefox on macOS do not
+   * focus a clicked button, so a click on „Link hinzufügen“ leaves the focus with no target.
+   */
+  let gedrueckt: KopfFeld | null = null;
+  function druecken(event: PointerEvent): void {
+    gedrueckt = feldVon(event.target);
+    const los = (): void => {
+      window.removeEventListener('pointerup', los, true);
+      window.removeEventListener('pointercancel', los, true);
+      setTimeout(() => (gedrueckt = null));
+    };
+    window.addEventListener('pointerup', los, true);
+    window.addEventListener('pointercancel', los, true);
+  }
+
   /** Leaving a field saves it; moving inside it (a link's title to its address) does not. */
   function verlassen(event: FocusEvent): void {
     const feld = feldVon(event.target);
-    if (!feld || feldVon(event.relatedTarget) === feld) return;
+    if (!feld) return;
+    const nach = event.relatedTarget === null ? gedrueckt : feldVon(event.relatedTarget);
+    if (nach === feld) return;
     if (fokusFeld === feld) fokusFeld = null;
     speichernSpaeter(feld);
   }
@@ -259,6 +277,7 @@
     onsubmit={(event) => event.preventDefault()}
     onfocusin={(event) => (fokusFeld = feldVon(event.target))}
     onfocusout={verlassen}
+    onpointerdown={druecken}
   >
     <div class="grid gap-x-6 gap-y-3 lg:grid-cols-2">
       <div class="space-y-3">
