@@ -189,6 +189,8 @@ const LISTEN_AKTIONEN: Record<string, string> = {
   'zutat-angelegt': 'Zutat angelegt',
   'zutat-geaendert': 'Zutat geändert',
   'zutat-geloescht': 'Zutat gelöscht',
+  'zutat-uebernommen': 'Zutat aus Planungen übernommen',
+  'zutat-zusammengelegt': 'Zutaten zusammengelegt',
   'kategorie-angelegt': 'Kategorie angelegt',
   'kategorie-umbenannt': 'Kategorie umbenannt',
   'kategorie-geloescht': 'Kategorie gelöscht',
@@ -224,5 +226,6 @@ export function describeAudit(entry: EssenAuditEntry): string {
     typeof entry.details.vorher === 'string' && entry.details.vorher !== name
       ? ` (vorher: ${entry.details.vorher})`
       : '';
-  return name ? `${label}: ${name}${vorher}` : label;
+  const von = typeof entry.details.von === 'string' ? ` (aus: ${entry.details.von})` : '';
+  return name ? `${label}: ${name}${vorher}${von}` : label;
 }
