@@ -82,16 +82,16 @@
   const zustaendige = $derived(zustaendigeJeGericht(ansicht));
   let filter = $state<'alle' | 'meine'>('alle');
   const meine = $derived(ansicht.gerichte.filter((g) => zustaendige.get(g.id)?.ich));
-  // An open dish stays while it is open, so input typed in it is not lost when someone else
-  // takes it over in the plan
-  const gezeigt = $derived(
-    filter === 'meine'
-      ? ansicht.gerichte.filter((g) => zustaendige.get(g.id)?.ich || offen.has(g.id))
-      : ansicht.gerichte
-  );
+  /**
+   * Whether the filter hides a dish. Hidden dishes stay in the page, so input started in one is
+   * kept when the filter changes or someone else takes the dish over.
+   */
+  function versteckt(id: number): boolean {
+    return filter === 'meine' && !zustaendige.get(id)?.ich;
+  }
   /** Shows all dishes when the filter hides one that is to be opened. */
   function zeige(id: number): void {
-    if (!gezeigt.some((g) => g.id === id)) filter = 'alle';
+    if (versteckt(id)) filter = 'alle';
   }
 
   /** The dishes shown open; a new one opens itself. */
@@ -277,16 +277,17 @@
     {#if bearbeiten}
       <p class="text-sm text-neutral-700">Wird sofort gespeichert.</p>
     {/if}
-    {#if !gezeigt.length}
+    {#if filter === 'meine' && !meine.length}
       <p class="text-neutral-700">Du bist bei keinem Gericht zuständig.</p>
     {/if}
     <ul class="space-y-3">
-      {#each gezeigt as gericht (gericht.id)}
+      {#each ansicht.gerichte as gericht (gericht.id)}
         {@const wer = zustaendige.get(gericht.id)}
         <li
           id="gericht-{gericht.id}"
           class="surface scroll-mt-24 lg:scroll-mt-0"
           class:meins={wer?.ich}
+          hidden={versteckt(gericht.id)}
         >
           <details
             open={offen.has(gericht.id)}
