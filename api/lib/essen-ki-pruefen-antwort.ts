@@ -189,12 +189,17 @@ function aenderungFuer(
         aenderung.menge = menge;
         aenderung.einheit = einheit;
       }
+    } else if (tausch) {
+      // An amount for the other ingredient that does not fit it: the swap is no proposal either
+      return undefined;
     }
   }
   if (tausch) {
-    // The line keeps its amount: its unit must fit the new ingredient, too
+    // The line keeps its amount: its unit must fit the new ingredient, too. Amount, diets and
+    // note were meant for the other ingredient: without the swap, the hint changes nothing.
     const einheit = aenderung.einheit ?? zeile.einheit;
-    if (einheit === null || !passtNicht(einheit, zielArt)) aenderung.zutat = tausch.angabe;
+    if (einheit !== null && passtNicht(einheit, zielArt)) return undefined;
+    aenderung.zutat = tausch.angabe;
   }
   let fuer = {
     fuerAlles: hinweis.fuerAlles ?? zeile.fuerAlles,
@@ -202,15 +207,15 @@ function aenderungFuer(
     fuerVegan: hinweis.fuerVegan ?? zeile.fuerVegan,
   };
   // Another ingredient never stays for diets it does not suit, like a line to add; a swap that
-  // would leave the line for nobody is dropped
-  if (aenderung.zutat && tausch?.kandidat) {
+  // would leave the line for nobody is dropped with everything meant for it
+  if (tausch?.kandidat) {
     const geklemmt = {
       ...fuer,
       fuerVegetarisch: fuer.fuerVegetarisch && tausch.kandidat.vegetarisch !== false,
       fuerVegan: fuer.fuerVegan && tausch.kandidat.vegan !== false,
     };
-    if (geklemmt.fuerAlles || geklemmt.fuerVegetarisch || geklemmt.fuerVegan) fuer = geklemmt;
-    else delete aenderung.zutat;
+    if (!geklemmt.fuerAlles && !geklemmt.fuerVegetarisch && !geklemmt.fuerVegan) return undefined;
+    fuer = geklemmt;
   }
   // A line must stay for at least one diet
   if (fuer.fuerAlles || fuer.fuerVegetarisch || fuer.fuerVegan) {

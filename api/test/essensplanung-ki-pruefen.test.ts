@@ -335,7 +335,15 @@ test('contact data is taken out of the instructions', () => {
     anleitungFuerModell('Bei Fragen: +49 170 1234567, 0170/1234567 oder kim@example.org.'),
     'Bei Fragen: [Telefon], [Telefon] oder [E-Mail]'
   );
-  // Amounts and times stay
+  assert.equal(
+    anleitungFuerModell('Tel. (0170) 1234567, +49 (0)170 1234567 oder 0170.1234567'),
+    'Tel. [Telefon], [Telefon] oder [Telefon]'
+  );
+  // Amounts, dates and times stay
+  assert.equal(
+    anleitungFuerModell('Am 01.08.2027 von 07.30-08.00 Uhr vorkochen.'),
+    'Am 01.08.2027 von 07.30-08.00 Uhr vorkochen.'
+  );
   assert.equal(
     anleitungFuerModell('500 g Nudeln 10 Minuten kochen.'),
     '500 g Nudeln 10 Minuten kochen.'
@@ -409,13 +417,32 @@ test('another ingredient never stays for diets it does not suit, nor empties a n
     hinweise: [
       // Meat instead of pasta: only for those who eat everything
       hinweis({ aktion: 'zeile_aendern', zeile: 1, text: 'Hack?', zutatKey: 'p12' }),
-      // Only for vegetarians before: meat would be for nobody, so the swap goes
+      // For vegetarians only: meat would be for nobody, so the hint changes nothing
       hinweis({
         aktion: 'zeile_aendern',
         zeile: 1,
         text: 'Nur Hack?',
         zutatKey: 'p12',
         fuerAlles: false,
+      }),
+      // The amount and diets of a swap that goes are meant for the meat: no change at all
+      hinweis({
+        aktion: 'zeile_aendern',
+        zeile: 1,
+        text: 'Nur 2 kg Hack?',
+        zutatKey: 'p12',
+        fuerAlles: false,
+        menge: 2,
+        einheit: 'kg',
+      }),
+      // Pieces for an ingredient in g: neither amount nor swap
+      hinweis({
+        aktion: 'zeile_aendern',
+        zeile: 1,
+        text: 'Brot?',
+        zutatKey: 'p12',
+        menge: 3,
+        einheit: 'stueck',
       }),
       // "" is no new note: the amount changes, the note stays
       hinweis({ zeile: 1, text: 'Mehr.', menge: 120, einheit: 'kg', hinweisNeu: '' }),
@@ -431,7 +458,9 @@ test('another ingredient never stays for diets it does not suit, nor empties a n
         fuerVegetarisch: false,
         fuerVegan: false,
       },
-      { fuerAlles: false },
+      undefined,
+      undefined,
+      undefined,
       { menge: 120, einheit: 'kg' },
       undefined,
     ]
