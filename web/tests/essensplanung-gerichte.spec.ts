@@ -108,6 +108,10 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await page.goBack();
   await expect(page.getByLabel('Neues Gericht')).toBeVisible();
   await expect(titel).toBeHidden();
+  // The steps keep the index of the page transitions, which the guard against lost input uses
+  expect(await page.evaluate(() => typeof (history.state as { index?: unknown }).index)).toBe(
+    'number'
+  );
   await anderes.context().close();
 });
 
