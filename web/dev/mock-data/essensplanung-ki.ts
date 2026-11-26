@@ -9,14 +9,11 @@ import type {
   GerichtZutatInput,
 } from '../../../api/lib/essen-gerichte-validation';
 import { MAX_ZEILEN_PRO_GERICHT } from '../../../api/lib/essen-gerichte-model';
-import type {
-  KiMass,
-  KiPruefung,
-  KiRezept,
-  KiUmrechnung,
-  KiZutatWahl,
-} from '../../../api/lib/essen-ki-model';
-import { leseKiPruefung, leseKiUmrechnung } from '../../../api/lib/essen-ki-model';
+import type { KiMass, KiRezept, KiUmrechnung, KiZutatWahl } from '../../../api/lib/essen-ki-model';
+import { leseKiUmrechnung } from '../../../api/lib/essen-ki-model';
+import { leseKiPruefung } from '../../../api/lib/essen-ki-pruefen-antwort';
+import type { KiPruefung } from '../../../api/lib/essen-ki-pruefen-model';
+import { anwesendBeimGericht } from '../../../api/lib/essen-ki-pruefen-model';
 import { leseKiRezept, rezeptKandidaten } from '../../../api/lib/essen-ki-rezept';
 import { essenKatalog } from './essensplanung';
 import { gerichteAnsicht, gerichtZutatAnlegen } from './essensplanung-gerichte';
@@ -50,20 +47,34 @@ function gerichtVon(z: MockZugang, id: number) {
 }
 
 /**
- * Hints as a model might give them: the first amount seems low (proposing twice as much), meat
- * on a vegetarian line, and maybe salt is missing.
+ * An assessment and hints as a model might give them: the first amount seems low (proposing twice
+ * as much), meat on a vegetarian line, salt to add, a bigger pot (or one to add) and, with
+ * instructions, a hint on the preparation. A dish without people is checked for those present
+ * where it is planned, like the API does.
  */
 export function kiPruefen(z: MockZugang, gerichtId: number, wartung: boolean): KiPruefung {
   pruefeZugang(z, wartung);
   const { gericht, zutaten } = gerichtVon(z, gerichtId);
   if (FEHLER.test(gericht.name)) throw new MockKiBesetzt();
   const nachId = new Map(zutaten.map((zutat) => [zutat.id, zutat]));
+  const kandidaten = rezeptKandidaten(essenKatalog(), zutaten);
+  const anwesend = gericht.personen === null ? anwesendBeimGericht(z.planung, gericht.id) : null;
+  const personen = gericht.personen ?? anwesend;
+  const fuer = personen === null ? '' : ` für ${personen} Personen`;
+  const mitAnleitung = gericht.anleitung.trim() !== '';
   const leer = {
+    aktion: 'keine',
     menge: null,
     einheit: null,
     fuerAlles: null,
     fuerVegetarisch: null,
     fuerVegan: null,
+    fest: null,
+    hinweisNeu: null,
+    zutatKey: null,
+    zutatName: null,
+    werkzeug: null,
+    werkzeugNeu: null,
   };
   const hinweise: unknown[] = [];
   // Without people the amounts are fixed totals, which can be proposed like the API does
@@ -73,11 +84,9 @@ export function kiPruefen(z: MockZugang, gerichtId: number, wartung: boolean): K
     hinweise.push({
       ...leer,
       art: 'menge',
+      aktion: 'zeile_aendern',
       zeile: erste + 1,
-      text:
-        gericht.personen === null
-          ? 'Die Menge wirkt knapp.'
-          : `Die Menge wirkt für ${gericht.personen} Personen knapp.`,
+      text: `Die Menge wirkt${fuer} knapp.`,
       vorschlag: 'Etwa doppelt so viel einplanen.',
       menge: zeile.menge! * 2,
       einheit: zeile.einheit,
@@ -88,6 +97,7 @@ export function kiPruefen(z: MockZugang, gerichtId: number, wartung: boolean): K
       hinweise.push({
         ...leer,
         art: 'ernaehrung',
+        aktion: 'zeile_aendern',
         zeile: index + 1,
         text: 'Die Zutat ist nicht vegetarisch, die Zeile gilt aber für vegetarisch Essende.',
         vorschlag: 'Nur für „mit allem“ und eine vegetarische Ersatzzeile anlegen.',
@@ -95,14 +105,59 @@ export function kiPruefen(z: MockZugang, gerichtId: number, wartung: boolean): K
         fuerVegan: false,
       });
   });
+  const salz = kandidaten.find((kandidat) => kandidat.name === 'Salz');
   hinweise.push({
     ...leer,
     art: 'fehlt',
+    aktion: 'zutat_hinzufuegen',
     zeile: null,
     text: 'Salz fehlt vielleicht.',
     vorschlag: 'Salz nach Geschmack ergänzen.',
+    zutatKey: salz?.key ?? null,
+    zutatName: 'Salz',
+    menge: 20,
+    einheit: 'g',
+    hinweisNeu: 'nach Geschmack',
   });
-  return leseKiPruefung({ hinweise }, gericht, nachId);
+  const topf = gericht.werkzeuge[0];
+  hinweise.push(
+    topf
+      ? {
+          ...leer,
+          art: 'werkzeug',
+          aktion: 'werkzeug_aendern',
+          text: `${topf} ist${fuer} zu klein.`,
+          vorschlag: 'Einen größeren Topf nehmen.',
+          werkzeug: topf,
+          werkzeugNeu: 'Topf 30 l',
+        }
+      : {
+          ...leer,
+          art: 'werkzeug',
+          aktion: 'werkzeug_hinzufuegen',
+          text: 'Es fehlt ein Topf.',
+          vorschlag: 'Einen großen Topf eintragen.',
+          werkzeugNeu: 'Topf 30 l',
+        }
+  );
+  if (mitAnleitung)
+    hinweise.push({
+      ...leer,
+      art: 'zubereitung',
+      text: `Wasser für so viele Portionen braucht lange bis zum Kochen.`,
+      vorschlag: 'Das Wasser 45 Minuten vorher aufsetzen.',
+    });
+  const einschaetzung = [
+    `Das Gericht passt${fuer} im Großen und Ganzen, nur die erste Menge ist knapp.`,
+    mitAnleitung ? 'Die Anleitung ist machbar, plane aber mehr Zeit zum Aufkochen ein.' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return leseKiPruefung({ einschaetzung, hinweise }, gericht, nachId, {
+    kandidaten,
+    geprueftFuer: personen,
+    personenQuelle: gericht.personen !== null ? 'gericht' : anwesend !== null ? 'anwesend' : null,
+  });
 }
 
 const EINHEIT: Record<string, string> = {

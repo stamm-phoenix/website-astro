@@ -7,9 +7,14 @@ import {
   EssensplanungGerichtZutat,
 } from '../endpoints/essensplanung-gerichte';
 import { EssensplanungLinks, EssensplanungPlanung } from '../endpoints/essensplanung-planung';
+import {
+  EssensplanungEinplanungen,
+  EssensplanungTeilnehmendeListe,
+} from '../endpoints/essensplanung-teilnehmende';
 import * as ki from '../endpoints/essensplanung-ki';
 import { getDb } from '../lib/db';
-import type { KiPruefung, KiUmrechnung } from '../lib/essen-ki-model';
+import type { KiUmrechnung } from '../lib/essen-ki-model';
+import type { KiPruefung } from '../lib/essen-ki-pruefen-model';
 import type { PlanungAnsicht } from '../lib/essen-planung-model';
 import { dbTest } from './fixtures/database';
 import { anlegen, call, captureMails, json } from './fixtures/essensplanung';
@@ -47,14 +52,17 @@ function sammel(t: TestContext, token: string, id: number, zeilen: unknown) {
   );
 }
 
-function modell(t: TestContext, antwort: () => Response): void {
+/** Answers every request to the deployment with `antwort`, which gets the body sent. */
+function modell(t: TestContext, antwort: (body: string) => Response): void {
   const previous = process.env.AZURE_OPENAI_API_KEY;
   process.env.AZURE_OPENAI_API_KEY = 'test-key';
   t.after(() => {
     if (previous === undefined) delete process.env.AZURE_OPENAI_API_KEY;
     else process.env.AZURE_OPENAI_API_KEY = previous;
   });
-  t.mock.method(globalThis, 'fetch', async () => antwort());
+  t.mock.method(globalThis, 'fetch', async (_url: unknown, init?: RequestInit) =>
+    antwort(String(init?.body))
+  );
 }
 
 const inhalt = (value: unknown) =>
@@ -106,7 +114,7 @@ dbTest('the AI is only for members who edit, outside the maintenance mode', asyn
   let aufrufe = 0;
   modell(t, () => {
     aufrufe++;
-    return inhalt({ hinweise: [] });
+    return inhalt({ einschaetzung: '', hinweise: [] });
   });
   const pruefen = (mit: string) =>
     call(t, ki.EssensplanungKiPruefen, 'POST', `planung/gerichte/${id}/ki/pruefen`, {
@@ -131,8 +139,65 @@ dbTest('the AI is only for members who edit, outside the maintenance mode', asyn
 
   const ok = await pruefen(token);
   assert.equal(ok.status, 200, JSON.stringify(ok.jsonBody));
-  assert.deepEqual(json<KiPruefung>(ok), { hinweise: [], personen: 10 });
+  const pruefung = json<KiPruefung>(ok);
+  assert.deepEqual(
+    { ...pruefung, etag: typeof pruefung.etag },
+    {
+      einschaetzung: '',
+      hinweise: [],
+      personen: 10,
+      geprueftFuer: 10,
+      personenQuelle: 'gericht',
+      anleitungGeprueft: false,
+      etag: 'string',
+    }
+  );
   assert.equal(aufrufe, 1);
+});
+
+dbTest('a dish without people is checked for those present where it is planned', async (t) => {
+  const mails = captureMails(t);
+  const { token, ansicht } = await anlegen(t, mails);
+  const [woe] = ansicht.gruppen;
+  const mittag = ansicht.tage[0].mahlzeiten[1];
+  const angelegt = await call(t, EssensplanungGerichte, 'POST', 'planung/gerichte', {
+    token,
+    body: { name: 'Eintopf' },
+  });
+  assert.equal(angelegt.status, 201, JSON.stringify(angelegt.jsonBody));
+  const id = json<{ id: number }>(angelegt).id;
+  for (const anzahl of [12, 3])
+    assert.equal(
+      (
+        await call(t, EssensplanungTeilnehmendeListe, 'POST', 'planung/teilnehmende', {
+          token,
+          body: { gruppeId: woe.id, ernaehrung: 'alles', anzahl },
+        })
+      ).status,
+      201
+    );
+  const geplant = await call(t, EssensplanungEinplanungen, 'POST', 'planung/einplanungen', {
+    token,
+    body: { mahlzeitId: mittag.id, gerichtId: id },
+  });
+  assert.equal(geplant.status, 201, JSON.stringify(geplant.jsonBody));
+  let gesendet = '';
+  modell(t, (body) => {
+    gesendet = body;
+    return inhalt({ einschaetzung: 'Passt.', hinweise: [] });
+  });
+  const ok = await call(t, ki.EssensplanungKiPruefen, 'POST', `planung/gerichte/${id}/ki/pruefen`, {
+    token,
+    params: { id: String(id) },
+  });
+  assert.equal(ok.status, 200, JSON.stringify(ok.jsonBody));
+  const pruefung = json<KiPruefung>(ok);
+  assert.equal(pruefung.personen, null);
+  assert.equal(pruefung.geprueftFuer, 15);
+  assert.equal(pruefung.personenQuelle, 'anwesend');
+  assert.equal(pruefung.einschaetzung, 'Passt.');
+  const messages = (JSON.parse(gesendet) as { messages: { content: string }[] }).messages;
+  assert.equal((JSON.parse(messages[1].content) as { personen: number }).personen, 15);
 });
 
 dbTest('a busy deployment answers 429 with Retry-After for the page', async (t) => {

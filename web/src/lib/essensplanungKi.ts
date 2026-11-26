@@ -1,16 +1,13 @@
 import { errorMessage } from './api';
-import { EINHEITEN_JE_ART, einheitText, mengeText } from '../../../api/lib/essen-gerichte-model';
+import { EINHEITEN_JE_ART, einheitText } from '../../../api/lib/essen-gerichte-model';
 import type { EssenEinheitenart } from '../../../api/lib/essen-validation';
 import type { GerichtEinheit, PlanungZutat } from '../../../api/lib/essen-gerichte-model';
 import { leseMenge, mengeFeld } from './essensplanungGerichte';
-import type { KiAenderung, KiZutatWahl } from '../../../api/lib/essen-ki-model';
+import type { KiZutatWahl } from '../../../api/lib/essen-ki-model';
 
 export type {
-  KiAenderung,
   KiGericht,
-  KiHinweis,
   KiMass,
-  KiPruefung,
   KiRezept,
   KiRezeptZeile,
   KiUmrechnung,
@@ -28,23 +25,6 @@ export function kiFehlerText(error: unknown): string {
     error,
     'Die KI hat nicht geantwortet. Prüfe deine Internetverbindung und versuche es noch einmal.'
   );
-}
-
-/** What taking over a proposed change does, e.g. „1 kg, nicht für vegetarisch“. */
-export function aenderungText(aenderung: KiAenderung, abtropfgewicht = false): string {
-  const teile: string[] = [];
-  if (aenderung.menge !== undefined && aenderung.einheit)
-    teile.push(mengeText(aenderung.menge, aenderung.einheit, abtropfgewicht) ?? '');
-  const formen = [
-    ['fuerAlles', 'mit allem'],
-    ['fuerVegetarisch', 'vegetarisch'],
-    ['fuerVegan', 'vegan'],
-  ] as const;
-  for (const [feld, label] of formen) {
-    if (aenderung[feld] === true) teile.push(`auch für ${label}`);
-    if (aenderung[feld] === false) teile.push(`nicht für ${label}`);
-  }
-  return teile.filter(Boolean).join(', ');
 }
 
 /** Rounds like the recipe import: a tenth below 10, whole numbers above, three places for kg and l. */

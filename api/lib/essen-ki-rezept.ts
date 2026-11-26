@@ -163,7 +163,7 @@ const REZEPT_EINHEIT_TEXT: Record<KiRezeptEinheit, string> = {
 const ML_PRO = { tl: 5, el: 15 } as const;
 
 /** Whether a unit is one of the ingredient's kind of unit, e.g. kg for mass. */
-function passt(art: EssenEinheitenart, einheit: string): boolean {
+export function passt(art: EssenEinheitenart, einheit: string): boolean {
   return EINHEITEN_JE_ART[art].some((bekannt) => bekannt === einheit);
 }
 
@@ -241,7 +241,10 @@ function umgerechnet(
 }
 
 /** Finds the ingredient by its name, ignoring case but not umlauts. */
-function nachName(kandidaten: readonly RezeptKandidat[], name: string): RezeptKandidat | undefined {
+export function nachName(
+  kandidaten: readonly RezeptKandidat[],
+  name: string
+): RezeptKandidat | undefined {
   return kandidaten.find(
     (kandidat) => kandidat.name.localeCompare(name, 'de', { sensitivity: 'accent' }) === 0
   );

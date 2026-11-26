@@ -1,27 +1,22 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
-  import { zeileBody } from '../../lib/essensplanungGerichte';
-  import {
-    aenderungText,
-    kiFehlerText,
-    type KiHinweis,
-    type KiPruefung,
-  } from '../../lib/essensplanungKi';
+  import { kiFehlerText } from '../../lib/essensplanungKi';
+  import type { KiPruefung } from '../../lib/essensplanungKiPruefung';
   import type {
     EssenKatalog,
     Gericht,
-    GerichtZutat,
     PlanungZutat,
   } from '../../../../api/lib/essen-gerichte-model';
-  import type { PlanungAnsicht } from '../../../../api/lib/essen-planung-model';
+  import GerichtKiPruefung from './GerichtKiPruefung.svelte';
   import RezeptImportDialog from './RezeptImportDialog.svelte';
   import { gespeichert } from './planKontext';
   import type { PlanKontext } from './planKontext';
 
   /**
-   * The AI at a dish, for those who edit: „Gericht prüfen“ lists hints with a proposal (a change
-   * of a line can be taken over with one click), „Rezept einfügen“ reads the lines of a pasted
-   * recipe for confirmation. Answers are marked as AI and unchecked.
+   * The AI at a dish, for those who edit: „Gericht prüfen“ assesses the dish for its people and
+   * lists hints whose proposals can be taken over with one click (`GerichtKiPruefung.svelte`),
+   * „Rezept einfügen“ reads the lines of a pasted recipe for confirmation. Answers are marked as
+   * AI and unchecked.
    */
 
   interface Props {
@@ -40,119 +35,29 @@
   let pruefung = $state<KiPruefung | null>(null);
   let prueft = $state(false);
   let fehler = $state<string | null>(null);
-  /** Indexes of the hints whose change was taken over. */
-  let uebernommen = $state<number[]>([]);
-  /** Indexes of hints whose proposal was dropped, because others changed the line meanwhile. */
-  let veraltet = $state<number[]>([]);
   let rezeptOffen = $state(false);
   /** A proposal of this card is being saved; checking again waits for it. */
   let uebernimmt = $state(false);
-  /** Counts the checks: a take-over only acts on the hints of the check it came from. */
-  let pruefNummer = 0;
-  /** The people of the dish changed since the check: its amounts no longer fit. */
-  const personenGeaendert = $derived(pruefung !== null && pruefung.personen !== gericht.personen);
 
   async function pruefen(): Promise<void> {
     if (uebernimmt || kontext.busy) return;
-    pruefNummer++;
     prueft = true;
     fehler = null;
     pruefung = null;
-    // A line left with the click saves after it; the check reads what is saved
+    // A line or field left with the click saves after it; the check reads what is saved
     if (!(await gespeichert())) {
       fehler =
-        'Eine Änderung an einer Zutat ist noch nicht gespeichert. Prüfe das Gericht, wenn sie gespeichert ist.';
+        'Eine Änderung am Gericht ist noch nicht gespeichert. Prüfe das Gericht, wenn sie gespeichert ist.';
       prueft = false;
       return;
     }
     try {
       pruefung = await kontext.api.senden<KiPruefung>('POST', `/gerichte/${gericht.id}/ki/pruefen`);
-      uebernommen = [];
-      veraltet = [];
     } catch (error: unknown) {
       fehler = kiFehlerText(error);
     } finally {
       prueft = false;
     }
-  }
-
-  function zeileVon(hinweis: KiHinweis) {
-    return hinweis.zeile
-      ? gericht.zutaten.find((zeile) => zeile.id === hinweis.zeile!.id)
-      : undefined;
-  }
-
-  function nameVon(hinweis: KiHinweis): string | undefined {
-    const zeile = zeileVon(hinweis);
-    return zeile ? zutaten.get(zeile.planungZutatId)?.name : undefined;
-  }
-
-  /** Saves the proposed change with the version that was checked: a change since is a conflict. */
-  async function uebernehmen(index: number, hinweis: KiHinweis): Promise<void> {
-    const zeile = zeileVon(hinweis);
-    if (!zeile || !hinweis.zeile || !hinweis.aenderung) {
-      fehler = 'Diese Zutat gibt es nicht mehr. Lass das Gericht noch einmal prüfen.';
-      return;
-    }
-    const gesendet = { ...zeileBody(zeile), ...hinweis.aenderung, etag: hinweis.zeile.etag };
-    const vonPruefung = pruefNummer;
-    const hinweise = pruefung?.hinweise ?? [];
-    // An amount is for the people that were checked: a change of them meanwhile is a conflict
-    const body =
-      hinweis.aenderung.menge !== undefined && pruefung
-        ? { ...gesendet, personen: pruefung.personen }
-        : gesendet;
-    /** The line as this write left it, from the answer of the PATCH itself. */
-    let geschrieben: GerichtZutat | undefined;
-    uebernimmt = true;
-    let ok: boolean;
-    try {
-      ok = await kontext.aendern(
-        async () => {
-          const ansicht = await kontext.api.senden<PlanungAnsicht>(
-            'PATCH',
-            `/gericht-zutaten/${zeile.id}`,
-            body
-          );
-          geschrieben = ansicht.gerichte.flatMap((g) => g.zutaten).find((z) => z.id === zeile.id);
-          return ansicht;
-        },
-        `Vorschlag für ${nameVon(hinweis) ?? 'die Zutat'} übernommen.`
-      );
-    } finally {
-      uebernimmt = false;
-    }
-    // A newer check meanwhile has hints of its own: this result is not about them
-    if (!ok || vonPruefung !== pruefNummer) return;
-    uebernommen = [...uebernommen, index];
-    // Further hints on the same line build on this write only. If the answer already shows a
-    // change of others, they would overwrite it: their proposals are dropped instead.
-    const eigene = geschrieben && gleicheZeile(geschrieben, gesendet);
-    for (const [weiterer, andere] of hinweise.entries()) {
-      if (weiterer === index || andere.zeile?.id !== zeile.id) continue;
-      if (eigene) andere.zeile.etag = geschrieben!.etag;
-      else if (andere.aenderung) {
-        andere.aenderung = undefined;
-        veraltet = [...veraltet, weiterer];
-      }
-    }
-  }
-
-  /** Whether `zeile` holds exactly the fields that were sent. */
-  function gleicheZeile(zeile: GerichtZutat, body: ReturnType<typeof zeileBody>): boolean {
-    const felder = [
-      'planungZutatId',
-      'menge',
-      'einheit',
-      'fest',
-      'fuerAlles',
-      'fuerVegetarisch',
-      'fuerVegan',
-      'ohne',
-      'nur',
-      'hinweis',
-    ] as const;
-    return felder.every((feld) => JSON.stringify(zeile[feld]) === JSON.stringify(body[feld]));
   }
 </script>
 
@@ -176,73 +81,20 @@
   </div>
   {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
   {#if pruefung}
-    <div class="space-y-2 rounded-md border border-neutral-200 p-3" role="status">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <p class="font-semibold text-brand-900">KI-Hinweise zu {gericht.name}</p>
-        <ActionButton type="button" onclick={() => (pruefung = null)}>Ausblenden</ActionButton>
-      </div>
-      <p class="text-sm text-neutral-700">
-        Von der KI erzeugt und ungeprüft. Entscheide selbst, was davon stimmt.
-      </p>
-      {#if personenGeaendert}
-        <div class="flex flex-wrap items-center gap-2">
-          <p class="text-sm text-warning">
-            Die Personenzahl des Gerichts hat sich seit der Prüfung geändert; vorgeschlagene Mengen
-            gelten nicht mehr.
-          </p>
-          <ActionButton
-            type="button"
-            disabled={!bearbeiten || prueft || uebernimmt || kontext.busy}
-            onclick={() => void pruefen()}
-          >
-            Gericht neu prüfen
-          </ActionButton>
-        </div>
-      {/if}
-      {#if pruefung.hinweise.length}
-        <ul class="divide-y divide-neutral-200">
-          {#each pruefung.hinweise as hinweis, index (index)}
-            {@const name = nameVon(hinweis)}
-            <li class="space-y-1 py-2">
-              <p class="[overflow-wrap:anywhere]">
-                {#if name}<span class="font-semibold">{name}:</span>{/if}
-                {hinweis.text}
-              </p>
-              {#if hinweis.vorschlag}
-                <p class="text-sm text-neutral-700 [overflow-wrap:anywhere]">
-                  Vorschlag: {hinweis.vorschlag}
-                </p>
-              {/if}
-              {#if veraltet.includes(index)}
-                <p class="text-sm text-warning">
-                  Die Zutat wurde inzwischen auch anderweitig geändert. Lass das Gericht noch einmal
-                  prüfen.
-                </p>
-              {/if}
-              {#if hinweis.aenderung && name && !(personenGeaendert && hinweis.aenderung.menge !== undefined && !uebernommen.includes(index))}
-                {#if uebernommen.includes(index)}
-                  <p class="text-sm text-success">Übernommen.</p>
-                {:else}
-                  <ActionButton
-                    type="button"
-                    disabled={!bearbeiten || kontext.busy}
-                    aria-label="Vorschlag für {name} übernehmen: {aenderungText(hinweis.aenderung)}"
-                    onclick={() => void uebernehmen(index, hinweis)}
-                  >
-                    Übernehmen: {aenderungText(
-                      hinweis.aenderung,
-                      zutaten.get(zeileVon(hinweis)?.planungZutatId ?? 0)?.abtropfgewicht
-                    )}
-                  </ActionButton>
-                {/if}
-              {/if}
-            </li>
-          {/each}
-        </ul>
-      {:else}
-        <p>Die KI hat nichts Auffälliges gefunden.</p>
-      {/if}
-    </div>
+    <!-- A new check starts with fresh hints, taken over ones and versions -->
+    {#key pruefung}
+      <GerichtKiPruefung
+        {kontext}
+        {gericht}
+        {zutaten}
+        {pruefung}
+        {bearbeiten}
+        gesperrt={prueft || kontext.busy}
+        onuebernimmt={(laeuft) => (uebernimmt = laeuft)}
+        onneu={() => void pruefen()}
+        onausblenden={() => (pruefung = null)}
+      />
+    {/key}
   {/if}
 </section>
 

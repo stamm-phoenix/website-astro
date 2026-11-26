@@ -1,52 +1,13 @@
 import { z } from 'zod';
-import type { Gericht, GerichtEinheit, GerichtZutat, PlanungZutat } from './essen-gerichte-model';
-import { EINHEITEN_JE_ART, einheitSchluessel, istBekannteEinheit } from './essen-gerichte-model';
-import type { EssenEinheitenart } from './essen-validation';
+import type { GerichtEinheit } from './essen-gerichte-model';
 
 /**
  * What the AI of the Essensplanung answers and how its answers are read (`docs/essensplanung.md`,
- * „KI“): hints on a dish, the lines of a pasted recipe mapped onto the ingredient lists, and an
- * estimate of grams per TL, EL or piece. Everything the model says is checked here before the
- * page sees it; the model never changes anything itself. Without database or network, so the
- * mock API uses it too.
+ * „KI“): the lines of a pasted recipe mapped onto the ingredient lists and an estimate of grams
+ * per TL, EL or piece (the check of a dish: `essen-ki-pruefen-model.ts`). Everything the model
+ * says is checked here before the page sees it; the model never changes anything itself. Without
+ * database or network, so the mock API uses it too.
  */
-
-export const KI_HINWEIS_ARTEN = [
-  'menge',
-  'tippfehler',
-  'ernaehrung',
-  'unvertraeglichkeit',
-  'fehlt',
-  'sonstiges',
-] as const;
-export type KiHinweisArt = (typeof KI_HINWEIS_ARTEN)[number];
-
-/** A change of a line the page can take over with one click. */
-export interface KiAenderung {
-  menge?: number;
-  einheit?: GerichtEinheit;
-  fuerAlles?: boolean;
-  fuerVegetarisch?: boolean;
-  fuerVegan?: boolean;
-}
-
-export interface KiHinweis {
-  art: KiHinweisArt;
-  /** The line it is about, with the version that was checked; missing for the whole dish. */
-  zeile?: { id: number; etag: string };
-  text: string;
-  vorschlag: string;
-  aenderung?: KiAenderung;
-}
-
-export interface KiPruefung {
-  hinweise: KiHinweis[];
-  /**
-   * The people of the dish that was checked (null: none yet); taking over an amount sends them
-   * back.
-   */
-  personen: number | null;
-}
 
 /**
  * Units the model may read from a recipe; TL, EL and pieces are converted where the lists know
@@ -121,7 +82,7 @@ export interface KiUmrechnung {
 export const KI_MASS_TEXT: Record<KiMass, string> = { tl: 'TL', el: 'EL', stueck: 'Stück' };
 
 export const MAX_MENGE = 1_000_000;
-const MAX_TEXT = 300;
+export const MAX_TEXT = 300;
 export const MAX_REZEPT_TEXT = 10_000;
 /** The description of a dish to write („Gericht generieren lassen“). */
 export const MAX_GERICHT_BESCHREIBUNG = 2000;
@@ -149,132 +110,6 @@ export const kiZahl = z.preprocess(
       : null,
   z.number().nullable()
 );
-
-const flag = z.preprocess(
-  (value) => (typeof value === 'boolean' ? value : null),
-  z.boolean().nullable()
-);
-
-const liste = z.object({ hinweise: z.array(z.unknown()) });
-
-const hinweisSchema = z.object({
-  art: z.preprocess(
-    (value) => (KI_HINWEIS_ARTEN.some((art) => art === value) ? value : 'sonstiges'),
-    z.enum(KI_HINWEIS_ARTEN)
-  ),
-  zeile: z.preprocess((value) => (Number.isInteger(value) ? value : null), z.number().nullable()),
-  text: kiText(MAX_TEXT).refine((value) => value !== ''),
-  vorschlag: kiText(MAX_TEXT),
-  menge: kiZahl,
-  einheit: z.preprocess(
-    (value) => (typeof value === 'string' && istBekannteEinheit(value) ? value : null),
-    z.custom<GerichtEinheit>().nullable()
-  ),
-  fuerAlles: flag,
-  fuerVegetarisch: flag,
-  fuerVegan: flag,
-});
-
-/** Whether a proposed unit fits: the line's base unit, or for a line without one the ingredient's. */
-function einheitBleibt(
-  einheit: GerichtEinheit,
-  zeile: GerichtZutat,
-  art: EssenEinheitenart | undefined
-): boolean {
-  if (zeile.einheit) return einheitSchluessel(einheit) === einheitSchluessel(zeile.einheit);
-  return art !== undefined && EINHEITEN_JE_ART[art].some((bekannt) => bekannt === einheit);
-}
-
-/** The change a hint proposes for `zeile`, if it changes anything and keeps its base unit. */
-function aenderungFuer(
-  hinweis: z.infer<typeof hinweisSchema>,
-  zeile: GerichtZutat,
-  art: EssenEinheitenart | undefined
-): KiAenderung | undefined {
-  const aenderung: KiAenderung = {};
-  if (hinweis.menge !== null) {
-    const einheit = hinweis.einheit ?? zeile.einheit;
-    // A new amount stays in the base unit of the line: 500 ml of pasta is no proposal
-    if (einheit && einheitBleibt(einheit, zeile, art)) {
-      const menge = Math.round(hinweis.menge * 1000) / 1000 || 0.001;
-      if (menge !== zeile.menge || einheit !== zeile.einheit) {
-        aenderung.menge = menge;
-        aenderung.einheit = einheit;
-      }
-    }
-  }
-  const fuer = {
-    fuerAlles: hinweis.fuerAlles ?? zeile.fuerAlles,
-    fuerVegetarisch: hinweis.fuerVegetarisch ?? zeile.fuerVegetarisch,
-    fuerVegan: hinweis.fuerVegan ?? zeile.fuerVegan,
-  };
-  // A line must stay for at least one diet
-  if (fuer.fuerAlles || fuer.fuerVegetarisch || fuer.fuerVegan) {
-    for (const feld of ['fuerAlles', 'fuerVegetarisch', 'fuerVegan'] as const) {
-      if (fuer[feld] !== zeile[feld]) aenderung[feld] = fuer[feld];
-    }
-  }
-  return Object.keys(aenderung).length ? aenderung : undefined;
-}
-
-/** Field names of the data the model sees, and how the page says them. */
-const FELDNAMEN: [RegExp, string][] = [
-  [/\bnichtFuer\b/g, 'nicht bei'],
-  [/\bnurFuer\b/g, 'nur bei'],
-  [/\bfuerAlles\b/g, 'für alle, die alles essen'],
-  [/\bfuerVegetarisch\b/g, 'vegetarisch'],
-  [/\bfuerVegan\b/g, 'vegan'],
-  [/\beinheitenart\b/g, 'Einheit'],
-  [/\benthaelt\b/g, 'enthält'],
-];
-/** Internal ids that say nothing to a person; a text with them is left out. */
-const INTERN = /\b(?:planungZutatId|zutatId|gerichtId|etag)\b/;
-
-/**
- * A hint's text in the words of the page: field names the model may echo are replaced; null for
- * a text with internal ids.
- */
-export function oberflaechenText(text: string): string | null {
-  if (INTERN.test(text)) return null;
-  return FELDNAMEN.reduce((ergebnis, [muster, wort]) => ergebnis.replace(muster, wort), text);
-}
-
-/**
- * Reads the hints of the model on `gericht`: entries that do not fit are left out, a line number
- * outside the dish counts for the whole dish, and a proposed change only stays when it keeps the
- * base unit of the line and leaves it for at least one diet.
- */
-export function leseKiPruefung(
-  raw: unknown,
-  gericht: Gericht,
-  zutaten: ReadonlyMap<number, PlanungZutat>
-): KiPruefung {
-  const antwort = liste.safeParse(raw);
-  if (!antwort.success) throw new Error('Invalid answer of the check');
-  const hinweise: KiHinweis[] = [];
-  for (const value of antwort.data.hinweise) {
-    if (hinweise.length >= MAX_HINWEISE) break;
-    const eintrag = hinweisSchema.safeParse(value);
-    if (!eintrag.success) continue;
-    const hinweis = eintrag.data;
-    const text = oberflaechenText(hinweis.text);
-    const vorschlag = oberflaechenText(hinweis.vorschlag);
-    if (text === null || vorschlag === null) continue;
-    const zeile =
-      hinweis.zeile !== null && hinweis.zeile >= 1 ? gericht.zutaten[hinweis.zeile - 1] : undefined;
-    const aenderung = zeile
-      ? aenderungFuer(hinweis, zeile, zutaten.get(zeile.planungZutatId)?.einheitenart)
-      : undefined;
-    hinweise.push({
-      art: hinweis.art,
-      ...(zeile ? { zeile: { id: zeile.id, etag: zeile.etag } } : {}),
-      text,
-      vorschlag,
-      ...(aenderung ? { aenderung } : {}),
-    });
-  }
-  return { hinweise, personen: gericht.personen };
-}
 
 const umrechnungSchema = z.object({
   gramm: z.preprocess(
