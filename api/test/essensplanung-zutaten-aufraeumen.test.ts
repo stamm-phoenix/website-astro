@@ -141,7 +141,7 @@ dbTest('an own ingredient added with just its name stays until it is used', asyn
   const { token } = await anlegen(t, mails);
   const angelegt = await call(t, EssensplanungZutaten, 'POST', 'planung/zutaten', {
     token,
-    body: { name: 'Vanillepaste', einheit: 'Tube' },
+    body: { name: 'Omas Vanillezauber', einheit: 'Tube' },
   });
   assert.equal(angelegt.status, 201, JSON.stringify(angelegt.jsonBody));
   const { id, ansicht } = json<{ id: number; ansicht: PlanungAnsicht }>(angelegt);
@@ -162,7 +162,12 @@ dbTest('an own ingredient added with just its name stays until it is used', asyn
   const geaendert = await call(t, EssensplanungZutat, 'PATCH', `planung/zutaten/${id}`, {
     token,
     params: { id: String(id) },
-    body: { etag: neu.etag, name: 'Vanillepaste', kategorieId: kategorie, einheitenart: 'masse' },
+    body: {
+      etag: neu.etag,
+      name: 'Omas Vanillezauber',
+      kategorieId: kategorie,
+      einheitenart: 'masse',
+    },
   });
   assert.equal(geaendert.status, 200, JSON.stringify(geaendert.jsonBody));
   const danach = json<PlanungAnsicht>(geaendert).zutaten.find((z) => z.id === id)!;
