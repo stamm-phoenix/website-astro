@@ -3,6 +3,7 @@ import test from 'node:test';
 import { gerichtAusHash, planungHash, tokenAusHash } from '../src/lib/essensplanung.ts';
 import {
   eintragVon,
+  fremdeTeile,
   indexVon,
   oeffnenderSchritt,
   VERLAUF,
@@ -50,4 +51,11 @@ test('entries without the navigation part read as none', () => {
   assert.equal(indexVon({ index: 2 }), 2);
   assert.equal(indexVon({ index: Number('x') }), null);
   assert.equal(indexVon({}), null);
+});
+
+test("a new entry takes what others put there, not the router's keys or the old part", () => {
+  assert.deepEqual(fremdeTeile(eintrag({}, 3, { essensplanungEinkauf: 7 })), {
+    essensplanungEinkauf: 7,
+  });
+  assert.deepEqual(fremdeTeile(null), {});
 });

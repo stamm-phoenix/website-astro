@@ -145,8 +145,9 @@
     if (name === gesendet) name = '';
     if (personen === gesendetPersonen) personen = '';
     if (zustaendig === gesendetZustaendig) zustaendig = '';
-    // A new dish opens on its own page, with the focus on its name to fill it in
-    await navigation.oeffnen(id, true);
+    // A new dish opens on its own page, with the focus on its name to fill it in; not when
+    // another area was chosen during the save, so typing there goes on
+    if (sichtbar) await navigation.oeffnen(id, true);
   }
 
   /** Recipe cards as PDF; only with the central list, so they name all allergens. */
