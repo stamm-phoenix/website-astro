@@ -99,6 +99,10 @@ test('the bodies take the proposal at the checked version', () => {
     etag: 'neuer',
     abtropfgewicht: true,
     merkmaleGeprueft: true,
+    lebensmittel: true,
+    vegetarisch: true,
+    vegan: true,
+    allergene: [10],
     hinweis: 'Hartweizen',
   } as EssenZutat;
   assert.deepEqual(zentraleZutatKiBody(aktuell, mitVorschlag), {
@@ -109,4 +113,7 @@ test('the bodies take the proposal at the checked version', () => {
     merkmaleGeprueft: true,
     hinweis: 'Hartweizen',
   });
+  // Diet or allergens the AI changed are no longer checked by a person
+  const ohneGluten = { ...mitVorschlag, vorschlag: { ...WERTE, allergene: [] } };
+  assert.equal(zentraleZutatKiBody(aktuell, ohneGluten)?.merkmaleGeprueft, false);
 });

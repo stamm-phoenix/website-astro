@@ -218,3 +218,14 @@ test('KI Zutaten: ids are 1 to 25 positive whole numbers, sent in portions', () 
   );
   assert.deepEqual(kiPortionen([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
 });
+
+test('KI Zutaten: guessed details the AI confirms are a proposal, so the mark goes', () => {
+  const offen = { ...eingabe(1, 'Paste'), angabenOffen: true };
+  const [ergebnis] = leseKiZutaten({ zutaten: [antwort('p1')] }, [offen], LISTEN).ergebnisse;
+  assert.equal(ergebnis.status, 'vorschlag');
+  assert.deepEqual(ergebnis.vorschlag, offen.werte);
+  assert.deepEqual(
+    ergebnis.aenderungen.map((a) => `${a.label}: ${a.alt} → ${a.neu}`),
+    ['Angaben: geraten → bestätigt']
+  );
+});

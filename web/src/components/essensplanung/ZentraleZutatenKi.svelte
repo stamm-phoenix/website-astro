@@ -105,6 +105,7 @@
       {fortschritt}
       {fehler}
       onweiter={rest.length ? () => void pruefen(rest, true) : undefined}
+      ungeprueft={rest.length}
       onabbrechen={() => (anhalten = true)}
       {uebernehmen}
       alleUebernehmen={speichere}

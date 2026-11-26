@@ -20,6 +20,8 @@
     /** Why the check stopped; with `onweiter` it goes on with the rest. */
     fehler: string | null;
     onweiter?: () => void;
+    /** How many ingredients asked for are not checked yet (after an error or a pause). */
+    ungeprueft?: number;
     onabbrechen?: () => void;
     /** Saves one proposal; returns why it failed, or null. */
     uebernehmen: (ergebnis: KiZutatErgebnis) => Promise<string | null>;
@@ -36,6 +38,7 @@
     fortschritt,
     fehler,
     onweiter,
+    ungeprueft = 0,
     onabbrechen,
     uebernehmen,
     alleUebernehmen,
@@ -138,11 +141,16 @@
       </ActionButton>
     {/if}
   </Aktionsraster>
-  {#if fehler}
+  {#if fehler || (ungeprueft && !fortschritt)}
     <div class="flex flex-wrap items-center gap-2">
-      <p class="text-sm text-danger" role="alert">{fehler}</p>
-      {#if onweiter}
-        <ActionButton type="button" onclick={onweiter}>Weiter prüfen</ActionButton>
+      {#if fehler}<p class="text-sm text-danger" role="alert">{fehler}</p>{/if}
+      {#if ungeprueft && !fortschritt}
+        <p class="text-sm text-warning" role="status">
+          {ungeprueft === 1 ? '1 Zutat ist' : `${ungeprueft} Zutaten sind`} noch nicht geprüft.
+        </p>
+        {#if onweiter}
+          <ActionButton type="button" onclick={onweiter}>Weiter prüfen</ActionButton>
+        {/if}
       {/if}
     </div>
   {/if}
