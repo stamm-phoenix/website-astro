@@ -1,4 +1,5 @@
 import type { PlanungAnsicht } from '../../../api/lib/essen-planung-model';
+import { schluessel } from './essensplanungPlan';
 
 /** Who is responsible for the dishes of a Planung, gathered from all their meals in the plan. */
 
@@ -8,9 +9,6 @@ export interface GerichtZustaendige {
   /** Whether the viewer is responsible at least once. */
   ich: boolean;
 }
-
-const schluessel = (name: string): string =>
-  name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de');
 
 /**
  * The responsible persons per dish. The viewer counts as a member and as a free name equal to

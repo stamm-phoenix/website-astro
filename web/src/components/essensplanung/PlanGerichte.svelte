@@ -82,7 +82,13 @@
   const zustaendige = $derived(zustaendigeJeGericht(ansicht));
   let filter = $state<'alle' | 'meine'>('alle');
   const meine = $derived(ansicht.gerichte.filter((g) => zustaendige.get(g.id)?.ich));
-  const gezeigt = $derived(filter === 'meine' ? meine : ansicht.gerichte);
+  // An open dish stays while it is open, so input typed in it is not lost when someone else
+  // takes it over in the plan
+  const gezeigt = $derived(
+    filter === 'meine'
+      ? ansicht.gerichte.filter((g) => zustaendige.get(g.id)?.ich || offen.has(g.id))
+      : ansicht.gerichte
+  );
   /** Shows all dishes when the filter hides one that is to be opened. */
   function zeige(id: number): void {
     if (!gezeigt.some((g) => g.id === id)) filter = 'alle';
