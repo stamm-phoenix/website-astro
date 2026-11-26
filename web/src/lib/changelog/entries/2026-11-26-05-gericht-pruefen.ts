@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from '../../changelog';
 
 const entry: ChangelogEntry = {
-  id: '2026-11-26-04-gericht-pruefen',
+  id: '2026-11-26-05-gericht-pruefen',
   date: '2026-11-26',
   title: 'Essensplanung: Gericht prüfen (KI) mit Einschätzung und Zubereitung',
   changes: [
