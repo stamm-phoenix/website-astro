@@ -1,54 +1,27 @@
 import { tick } from 'svelte';
 import { navigate } from 'astro:transitions/client';
 import { gerichtAusHash, planungHash, tokenAusHash } from '../../lib/essensplanung';
+import {
+  alsZustand,
+  eintragVon,
+  indexVon,
+  oeffnenderSchritt,
+  VERLAUF,
+  type Bereich,
+  type Eintrag,
+} from './planVerlauf';
+
+export type { Bereich } from './planVerlauf';
 
 /**
  * Where the page of a Planung stands: the area (tab) and the dish shown on its own page. A dish
  * gets an address of its own (`#t=…&g=12`), so the browser's back button, a reload and a link
  * opened in a new tab show it; „Zurück“ goes back to where it was opened from.
  *
- * The entries share `history.state` with Astro's ClientRouter (`index`, `scrollX`, `scrollY`)
- * and the trips of `PlanEinkauf.svelte`; like the trips, an entry keeps what others put there
- * and the navigation's own part sits under a key of its own.
+ * New entries are made by Astro's ClientRouter (`navigate`), so its count of entries stays in
+ * step with the guard against lost input (`unsavedChanges.ts`); replacing an entry keeps what the
+ * router and the trips of `PlanEinkauf.svelte` put there (`planVerlauf.ts`).
  */
-
-export type Bereich =
-  | 'plan'
-  | 'gerichte'
-  | 'teilnehmende'
-  | 'einkauf'
-  | 'lager'
-  | 'packliste'
-  | 'belege'
-  | 'mitglieder'
-  | 'einstellungen';
-
-/** Key in `history.state`. */
-const VERLAUF = 'essensplanungSeite';
-
-/** The navigation's part of an entry of the browser's history. */
-interface Eintrag {
-  bereich: Bereich;
-  gericht: number | null;
-  von: Bereich | null;
-  /**
-   * The router's `index` of the entry opening the dish, set when it was pushed. A copy of the
-   * part in another entry (the trips spread the state) has another index, so „Zurück“ steps back
-   * only from the entry that opened the dish.
-   */
-  schritt: number | null;
-}
-
-function zustand(): Record<string, unknown> {
-  const state: unknown = history.state;
-  return state && typeof state === 'object' ? (state as Record<string, unknown>) : {};
-}
-
-function eintragVon(state: Record<string, unknown>): Eintrag | null {
-  const wert = state[VERLAUF];
-  return typeof wert === 'object' && wert !== null && 'bereich' in wert ? (wert as Eintrag) : null;
-}
-
 export class PlanNavigation {
   bereich = $state<Bereich>('plan');
   /** The dish shown on its own page in the area of the dishes, or null for the list. */
@@ -67,13 +40,13 @@ export class PlanNavigation {
     // Opened without the link in the address (token from the tab's storage): the router learns
     // the address with the link, so going back between dishes stays on this page
     if (tokenAusHash(window.location.hash, 't') !== token)
-      void navigate(`${window.location.pathname}${planungHash(token)}`, { history: 'replace' });
+      void navigate(this.#adresse(null), { history: 'replace' });
     const gericht = gerichtAusHash(window.location.hash);
     if (gericht !== null) {
       this.bereich = 'gerichte';
       this.gericht = gericht;
       // A reload keeps the entry, so „Zurück“ still goes where the dish was opened from
-      const eintrag = eintragVon(zustand());
+      const eintrag = eintragVon(history.state);
       if (eintrag?.gericht === gericht) this.von = eintrag.von;
     }
     const onPop = (): void => void this.#zurueckgeblaettert();
@@ -82,7 +55,7 @@ export class PlanNavigation {
   }
 
   async #zurueckgeblaettert(): Promise<void> {
-    const state = zustand();
+    const state = alsZustand(history.state);
     const eintrag = eintragVon(state);
     if (eintrag) {
       this.bereich = eintrag.bereich;
@@ -100,14 +73,17 @@ export class PlanNavigation {
     if (this.gericht !== null) this.bereich = 'gerichte';
   }
 
+  #adresse(gericht: number | null): string {
+    return `${window.location.pathname}${planungHash(this.#token, gericht)}`;
+  }
+
   #teil(schritt: number | null): Eintrag {
     return { bereich: this.bereich, gericht: this.gericht, von: this.von, schritt };
   }
 
   /** Writes what is shown into the current entry, keeping the keys of the router and others. */
-  #ersetzen(url?: string): void {
-    const bisher = zustand();
-    const schritt = eintragVon(bisher)?.schritt ?? null;
+  #ersetzen(url?: string, schritt = eintragVon(history.state)?.schritt ?? null): void {
+    const bisher = alsZustand(history.state);
     history.replaceState(
       {
         ...bisher,
@@ -120,13 +96,14 @@ export class PlanNavigation {
     );
   }
 
-  /** A new entry for what is shown, numbered on from the router's index like its own. */
-  #neu(url: string): number {
-    const { index } = zustand();
-    const neu = typeof index === 'number' ? index + 1 : 0;
-    // Only the router's keys go along: a trip open in another area is not this entry's
-    history.pushState({ index: neu, scrollX: 0, scrollY: 0, [VERLAUF]: this.#teil(neu) }, '', url);
-    return neu;
+  /** A new entry for what is shown, made by the router; it remembers its index as the step. */
+  #neu(gericht: number | null): void {
+    // For an address on the same page the router pushes at once, before the promise settles
+    void navigate(this.#adresse(gericht), {
+      history: 'push',
+      state: { [VERLAUF]: this.#teil(null) },
+    });
+    this.#ersetzen(undefined, indexVon(history.state));
   }
 
   /** Shows an area; the tab of the dishes, clicked again on a dish, shows the list. */
@@ -136,7 +113,7 @@ export class PlanNavigation {
       this.#ersetzen();
       this.gericht = null;
       this.von = null;
-      this.#neu(planungHash(this.#token));
+      this.#neu(null);
       window.scrollTo(0, 0);
       return;
     }
@@ -153,7 +130,7 @@ export class PlanNavigation {
     this.von = this.bereich;
     this.bereich = 'gerichte';
     this.gericht = id;
-    this.#neu(planungHash(this.#token, id));
+    this.#neu(id);
     this.zumNamen = zumNamen;
     this.geoeffnet++;
     await tick();
@@ -162,15 +139,7 @@ export class PlanNavigation {
 
   /** Back from a dish to where it was opened from, or to the list of dishes. */
   zurueck(): void {
-    const state = zustand();
-    const eintrag = eintragVon(state);
-    // Only the entry that opened this dish steps back; the one before it is its origin
-    if (
-      this.von !== null &&
-      eintrag?.gericht === this.gericht &&
-      eintrag.schritt !== null &&
-      eintrag.schritt === state.index
-    ) {
+    if (oeffnenderSchritt(history.state, this.gericht)) {
       history.back();
       return;
     }
