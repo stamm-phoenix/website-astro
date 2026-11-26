@@ -36,10 +36,10 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   await zutat.fill('Drachenfrucht-Sirup');
   await expect(gericht.getByText(/wird eine eigene Zutat dieser Planung/)).toBeVisible();
   await gericht.getByLabel('Menge der neuen Zutat').fill('2');
-  await gericht.getByLabel('Einheit der neuen Zutat').fill('Flaschen');
+  await gericht.getByLabel('Einheit der neuen Zutat').fill('Flasche');
   await gericht.getByLabel('Einheit der neuen Zutat').press('Escape');
   await gericht.getByRole('button', { name: 'Zeile zu Nudeln mit Soße hinzufügen' }).click();
-  await expect.poll(() => zeilenMenge(gericht, 'Drachenfrucht-Sirup')).toBe('2 Flaschen');
+  await expect.poll(() => zeilenMenge(gericht, 'Drachenfrucht-Sirup')).toBe('2 Flasche');
 
   // Changing the amount in the row saves when the row is left
   const menge = gericht.getByLabel('Menge von Hackfleisch');

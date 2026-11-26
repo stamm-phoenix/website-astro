@@ -38,6 +38,8 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await chili.getByRole('button', { name: 'Mehr Angaben …' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Omas Chiligewürz');
   await dialog.getByRole('button', { name: 'Als eigene Zutat dieser Planung anlegen' }).click();
+  // Category, diet and allergens are optional and folded away
+  await dialog.getByText(/Kategorie, Ernährung, Allergene/).click();
   await dialog.getByLabel('Kategorie', { exact: true }).selectOption({ label: 'Gewürz' });
   await dialog.getByLabel('Gemessen in', { exact: true }).selectOption({ label: 'Gewicht (g/kg)' });
   await dialog.getByLabel('Ernährung', { exact: true }).selectOption('vegan');
@@ -235,6 +237,8 @@ test('drained weight is marked; a typed unit is saved when others change the ing
   await eintopf.getByRole('button', { name: 'Mehr Angaben …' }).click();
   await dialog.getByLabel('Zutat', { exact: true }).fill('Hausbrühe');
   await dialog.getByRole('button', { name: 'Als eigene Zutat dieser Planung anlegen' }).click();
+  // Category, diet and allergens are optional and folded away
+  await dialog.getByText(/Kategorie, Ernährung, Allergene/).click();
   await dialog.getByLabel('Kategorie', { exact: true }).selectOption({ label: 'Gewürz' });
   await dialog.getByLabel('Gemessen in', { exact: true }).selectOption({ label: 'Volumen (ml/l)' });
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
