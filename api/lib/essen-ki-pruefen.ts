@@ -112,7 +112,10 @@ Einheiten sind g, kg, ml, l, stueck, packung oder bund. Die Anleitung änderst d
 const MAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
 const TELEFON = /(?:\+|\b0)\d[\d /-]{5,}\d/g;
 
-/** The instructions as the model sees them: without addresses and phone numbers; null for none. */
+/**
+ * The instructions as the model sees them: without mail addresses and phone numbers; null for
+ * none. Names written into them stay, as they cannot be told apart from words of the recipe.
+ */
 export function anleitungFuerModell(anleitung: string): string | null {
   const text = anleitung.replace(MAIL, '[E-Mail]').replace(TELEFON, '[Telefon]').trim();
   return text || null;

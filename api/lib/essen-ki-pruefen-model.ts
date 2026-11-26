@@ -102,8 +102,6 @@ export interface KiPruefung {
   personenQuelle: KiPersonenQuelle | null;
   /** Whether the dish had instructions to assess; without, only ingredients and tools count. */
   anleitungGeprueft: boolean;
-  /** The version of the dish's own fields at the check; tools are changed with it. */
-  etag: string;
 }
 
 /**

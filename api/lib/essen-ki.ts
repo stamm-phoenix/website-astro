@@ -16,9 +16,10 @@ import { loadEssenEinstellungen } from './essen-steuerung';
  * The AI of the Essensplanung (`docs/essensplanung.md`, „KI“): reads a pasted recipe and
  * estimates grams per TL, EL or piece (the check of a dish: `essen-ki-pruefen.ts`). Only for
  * members who may edit, never in the maintenance mode. The prompts carry the dish, its
- * ingredients and the recipe text, never names or addresses of members. There is no quota of our
- * own: when the deployment is busy (429, 503 or too slow), `KiNichtVerfuegbar` tells the page to
- * try again later.
+ * ingredients and the recipe text, never names or addresses of members from the Planung (the
+ * check also sends the instructions, free text that may name people; `essen-ki-pruefen.ts`).
+ * There is no quota of our own: when the deployment is busy (429, 503 or too slow),
+ * `KiNichtVerfuegbar` tells the page to try again later.
  */
 
 /** The deployment answers 429 or 503 or is too slow; the page shows „KI gerade nicht verfügbar“. */

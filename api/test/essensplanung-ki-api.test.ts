@@ -140,18 +140,14 @@ dbTest('the AI is only for members who edit, outside the maintenance mode', asyn
   const ok = await pruefen(token);
   assert.equal(ok.status, 200, JSON.stringify(ok.jsonBody));
   const pruefung = json<KiPruefung>(ok);
-  assert.deepEqual(
-    { ...pruefung, etag: typeof pruefung.etag },
-    {
-      einschaetzung: '',
-      hinweise: [],
-      personen: 10,
-      geprueftFuer: 10,
-      personenQuelle: 'gericht',
-      anleitungGeprueft: false,
-      etag: 'string',
-    }
-  );
+  assert.deepEqual(pruefung, {
+    einschaetzung: '',
+    hinweise: [],
+    personen: 10,
+    geprueftFuer: 10,
+    personenQuelle: 'gericht',
+    anleitungGeprueft: false,
+  });
   assert.equal(aufrufe, 1);
 });
 

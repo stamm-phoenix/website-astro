@@ -99,13 +99,8 @@ const hinweisSchema = z.object({
   fuerVegetarisch: flag,
   fuerVegan: flag,
   fest: flag,
-  hinweisNeu: z.preprocess(
-    (value) => (typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : null),
-    z
-      .string()
-      .nullable()
-      .transform((value) => (value === null ? null : value.slice(0, MAX_ZEILEN_HINWEIS)))
-  ),
+  // Empty is „unchanged“, as the model has to send every field
+  hinweisNeu: kiTextOderNull(MAX_ZEILEN_HINWEIS),
   zutatKey: z.preprocess(
     (value) => (typeof value === 'string' && value ? value : null),
     z.string().nullable()
@@ -201,11 +196,22 @@ function aenderungFuer(
     const einheit = aenderung.einheit ?? zeile.einheit;
     if (einheit === null || !passtNicht(einheit, zielArt)) aenderung.zutat = tausch.angabe;
   }
-  const fuer = {
+  let fuer = {
     fuerAlles: hinweis.fuerAlles ?? zeile.fuerAlles,
     fuerVegetarisch: hinweis.fuerVegetarisch ?? zeile.fuerVegetarisch,
     fuerVegan: hinweis.fuerVegan ?? zeile.fuerVegan,
   };
+  // Another ingredient never stays for diets it does not suit, like a line to add; a swap that
+  // would leave the line for nobody is dropped
+  if (aenderung.zutat && tausch?.kandidat) {
+    const geklemmt = {
+      ...fuer,
+      fuerVegetarisch: fuer.fuerVegetarisch && tausch.kandidat.vegetarisch !== false,
+      fuerVegan: fuer.fuerVegan && tausch.kandidat.vegan !== false,
+    };
+    if (geklemmt.fuerAlles || geklemmt.fuerVegetarisch || geklemmt.fuerVegan) fuer = geklemmt;
+    else delete aenderung.zutat;
+  }
   // A line must stay for at least one diet
   if (fuer.fuerAlles || fuer.fuerVegetarisch || fuer.fuerVegan) {
     for (const feld of ['fuerAlles', 'fuerVegetarisch', 'fuerVegan'] as const) {
@@ -353,6 +359,5 @@ export function leseKiPruefung(
     geprueftFuer: kontext.geprueftFuer,
     personenQuelle: kontext.personenQuelle,
     anleitungGeprueft: gericht.anleitung.trim() !== '',
-    etag: gericht.etag,
   };
 }
