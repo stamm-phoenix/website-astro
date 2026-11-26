@@ -216,10 +216,9 @@ export async function gerichtOeffnen(page: Page, name: string): Promise<Locator>
   const tab = page.getByRole('tab', { name: 'Gerichte' });
   const zeile = karte.getByRole('link').first();
   // The tab shows the area of the dishes; clicked again on another dish, it shows the list
-  for (let klick = 0; klick < 2 && !(await zeile.isVisible()); klick++) {
+  if (!(await zeile.isVisible())) await tab.click();
+  if ((await tab.getAttribute('aria-selected')) === 'true' && !(await zeile.isVisible()))
     await tab.click();
-    await expect(tab).toHaveAttribute('aria-selected', 'true');
-  }
   await zeile.click();
   await expect(zurueck).toBeVisible();
   return karte;
