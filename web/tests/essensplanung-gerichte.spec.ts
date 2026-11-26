@@ -108,10 +108,18 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await page.goBack();
   await expect(page.getByLabel('Neues Gericht')).toBeVisible();
   await expect(titel).toBeHidden();
-  // The steps keep the index of the page transitions, which the guard against lost input uses
-  expect(await page.evaluate(() => typeof (history.state as { index?: unknown }).index)).toBe(
-    'number'
-  );
+  // The page transitions count the dish's step, so the next page gets an index of its own; the
+  // guard against lost input goes back by these indices
+  const index = (): Promise<unknown> =>
+    page.evaluate(() => (history.state as { index?: unknown } | null)?.index);
+  const liste = await index();
+  expect(typeof liste).toBe('number');
+  await chili.getByRole('link').click();
+  await expect(titel).toBeVisible();
+  expect(await index()).toBe((liste as number) + 1);
+  await page.getByRole('contentinfo').getByRole('link', { name: 'Impressum' }).click();
+  await expect(page).toHaveURL(/impressum/);
+  expect(await index()).toBe((liste as number) + 2);
   await anderes.context().close();
 });
 
