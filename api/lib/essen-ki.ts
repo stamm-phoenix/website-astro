@@ -50,7 +50,7 @@ export function kiNichtVerfuegbarText(retryAfterSeconds?: number): string {
   return `KI gerade nicht verfügbar, bitte ${warten} noch einmal versuchen. Alles andere funktioniert wie gewohnt.`;
 }
 
-const KI_AUS = () =>
+export const KI_AUS = () =>
   new PlanungError(
     503,
     'KI_AUS',

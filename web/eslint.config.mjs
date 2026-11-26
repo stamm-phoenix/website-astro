@@ -36,6 +36,7 @@ const BROWSER_SAFE_API_MODULES = [
   'essen-einkaeufe-model',
   'essen-einkauf-model',
   'essen-gerichte-model',
+  'essen-ki-zutaten-model',
   'essen-packliste-model',
   'essen-planung-model',
   'essen-teilnehmende-model',

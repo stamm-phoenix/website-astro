@@ -8,6 +8,8 @@ import * as essenTeilnehmende from './mock-data/essensplanung-teilnehmende';
 import * as essenEinkauf from './mock-data/essensplanung-einkauf';
 import * as essenKi from './mock-data/essensplanung-ki';
 import * as essenKiGericht from './mock-data/essensplanung-ki-gericht';
+import * as essenKiZutaten from './mock-data/essensplanung-ki-zutaten';
+import { readKiZutatIds } from '../../api/lib/essen-ki-zutaten-antwort';
 import * as essenEinheiten from './mock-data/essensplanung-einheiten';
 import { validateEinheiten } from '../../api/lib/essen-einheiten-schema';
 import * as essenKochen from './mock-data/essensplanung-kochen';
@@ -340,4 +342,9 @@ route('PUT', '/api/essensplanung/planung/zutaten/:id/geschaeft', (req) => {
   return essenAendern(req, (z) =>
     essenEinkauf.zutatGeschaeft(z, Number(req.params.id), geschaeftId, req.json?.etag)
   );
+});
+
+route('POST', '/api/essensplanung/planung/ki/zutaten', (req) => {
+  const ids = readKiZutatIds(req.json);
+  return essenKiFrage(req, (z, wartung) => essenKiZutaten.kiZutatenDerPlanung(z, ids, wartung));
 });

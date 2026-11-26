@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, type Snippet } from 'svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import InfoHint from '../ui/InfoHint.svelte';
-  import StatusLabel from '../ui/StatusLabel.svelte';
+  import ZentraleZutatZeile from './ZentraleZutatZeile.svelte';
   import EditDialog from '../pflege/EditDialog.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { ApiError, sendApi } from '../../lib/api';
@@ -10,8 +10,6 @@
   import { essensplanungSteuerung } from '../../lib/pflegeStore.svelte';
   import {
     EINHEITENART_LABELS,
-    einheitKurz,
-    ernaehrungLabel,
     fromZutatForm,
     parseDecimal,
     toZutatForm,
@@ -24,8 +22,12 @@
   interface Props {
     data: StaffEssenSteuerung;
     onnotice: (message: string | null, kind?: 'success' | 'error') => void;
+    /** „Prüfen (KI)“ at an ingredient. */
+    onpruefen?: (zutat: EssenZutat) => void;
+    /** „Zutaten prüfen (KI)“ and its result, under the tools of the list. */
+    ki?: Snippet;
   }
-  let { data, onnotice }: Props = $props();
+  let { data, onnotice, onpruefen, ki }: Props = $props();
   const store = essensplanungSteuerung.state;
 
   let search = $state('');
@@ -63,6 +65,13 @@
   function open(zutat?: EssenZutat): void {
     form = toZutatForm(zutat ?? null, kategorieFilter ? Number(kategorieFilter) : undefined);
     dialog.reset();
+  }
+
+  /** Opens the ingredient with this id, e.g. one the AI did not understand. */
+  export function bearbeiten(id: number): void {
+    const zutat = data.zutaten.find((z) => z.id === id);
+    if (zutat) open(zutat);
+    else onnotice('Die Zutat wurde inzwischen gelöscht.');
   }
 
   function close(): void {
@@ -217,41 +226,19 @@
     {gefiltert.length} von {data.zutaten.length} Zutaten
   </p>
 
+  {#if ki}{@render ki()}{/if}
+
   {#if gefiltert.length}
     <ul class="divide-y divide-neutral-200 border-y border-neutral-200">
       {#each gefiltert as zutat (zutat.id)}
-        <li
-          data-focus-item
-          class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div class="min-w-0">
-            <p class="font-semibold text-brand-900 [overflow-wrap:anywhere]">{zutat.name}</p>
-            <p class="text-sm text-neutral-700">
-              {kategorieName.get(zutat.kategorieId)} · {einheitKurz(zutat)}
-              {#if zutat.lebensmittel}
-                · {ernaehrungLabel(zutat)}
-                {#if zutat.allergene.length}· enthält {allergeneText(zutat)}{/if}
-              {:else}
-                · kein Lebensmittel
-              {/if}
-            </p>
-            {#if zutat.hinweis}
-              <p class="text-sm text-neutral-700 italic">{zutat.hinweis}</p>
-            {/if}
-            {#if zutat.lebensmittel && !zutat.merkmaleGeprueft}
-              <StatusLabel label="Merkmale ungeprüft" tone="warning" dot />
-            {/if}
-          </div>
-          <ActionButton
-            type="button"
-            class="shrink-0 print:hidden"
-            aria-label="Bearbeiten: {zutat.name}"
-            disabled={busy}
-            onclick={() => open(zutat)}
-          >
-            Bearbeiten
-          </ActionButton>
-        </li>
+        <ZentraleZutatZeile
+          {zutat}
+          kategorie={kategorieName.get(zutat.kategorieId) ?? ''}
+          allergene={allergeneText(zutat)}
+          {busy}
+          onbearbeiten={() => open(zutat)}
+          onpruefen={onpruefen ? () => onpruefen(zutat) : undefined}
+        />
       {/each}
     </ul>
   {:else}
