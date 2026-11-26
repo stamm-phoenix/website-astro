@@ -3,9 +3,12 @@
   import { tick, untrack } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import ActionButton from '../ui/ActionButton.svelte';
+  import FilterTabs from '../ui/FilterTabs.svelte';
+  import StatusLabel from '../ui/StatusLabel.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { zustaendigAus } from '../../lib/essensplanungPlan';
+  import { zustaendigeJeGericht } from '../../lib/essensplanungZustaendige';
   import { ApiError, errorMessage } from '../../lib/api';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
   import type { EssenKatalog, Gericht } from '../../../../api/lib/essen-gerichte-model';
@@ -66,12 +69,23 @@
     untrack(() => void oeffne(id));
   });
   async function oeffne(id: number): Promise<void> {
+    zeige(id);
     offen.add(id);
     await tick();
     const karte = document.getElementById(`gericht-${id}`);
     karte?.scrollIntoView({ block: 'start' });
     const feld = document.getElementById(`gericht-${id}-name`) ?? karte?.querySelector('summary');
     feld?.focus({ preventScroll: true });
+  }
+
+  /** Who is responsible for each dish anywhere in the plan, and whether it is the viewer. */
+  const zustaendige = $derived(zustaendigeJeGericht(ansicht));
+  let filter = $state<'alle' | 'meine'>('alle');
+  const meine = $derived(ansicht.gerichte.filter((g) => zustaendige.get(g.id)?.ich));
+  const gezeigt = $derived(filter === 'meine' ? meine : ansicht.gerichte);
+  /** Shows all dishes when the filter hides one that is to be opened. */
+  function zeige(id: number): void {
+    if (!gezeigt.some((g) => g.id === id)) filter = 'alle';
   }
 
   /** The dishes shown open; a new one opens itself. */
@@ -114,6 +128,7 @@
     if (name === gesendet) name = '';
     if (personen === gesendetPersonen) personen = '';
     if (zustaendig === gesendetZustaendig) zustaendig = '';
+    zeige(id);
     offen.add(id);
     await tick();
     document.getElementById(`gericht-${id}`)?.scrollIntoView({ block: 'start' });
@@ -241,12 +256,32 @@
       disabled={!katalog}
       erstellen={alleRezeptkarten}
     />
+    {#if ansicht.ichId !== null}
+      <FilterTabs
+        label="Gerichte zeigen"
+        countNouns={['Gericht', 'Gerichte']}
+        options={[
+          { value: 'alle', label: 'Alle', count: ansicht.gerichte.length },
+          { value: 'meine', label: 'Meine', count: meine.length },
+        ]}
+        value={filter}
+        onselect={(value) => (filter = value)}
+      />
+    {/if}
     {#if bearbeiten}
       <p class="text-sm text-neutral-700">Wird sofort gespeichert.</p>
     {/if}
+    {#if !gezeigt.length}
+      <p class="text-neutral-700">Du bist bei keinem Gericht zuständig.</p>
+    {/if}
     <ul class="space-y-3">
-      {#each ansicht.gerichte as gericht (gericht.id)}
-        <li id="gericht-{gericht.id}" class="surface scroll-mt-24 lg:scroll-mt-0">
+      {#each gezeigt as gericht (gericht.id)}
+        {@const wer = zustaendige.get(gericht.id)}
+        <li
+          id="gericht-{gericht.id}"
+          class="surface scroll-mt-24 lg:scroll-mt-0"
+          class:meins={wer?.ich}
+        >
           <details
             open={offen.has(gericht.id)}
             ontoggle={(event) => umschalten(gericht.id, event.currentTarget.open)}
@@ -262,7 +297,13 @@
                   ? ' · feste Mengen'
                   : ` · für ${gericht.personen} Personen`}
               </span>
+              {#if wer?.ich}<StatusLabel label="Du bist zuständig" tone="success" dot />{/if}
               <AufklappPfeil class="ml-auto self-center" />
+              {#if wer?.namen.length}
+                <span class="basis-full text-sm text-neutral-700 [overflow-wrap:anywhere]">
+                  Zuständig: {wer.namen.join(', ')}
+                </span>
+              {/if}
             </summary>
             <div class="px-4 pb-4">
               <GerichtKarte
@@ -292,3 +333,10 @@
     <PlanZutaten {kontext} {katalog} {bearbeiten} />
   {/if}
 </div>
+
+<style>
+  /* Dishes the viewer is responsible for stand out by a bar on the left */
+  .meins {
+    border-left: 4px solid var(--color-success);
+  }
+</style>
