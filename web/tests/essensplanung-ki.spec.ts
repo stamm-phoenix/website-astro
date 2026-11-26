@@ -102,7 +102,17 @@ test('checking a dish lists hints, and a proposal is taken over with a click', a
     })
     .click();
   await expect(karte.getByText('nur mit allem')).toBeVisible();
-  await expect(hinweise.getByText('Übernommen.')).toHaveCount(2);
+  // The assessment of the whole dish; a missing ingredient and tool are added with a click
+  await expect(hinweise.getByText('Geprüft für 10 Personen, ohne Anleitung.')).toBeVisible();
+  await expect(hinweise.getByText(/passt für 10 Personen im Großen und Ganzen/)).toBeVisible();
+  await hinweise
+    .getByRole('button', { name: 'Salz zu Chili hinzufügen: 20 g Salz, nach Geschmack' })
+    .click();
+  await expect(page.getByText('Salz hinzugefügt.').first()).toBeVisible();
+  await expect.poll(() => zeilenMenge(karte, 'Salz')).toBe('20 g');
+  await hinweise.getByRole('button', { name: 'Werkzeug „Topf 30 l“ hinzufügen' }).click();
+  await expect(page.getByText('Werkzeug „Topf 30 l“ hinzugefügt.').first()).toBeVisible();
+  await expect(hinweise.getByText('Übernommen.')).toHaveCount(4);
   await hinweise.getByRole('button', { name: 'Ausblenden' }).click();
   await expect(hinweise).toHaveCount(0);
 

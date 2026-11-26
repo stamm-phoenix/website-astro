@@ -2,17 +2,10 @@ import type { Db } from './db';
 import { RecordNotFoundError, getDb } from './db';
 import { AzureOpenAiError, isDeploymentConfigured, requestStructuredOutput } from './azure-openai';
 import { CONFIG } from './config';
-import type { EssenKatalog, Gericht, PlanungZutat } from './essen-gerichte-model';
-import { EINHEITEN_JE_ART, einheitText } from './essen-gerichte-model';
+import type { EssenKatalog, PlanungZutat } from './essen-gerichte-model';
 import { ladeGerichte, ladeKatalog } from './essen-gerichte';
-import type { KiMass, KiPruefung, KiRezept, KiUmrechnung, KiZutatWahl } from './essen-ki-model';
-import {
-  KI_HINWEIS_ARTEN,
-  KI_MASS_TEXT,
-  KI_REZEPT_EINHEITEN,
-  leseKiPruefung,
-  leseKiUmrechnung,
-} from './essen-ki-model';
+import type { KiMass, KiRezept, KiUmrechnung, KiZutatWahl } from './essen-ki-model';
+import { KI_MASS_TEXT, KI_REZEPT_EINHEITEN, leseKiUmrechnung } from './essen-ki-model';
 import { leseKiRezept, rezeptKandidaten } from './essen-ki-rezept';
 import type { Zugang } from './essen-zugang';
 import { NUR_LESEN, PlanungError, WARTUNG } from './essen-zugang';
@@ -20,11 +13,12 @@ import { darfBearbeiten } from './essen-planung-model';
 import { loadEssenEinstellungen } from './essen-steuerung';
 
 /**
- * The AI of the Essensplanung (`docs/essensplanung.md`, „KI“): checks a dish, reads a pasted
- * recipe and estimates grams per TL, EL or piece. Only for members who may edit, never in the
- * maintenance mode. The prompts carry the dish, its ingredients and the recipe text, never names
- * or addresses of members. There is no quota of our own: when the deployment is busy (429, 503 or
- * too slow), `KiNichtVerfuegbar` tells the page to try again later.
+ * The AI of the Essensplanung (`docs/essensplanung.md`, „KI“): reads a pasted recipe and
+ * estimates grams per TL, EL or piece (the check of a dish: `essen-ki-pruefen.ts`). Only for
+ * members who may edit, never in the maintenance mode. The prompts carry the dish, its
+ * ingredients and the recipe text, never names or addresses of members. There is no quota of our
+ * own: when the deployment is busy (429, 503 or too slow), `KiNichtVerfuegbar` tells the page to
+ * try again later.
  */
 
 /** The deployment answers 429 or 503 or is too slow; the page shows „KI gerade nicht verfügbar“. */
@@ -115,127 +109,10 @@ export async function ladeGericht(zugang: Zugang, gerichtId: number, db: Db) {
 }
 
 export const ZAHL_ODER_NULL = { type: ['number', 'null'] };
-const BOOL_ODER_NULL = { type: ['boolean', 'null'] };
+export const BOOL_ODER_NULL = { type: ['boolean', 'null'] };
 export const enumOderNull = (werte: readonly string[]) => ({
   anyOf: [{ type: 'string', enum: [...werte] }, { type: 'null' }],
 });
-
-const PRUEFEN_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['hinweise'],
-  properties: {
-    hinweise: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: [
-          'art',
-          'zeile',
-          'text',
-          'vorschlag',
-          'menge',
-          'einheit',
-          'fuerAlles',
-          'fuerVegetarisch',
-          'fuerVegan',
-        ],
-        properties: {
-          art: { type: 'string', enum: [...KI_HINWEIS_ARTEN] },
-          zeile: { type: ['integer', 'null'] },
-          text: { type: 'string' },
-          vorschlag: { type: 'string' },
-          menge: ZAHL_ODER_NULL,
-          einheit: enumOderNull(Object.values(EINHEITEN_JE_ART).flat()),
-          fuerAlles: BOOL_ODER_NULL,
-          fuerVegetarisch: BOOL_ODER_NULL,
-          fuerVegan: BOOL_ODER_NULL,
-        },
-      },
-    },
-  },
-};
-
-const PRUEFEN_PROMPT = `Du prüfst ein Gericht für die Essensplanung eines Zeltlagers der Pfadfinder. Die Mengen gelten für die angegebene Personenzahl, außer bei Zeilen mit "fest" (Gesamtmenge, unabhängig von der Personenzahl). Ist "personen" null, sind alle Mengen des Gerichts Gesamtmengen wie bei "fest". Prüfe:
-- Sind die Mengen für die Personenzahl plausibel (zu viel, zu wenig, vertauschte Einheit wie kg statt g)?
-- Gibt es Tippfehler im Namen des Gerichts oder in Hinweisen?
-- Passen die Häkchen "fuer" (alles, vegetarisch, vegan) zu den Merkmalen der Zutat (z. B. Fleisch nur für "alles"), und gibt es für jede Ernährungsform etwas zu essen?
-- Passen "nichtFuer"/"nurFuer" zu den enthaltenen Allergenen (z. B. Weizennudeln sollten nicht für Gluten gelten)?
-- Fehlt eine wichtige Zutat für dieses Gericht?
-Gib nur echte Auffälligkeiten als Hinweise zurück, höchstens 10, ohne Lob; ist alles stimmig, eine leere Liste. "art" ordnet den Hinweis ein. "zeile" ist die Nummer der betroffenen Zeile ("nr"), sonst null. "text" beschreibt das Problem in einem deutschen Satz, "vorschlag" die Lösung in einem kurzen Satz. Schreibe beide in den Worten der Oberfläche: Zutaten beim Namen statt Zeilennummern, für wen eine Zeile ist als "für alle, die alles essen", "vegetarisch" oder "vegan", Unverträglichkeiten als "nicht bei Gluten" bzw. "nur bei Gluten", dazu "feste Menge". Nenne nie Feldnamen der Daten wie fuer, nichtFuer, nurFuer, fuerAlles, fuerVegetarisch, fuerVegan, fest, nr oder einheitenart. Schlägst du für eine Zeile eine konkrete neue Menge vor, setze "menge" und "einheit" (g, kg, ml, l, stueck, packung, bund; bleib bei der Einheit der Zeile, wenn sie eine davon ist, sonst null für "einheit"); schlägst du andere Häkchen vor, setze "fuerAlles", "fuerVegetarisch", "fuerVegan"; sonst jeweils null. Ändere nie die Zutat selbst. ${DATEN}`;
-
-/** The dish as the model sees it: names, amounts and properties, nothing about people. */
-function gerichtFuerModell(
-  gericht: Gericht,
-  zutaten: ReadonlyMap<number, PlanungZutat>,
-  katalog: EssenKatalog
-) {
-  const unvertraeglichkeit = new Map(katalog.unvertraeglichkeiten.map((u) => [u.id, u.name]));
-  const namen = (ids: number[]) => ids.map((id) => unvertraeglichkeit.get(id) ?? '?');
-  return {
-    gericht: gericht.name,
-    personen: gericht.personen,
-    zeilen: gericht.zutaten.map((zeile, index) => {
-      const zutat = zutaten.get(zeile.planungZutatId);
-      return {
-        nr: index + 1,
-        zutat: zutat?.name ?? '?',
-        einheitenart: zutat?.einheitenart ?? null,
-        menge: zeile.menge,
-        einheit: zeile.einheit ? einheitText(zeile.einheit) : null,
-        // Without people every amount of the dish is a fixed total
-        fest: zeile.fest || gericht.personen === null,
-        fuer: [
-          ...(zeile.fuerAlles ? ['alles'] : []),
-          ...(zeile.fuerVegetarisch ? ['vegetarisch'] : []),
-          ...(zeile.fuerVegan ? ['vegan'] : []),
-        ],
-        nichtFuer: namen(zeile.ohne),
-        nurFuer: namen(zeile.nur),
-        hinweis: zeile.hinweis,
-        merkmale: {
-          vegetarisch: zutat?.vegetarisch ?? null,
-          vegan: zutat?.vegan ?? null,
-          enthaelt: namen(zutat?.allergene ?? []),
-        },
-      };
-    }),
-  };
-}
-
-/** Hints on a dish, each with a proposal; some change a line with one click. */
-export async function gerichtPruefen(
-  zugang: Zugang,
-  gerichtId: number,
-  db: Db = getDb()
-): Promise<KiPruefung> {
-  await pruefeKiZugang(zugang, db);
-  const { gericht, zutaten, katalog } = await ladeGericht(zugang, gerichtId, db);
-  return pruefeGericht(gericht, zutaten, katalog);
-}
-
-/** The check itself, without database. */
-export function pruefeGericht(
-  gericht: Gericht,
-  zutatenListe: readonly PlanungZutat[],
-  katalog: EssenKatalog
-): Promise<KiPruefung> {
-  const zutaten = new Map(zutatenListe.map((zutat) => [zutat.id, zutat]));
-  return frage(
-    {
-      schemaName: 'essen_gericht_pruefen',
-      schema: PRUEFEN_SCHEMA,
-      timeoutMs: 40_000,
-      maxCompletionTokens: 6000,
-      messages: [
-        { role: 'system', content: PRUEFEN_PROMPT },
-        { role: 'user', content: JSON.stringify(gerichtFuerModell(gericht, zutaten, katalog)) },
-      ],
-    },
-    (raw) => leseKiPruefung(raw, gericht, zutaten)
-  );
-}
 
 export const REZEPT_SCHEMA = {
   type: 'object',

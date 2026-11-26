@@ -7,12 +7,8 @@ import {
 } from '../lib/essen-gerichte-validation';
 import type { GerichtZutatInput } from '../lib/essen-gerichte-validation';
 import { MAX_ZEILEN_PRO_GERICHT } from '../lib/essen-gerichte-model';
-import {
-  KiNichtVerfuegbar,
-  gerichtPruefen,
-  rezeptLesen,
-  umrechnungSchaetzen,
-} from '../lib/essen-ki';
+import { KiNichtVerfuegbar, rezeptLesen, umrechnungSchaetzen } from '../lib/essen-ki';
+import { gerichtPruefen } from '../lib/essen-ki-pruefen';
 import { einheitenVorschlagen } from '../lib/essen-ki-einheiten';
 import { gerichtGenerieren } from '../lib/essen-ki-generieren';
 import { KI_MASSE, MAX_GERICHT_BESCHREIBUNG, MAX_REZEPT_TEXT } from '../lib/essen-ki-model';
@@ -52,7 +48,7 @@ async function kiAntwort(work: () => Promise<unknown>): Promise<HttpResponseInit
   }
 }
 
-/** POST: hints on a dish, each with a proposal (`KiPruefung`). */
+/** POST: an assessment of a dish and hints, each with a proposal (`KiPruefung`). */
 export const EssensplanungKiPruefen = planungHandler(async (request) => {
   const zugang = await zugangVon(request);
   const id = readId(request);

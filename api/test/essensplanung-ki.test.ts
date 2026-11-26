@@ -1,226 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { TestContext } from 'node:test';
 import * as azureOpenai from '../lib/azure-openai';
 import { AzureOpenAiError, readRetryAfter } from '../lib/azure-openai';
-import type {
-  EssenKatalog,
-  Gericht,
-  KatalogZutat,
-  PlanungZutat,
-} from '../lib/essen-gerichte-model';
-import { KiNichtVerfuegbar, liesRezept, pruefeGericht, schaetzeUmrechnung } from '../lib/essen-ki';
+import { KiNichtVerfuegbar, liesRezept, schaetzeUmrechnung } from '../lib/essen-ki';
+import { pruefeGericht } from '../lib/essen-ki-pruefen';
 import { PlanungError } from '../lib/essen-zugang';
+import { GERICHT, HACK, KATALOG, SPAGHETTI, key, modell } from './fixtures/essen-ki';
 
 /**
  * The AI of the Essensplanung against a mocked deployment: what is sent (schema, no personal
  * data) and how answers and errors (429, 503, timeout) come back. No real calls.
  */
-
-function katalogZutat(id: number, name: string, extra: Partial<KatalogZutat> = {}): KatalogZutat {
-  return {
-    id,
-    name,
-    kategorieId: 1,
-    einheitenart: 'masse',
-    abtropfgewicht: false,
-    lebensmittel: true,
-    vegetarisch: true,
-    vegan: true,
-    allergene: [],
-    grammProTl: null,
-    grammProEl: null,
-    grammProStueck: null,
-    ...extra,
-  };
-}
-
-const KATALOG: EssenKatalog = {
-  kategorien: [{ id: 1, name: 'Trockenware' }],
-  unvertraeglichkeiten: [{ id: 7, name: 'Gluten', schluessel: 'gluten' }],
-  zutaten: [
-    katalogZutat(1, 'Spaghetti', { allergene: [7] }),
-    katalogZutat(2, 'Olivenöl', { einheitenart: 'volumen' }),
-    katalogZutat(3, 'Zucker', { grammProTl: 4, grammProEl: 12 }),
-    katalogZutat(4, 'Zwiebel', { grammProStueck: 80 }),
-    katalogZutat(5, 'Hackfleisch (Rind)', { vegetarisch: false, vegan: false }),
-    katalogZutat(6, 'Salz'),
-    // As in the start data: chopped tomatoes and kidney beans count by drained weight
-    katalogZutat(8, 'Tomaten (stückig)', { abtropfgewicht: true }),
-    katalogZutat(11, 'Tomaten (passiert)'),
-    katalogZutat(12, 'Kidneybohnen', { abtropfgewicht: true }),
-    katalogZutat(13, 'Tomatenmark'),
-    katalogZutat(10, 'Sahne', { einheitenart: 'volumen' }),
-    katalogZutat(14, 'Brot (Laib)', { einheitenart: 'stueck', grammProStueck: 750 }),
-    katalogZutat(9, 'Spülmittel', { lebensmittel: false, einheitenart: 'volumen' }),
-  ],
-};
-
-const SPAGHETTI: PlanungZutat = {
-  id: 11,
-  etag: 'pz-11',
-  zutatId: 1,
-  name: 'Spaghetti',
-  kategorieId: 1,
-  einheitenart: 'masse',
-  abtropfgewicht: false,
-  lebensmittel: true,
-  vegetarisch: true,
-  vegan: true,
-  allergene: [7],
-  abweichend: { kategorie: false, einheitenart: false },
-  angabenOffen: false,
-  zeilen: 1,
-  geschaeftId: null,
-};
-
-const HACK: PlanungZutat = {
-  ...SPAGHETTI,
-  id: 12,
-  zutatId: 5,
-  name: 'Hackfleisch (Rind)',
-  vegetarisch: false,
-  vegan: false,
-  allergene: [],
-};
-
-const GERICHT: Gericht = {
-  id: 21,
-  etag: 'g-21',
-  name: 'Spagetti Bolognese',
-  personen: 10,
-  anleitung: 'Kochen mit Kim Küche, Telefon 0170 1234567',
-  notiz: 'Zuständig: Kim Küche',
-  links: [],
-  werkzeuge: [],
-  zutaten: [
-    {
-      id: 31,
-      etag: 'z-31',
-      position: 1,
-      planungZutatId: 11,
-      menge: 100,
-      einheit: 'kg',
-      fest: false,
-      fuerAlles: true,
-      fuerVegetarisch: true,
-      fuerVegan: true,
-      ohne: [],
-      nur: [],
-      hinweis: '',
-    },
-    {
-      id: 32,
-      etag: 'z-32',
-      position: 2,
-      planungZutatId: 12,
-      menge: 1,
-      einheit: 'kg',
-      fest: false,
-      fuerAlles: true,
-      fuerVegetarisch: true,
-      fuerVegan: false,
-      ohne: [],
-      nur: [],
-      hinweis: '',
-    },
-  ],
-};
-
-function key(t: TestContext): void {
-  const previous = process.env.AZURE_OPENAI_API_KEY;
-  process.env.AZURE_OPENAI_API_KEY = 'test-key';
-  t.after(() => {
-    if (previous === undefined) delete process.env.AZURE_OPENAI_API_KEY;
-    else process.env.AZURE_OPENAI_API_KEY = previous;
-  });
-}
-
-interface Gesendet {
-  body: Record<string, unknown>;
-}
-
-/** Answers every request with `answer` as the model's JSON; records what was sent. */
-function modell(t: TestContext, answer: unknown): Gesendet[] {
-  key(t);
-  const gesendet: Gesendet[] = [];
-  t.mock.method(globalThis, 'fetch', async (_url: unknown, init: RequestInit) => {
-    gesendet.push({ body: JSON.parse(String(init.body)) as Record<string, unknown> });
-    return Response.json({ choices: [{ message: { content: JSON.stringify(answer) } }] });
-  });
-  return gesendet;
-}
-
-function hinweis(extra: Record<string, unknown>) {
-  return {
-    art: 'menge',
-    zeile: null,
-    text: 'Text',
-    vorschlag: '',
-    menge: null,
-    einheit: null,
-    fuerAlles: null,
-    fuerVegetarisch: null,
-    fuerVegan: null,
-    ...extra,
-  };
-}
-
-test('the check sends a strict schema and the dish without personal data', async (t) => {
-  const gesendet = modell(t, { hinweise: [] });
-  const pruefung = await pruefeGericht(GERICHT, [SPAGHETTI, HACK], KATALOG);
-  assert.deepEqual(pruefung, { hinweise: [], personen: 10 });
-  const body = gesendet[0].body;
-  const format = body.response_format as { json_schema: { strict: boolean; name: string } };
-  assert.equal(format.json_schema.strict, true);
-  assert.equal(format.json_schema.name, 'essen_gericht_pruefen');
-  const text = JSON.stringify(body.messages);
-  assert.match(text, /Spaghetti/);
-  assert.match(text, /Gluten/);
-  // Instructions and notes may name people; they never reach the model
-  assert.doesNotMatch(text, /Kim|0170/);
-});
-
-test('hints keep only fitting changes and name the checked version of the line', async (t) => {
-  modell(t, {
-    hinweise: [
-      hinweis({ zeile: 1, text: '100 kg Spaghetti sind viel.', menge: 1, einheit: 'kg' }),
-      // ml does not fit pasta: the hint stays, the change goes
-      hinweis({ zeile: 1, text: 'Lieber in ml?', menge: 500, einheit: 'ml' }),
-      hinweis({
-        art: 'ernaehrung',
-        zeile: 2,
-        text: 'Hackfleisch ist nicht vegetarisch.',
-        fuerVegetarisch: false,
-      }),
-      // A line for no diet at all is refused
-      hinweis({ zeile: 2, text: 'Für niemanden?', fuerAlles: false, fuerVegetarisch: false }),
-      hinweis({ art: 'unbekannt', zeile: 9, text: 'Es fehlt Salz.' }),
-      hinweis({ text: '   ' }),
-      'kein Hinweis',
-    ],
-  });
-  const { hinweise } = await pruefeGericht(GERICHT, [SPAGHETTI, HACK], KATALOG);
-  assert.deepEqual(hinweise, [
-    {
-      art: 'menge',
-      zeile: { id: 31, etag: 'z-31' },
-      text: '100 kg Spaghetti sind viel.',
-      vorschlag: '',
-      aenderung: { menge: 1, einheit: 'kg' },
-    },
-    { art: 'menge', zeile: { id: 31, etag: 'z-31' }, text: 'Lieber in ml?', vorschlag: '' },
-    {
-      art: 'ernaehrung',
-      zeile: { id: 32, etag: 'z-32' },
-      text: 'Hackfleisch ist nicht vegetarisch.',
-      vorschlag: '',
-      aenderung: { fuerVegetarisch: false },
-    },
-    { art: 'menge', zeile: { id: 32, etag: 'z-32' }, text: 'Für niemanden?', vorschlag: '' },
-    { art: 'sonstiges', text: 'Es fehlt Salz.', vorschlag: '' },
-  ]);
-});
 
 test('a recipe is mapped onto the lists, converted and scaled to the dish', async (t) => {
   const gesendet = modell(t, {
@@ -412,7 +202,7 @@ test("the recipe's word for a tin or a clove is kept where nothing converts it",
   );
 });
 
-test('without people a recipe keeps its amounts and a check treats them as fixed', async (t) => {
+test('without people a recipe keeps its amounts', async (t) => {
   modell(t, {
     rezeptPersonen: 4,
     zeilen: [
@@ -430,14 +220,6 @@ test('without people a recipe keeps its amounts and a check treats them as fixed
   assert.equal(rezept.rezeptPersonen, 4);
   assert.equal(rezept.personen, null);
   assert.equal(rezept.zeilen[0].menge, 400);
-
-  modell(t, {
-    hinweise: [hinweis({ zeile: 1, text: '100 kg Spaghetti sind viel.', menge: 1, einheit: 'kg' })],
-  });
-  const pruefung = await pruefeGericht({ ...GERICHT, personen: null }, [SPAGHETTI, HACK], KATALOG);
-  assert.equal(pruefung.personen, null);
-  // Fixed totals like a line marked „feste Menge“: a new amount can be proposed
-  assert.deepEqual(pruefung.hinweise[0].aenderung, { menge: 1, einheit: 'kg' });
 });
 
 test('an implausible estimate of grams is no estimate', async (t) => {
@@ -601,23 +383,6 @@ test('for ingredients by drained weight only an express drained weight counts', 
       { zutat: { zutatId: 8 }, menge: 2, einheit: 'packung', hinweis: 'gehackt, 400 g' },
     ]
   );
-});
-
-test('hints use the words of the page, never the field names of the data', async (t) => {
-  modell(t, {
-    hinweise: [
-      hinweis({
-        art: 'unvertraeglichkeit',
-        zeile: 1,
-        text: 'Spaghetti enthalten Gluten.',
-        vorschlag: 'Setze bei „nichtFuer“ Gluten, und fuerVegan bleibt.',
-      }),
-      hinweis({ text: 'Zeile mit planungZutatId 11 prüfen.' }),
-    ],
-  });
-  const { hinweise } = await pruefeGericht(GERICHT, [SPAGHETTI, HACK], KATALOG);
-  assert.equal(hinweise.length, 1);
-  assert.equal(hinweise[0].vorschlag, 'Setze bei „nicht bei“ Gluten, und vegan bleibt.');
 });
 
 test("an amount that cannot be converted keeps the recipe's unit, scaled", async (t) => {
