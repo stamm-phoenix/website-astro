@@ -1294,6 +1294,30 @@ export const ROUTES: RegisteredRoute[] = [
     route: 'intern/pflege/essensplanung-zutaten/sammel',
   },
   {
+    name: 'internEssensplanungPlanungsZutaten',
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    route: 'intern/essensplanung/planungs-zutaten',
+  },
+  {
+    name: 'internPflegeEssensplanungZutatUebernehmen',
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'intern/pflege/essensplanung-zutaten/uebernehmen',
+  },
+  {
+    name: 'internPflegeEssensplanungZutatenZusammenlegen',
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'intern/pflege/essensplanung-zutaten/zusammenlegen',
+  },
+  {
+    name: 'internEssensplanungKiDoppelte',
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'intern/essensplanung/ki/doppelte',
+  },
+  {
     name: 'sammelCampaignLookup',
     methods: ['POST'],
     authLevel: 'anonymous',
