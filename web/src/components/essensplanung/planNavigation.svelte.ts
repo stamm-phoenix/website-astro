@@ -4,6 +4,7 @@ import { gerichtAusHash, planungHash, tokenAusHash } from '../../lib/essensplanu
 import {
   alsZustand,
   eintragVon,
+  fremdeTeile,
   indexVon,
   oeffnenderSchritt,
   VERLAUF,
@@ -98,10 +99,11 @@ export class PlanNavigation {
 
   /** A new entry for what is shown, made by the router; it remembers its index as the step. */
   #neu(gericht: number | null): void {
-    // For an address on the same page the router pushes at once, before the promise settles
+    // Others' keys go along, e.g. the trip open in „Einkauf“, so it stays open; the router sets
+    // its own. For an address on the same page it pushes at once, before the promise settles
     void navigate(this.#adresse(gericht), {
       history: 'push',
-      state: { [VERLAUF]: this.#teil(null) },
+      state: { ...fremdeTeile(history.state), [VERLAUF]: this.#teil(null) },
     });
     this.#ersetzen(undefined, indexVon(history.state));
   }

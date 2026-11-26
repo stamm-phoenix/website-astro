@@ -36,6 +36,15 @@ export function alsZustand(state: unknown): Record<string, unknown> {
   return state && typeof state === 'object' ? (state as Record<string, unknown>) : {};
 }
 
+/** What others put into an entry, e.g. an open trip, without the router's own keys. */
+export function fremdeTeile(state: unknown): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(alsZustand(state)).filter(
+      ([key]) => !['index', 'scrollX', 'scrollY', VERLAUF].includes(key)
+    )
+  );
+}
+
 /** The navigation's part of an entry, or null for an entry without it. */
 export function eintragVon(state: unknown): Eintrag | null {
   const wert = alsZustand(state)[VERLAUF];
