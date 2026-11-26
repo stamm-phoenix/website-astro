@@ -339,11 +339,11 @@ export function leseKiPruefung(
     };
     if (aktion === 'zeile_aendern' && zeile) {
       const art = zutaten.get(zeile.planungZutatId)?.einheitenart;
-      const neu =
-        hinweis.zutatKey !== null || hinweis.zutatName !== null
-          ? zutatAngabe(hinweis, nachKey, kontext.kandidaten)
-          : undefined;
-      const aenderung = aenderungFuer(hinweis, zeile, art, neu);
+      const mitTausch = hinweis.zutatKey !== null || hinweis.zutatName !== null;
+      const neu = mitTausch ? zutatAngabe(hinweis, nachKey, kontext.kandidaten) : undefined;
+      // An invented key without a name: what the hint proposes was meant for an unknown
+      // ingredient, so it changes nothing
+      const aenderung = mitTausch && !neu ? undefined : aenderungFuer(hinweis, zeile, art, neu);
       if (aenderung) ergebnis.aenderung = aenderung;
     } else if (aktion === 'zeile_entfernen' && zeile) {
       ergebnis.entfernen = true;

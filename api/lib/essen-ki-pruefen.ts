@@ -113,6 +113,13 @@ const MAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
 /** A run that may be a phone number; it is one with at least 9 digits (dates and times have 8). */
 const TELEFON = /(?:\+|\(?\b0)\d[\d ()./-]{5,}\d/g;
 const TELEFON_ZIFFERN = 9;
+/** Dates and times inside such a run („01.08.2027 07.30“); their digits do not count. */
+const DATUM_ZEIT = /\b\d{1,2}\.\d{1,2}\.(?:\d{4}|\d{2})\b|\b\d{1,2}[.:]\d{2}\b/g;
+
+/** Whether a run is a phone number: enough digits that are no date or time. */
+function istTelefon(treffer: string): boolean {
+  return (treffer.replace(DATUM_ZEIT, '').match(/\d/g)?.length ?? 0) >= TELEFON_ZIFFERN;
+}
 
 /**
  * The instructions as the model sees them: without mail addresses and phone numbers; null for
@@ -121,9 +128,7 @@ const TELEFON_ZIFFERN = 9;
 export function anleitungFuerModell(anleitung: string): string | null {
   const text = anleitung
     .replace(MAIL, '[E-Mail]')
-    .replace(TELEFON, (treffer) =>
-      (treffer.match(/\d/g)?.length ?? 0) >= TELEFON_ZIFFERN ? '[Telefon]' : treffer
-    )
+    .replace(TELEFON, (treffer) => (istTelefon(treffer) ? '[Telefon]' : treffer))
     .trim();
   return text || null;
 }

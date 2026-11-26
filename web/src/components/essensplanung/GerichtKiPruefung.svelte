@@ -99,14 +99,18 @@
     }
   }
 
-  function veralten(index: number): void {
+  /** Indexes of hints about a line whose ingredient was swapped by another hint. */
+  let getauscht = $state<number[]>([]);
+
+  function veralten(index: number, grund: 'anderweitig' | 'getauscht' = 'anderweitig'): void {
     hinweise[index] = {
       ...hinweise[index],
       aenderung: undefined,
       entfernen: undefined,
       werkzeug: undefined,
     };
-    veraltet = [...veraltet, index];
+    if (grund === 'getauscht') getauscht = [...getauscht, index];
+    else veraltet = [...veraltet, index];
   }
 
   /** Saves the proposed change with the version that was checked: a change since is a conflict. */
@@ -128,12 +132,13 @@
     const geschrieben = ansicht.gerichte.flatMap((g) => g.zutaten).find((z) => z.id === zeile.id);
     // Further hints on the same line build on this write only. If the answer already shows a
     // change of others, they would overwrite it: their proposals are dropped instead.
-    const eigene = geschrieben && gleicheZeile(geschrieben, gesendet);
+    // After a swap they were about the old ingredient: they are dropped, too.
+    const eigene = geschrieben && gleicheZeile(geschrieben, gesendet) && !hinweis.aenderung.zutat;
     for (const [weiterer, andere] of hinweise.entries()) {
       if (weiterer === index || andere.zeile?.id !== zeile.id) continue;
       if (eigene) andere.zeile.etag = geschrieben!.etag;
       else if ((andere.aenderung || andere.entfernen) && !uebernommen.includes(weiterer))
-        veralten(weiterer);
+        veralten(weiterer, hinweis.aenderung.zutat ? 'getauscht' : 'anderweitig');
     }
   }
 
@@ -303,6 +308,11 @@
             <p class="text-sm text-warning">
               {hinweis.zeile ? 'Die Zutat' : 'Das Gericht'} wurde inzwischen auch anderweitig geändert.
               Lass das Gericht noch einmal prüfen.
+            </p>
+          {/if}
+          {#if getauscht.includes(index)}
+            <p class="text-sm text-warning">
+              Der Vorschlag war für die vorige Zutat. Lass das Gericht noch einmal prüfen.
             </p>
           {/if}
           {#if uebernommen.includes(index)}
