@@ -13,6 +13,7 @@ import type { PlanungAnsicht } from '../../../api/lib/essen-planung-model';
 import {
   MAX_GERICHTE,
   MAX_ZEILEN_PRO_GERICHT,
+  einheitenartFuerNeue,
   einheitenartVon,
   gerichtStand,
 } from '../../../api/lib/essen-gerichte-model';
@@ -41,6 +42,8 @@ export interface MockPlanungZutat {
   geschaeftId: number | null;
   /** Only own ones; false for what came onto the shopping list by name. */
   lebensmittel?: boolean;
+  /** An own one added with just its name (`angabenOffen`). */
+  angabenOffen?: boolean;
 }
 
 const collator = new Intl.Collator('de', { sensitivity: 'base', numeric: true });
@@ -92,6 +95,7 @@ function wirksam(planung: MockPlanung, zutat: MockPlanungZutat): PlanungZutat {
       kategorie: Boolean(zentral) && zutat.kategorieId !== null,
       einheitenart: Boolean(zentral) && zutat.einheitenart !== null,
     },
+    angabenOffen: !zentral && Boolean(zutat.angabenOffen),
     zeilen: nutzungen(planung, zutat.id).length,
     geschaeftId: zutat.geschaeftId,
   };
@@ -135,8 +139,9 @@ export function eigeneZutatAnlegen(z: MockZugang, input: PlanungZutatInput): num
       etag: neuesEtag(),
       zutatId: null,
       name: input.name!,
-      kategorieId: input.kategorieId,
-      einheitenart: input.einheitenart,
+      kategorieId: input.kategorieId ?? sonstigesKategorie(),
+      einheitenart: einheitenartFuerNeue(input),
+      angabenOffen: input.kategorieId === null || input.einheitenart === null,
       vegetarisch: input.vegetarisch ?? null,
       vegan: input.vegan ?? null,
       allergene: input.allergene ?? [],
@@ -163,6 +168,7 @@ export function planungZutatAendern(z: MockZugang, id: number, body: unknown, if
             einheitenart: input.einheitenart,
             vegetarisch: input.vegetarisch ?? null,
             vegan: input.vegan ?? null,
+            angabenOffen: false,
             allergene: input.allergene ?? [],
           }
         : { kategorieId: input.kategorieId, einheitenart: input.einheitenart },
@@ -188,8 +194,9 @@ export function planungZutatLoeschen(z: MockZugang, id: number, ifMatch: unknown
 export function zutatFuer(
   z: MockZugang,
   zutat: GerichtZutatInput['zutat'],
-  { lebensmittel }: { lebensmittel: boolean }
+  { lebensmittel, einheit = null }: { lebensmittel: boolean; einheit?: GerichtEinheit | null }
 ): PlanungZutat {
+  if ('neuerName' in zutat) return neuerNameFuer(z, zutat.neuerName, einheit);
   if ('planungZutatId' in zutat) {
     const vorhanden = z.planung.zutaten.find((entry) => entry.id === zutat.planungZutatId);
     if (!vorhanden) throw feld('zutat', 'Bitte eine Zutat wählen.');
@@ -376,7 +383,7 @@ export function gerichtZutatAnlegen(
   const gericht = gerichtVon(z, gerichtId);
   if (gericht.zutaten.length >= MAX_ZEILEN_PRO_GERICHT)
     throw feld('zutat', `Ein Gericht hat höchstens ${MAX_ZEILEN_PRO_GERICHT} Zutaten.`);
-  const zutat = zutatFuer(z, input.zutat, { lebensmittel: true });
+  const zutat = zutatFuer(z, input.zutat, { lebensmittel: true, einheit: input.einheit });
   const werte = zeileAus(input, zutat);
   aendere(z, 'gericht-zutat-neu', { name: zutat.name, gericht: gericht.name }, () => {
     const zeile: GerichtZutat = {
@@ -409,10 +416,35 @@ export function gerichtZutatAendern(
     });
     return;
   }
-  const zutat = zutatFuer(z, input.zutat, { lebensmittel: true });
+  const zutat = zutatFuer(z, input.zutat, { lebensmittel: true, einheit: input.einheit });
   const werte = zeileAus(input, zutat);
   aendere(z, 'gericht-zutat-geaendert', { name: zutat.name, gericht: gericht.name }, () => {
     Object.assign(zeile, werte, { etag: neuesEtag() });
     if (input.position !== undefined) nummeriere(gericht, zeile, input.position);
   });
+}
+
+/** Like `zutatFuerNeuenNamen`: a typed name becomes a food of the Planung's own. */
+function neuerNameFuer(z: MockZugang, name: string, einheit: GerichtEinheit | null): PlanungZutat {
+  const zentral = essenKatalog().zutaten.find((entry) => collator.compare(entry.name, name) === 0);
+  if (zentral) return zutatFuer(z, { zutatId: zentral.id }, { lebensmittel: true });
+  const eigene = z.planung.zutaten.find(
+    (entry) => entry.name && collator.compare(entry.name, name) === 0
+  );
+  if (eigene) return zutatFuer(z, { planungZutatId: eigene.id }, { lebensmittel: true });
+  const eintrag: MockPlanungZutat = {
+    id: neueId(),
+    etag: neuesEtag(),
+    zutatId: null,
+    name,
+    kategorieId: sonstigesKategorie(),
+    einheitenart: einheitenartFuerNeue({ kategorieId: null, einheitenart: null, einheit }),
+    vegetarisch: null,
+    vegan: null,
+    allergene: [],
+    geschaeftId: null,
+    angabenOffen: true,
+  };
+  z.planung.zutaten.push(eintrag);
+  return wirksam(z.planung, eintrag);
 }

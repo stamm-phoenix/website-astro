@@ -25,6 +25,7 @@ const zutat = (id: number, name: string, extra: Partial<PlanungZutat> = {}): Pla
   vegan: true,
   allergene: [],
   abweichend: { kategorie: false, einheitenart: false },
+  angabenOffen: false,
   zeilen: 1,
   geschaeftId: null,
   ...extra,

@@ -5,6 +5,7 @@ import type { Database } from './db-schema';
 import { inTransaction } from './db';
 import { darfBearbeiten, darfMitgliederVerwalten } from './essen-planung-model';
 import { loadEssenEinstellungen } from './essen-steuerung';
+import { entferneUngenutzte, genutzteZutaten } from './essen-zutat-aufraeumen';
 import type { Zugang } from './essen-zugang';
 import { LINK_UNGUELTIG, NICHT_ERLAUBT, NUR_LESEN, WARTUNG } from './essen-zugang';
 
@@ -79,7 +80,8 @@ interface AendernOptionen {
 
 /**
  * Runs a change of a Planung in one transaction: checks the access and the maintenance mode,
- * bumps the change counter and logs the change.
+ * bumps the change counter and logs the change. Ingredients of the Planung the change left
+ * unused are removed.
  */
 export async function aendere<T>(
   zugang: Zugang,
@@ -111,7 +113,10 @@ export async function aendere<T>(
     ) {
       throw NICHT_ERLAUBT();
     }
+    // Ingredients of the Planung go with their last use (`essen-zutat-aufraeumen.ts`)
+    const genutzt = await genutzteZutaten(trx, zugang.planungId);
     const { result, details } = await work(trx, zugang);
+    await entferneUngenutzte(trx, zugang.planungId, genutzt);
     await protokolliereAenderung(
       trx,
       zugang.planungId,

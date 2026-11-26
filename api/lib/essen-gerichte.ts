@@ -8,7 +8,7 @@ import type {
   GerichtZutat,
   PlanungZutat,
 } from './essen-gerichte-model';
-import { MAX_PLANUNG_ZUTATEN } from './essen-gerichte-model';
+import { MAX_PLANUNG_ZUTATEN, einheitenartFuerNeue } from './essen-gerichte-model';
 import type { PlanungZutatInput } from './essen-gerichte-validation';
 import { validatePlanungZutat } from './essen-gerichte-validation';
 import type { Zugang } from './essen-zugang';
@@ -16,7 +16,7 @@ import { aendere } from './essen-aendern';
 import { listKategorien, listUnvertraeglichkeiten, listZutaten } from './essen-steuerung';
 import { COLLATOR } from './essen-validation';
 import { ValidationError } from './validation/errors';
-import { zutatDerPlanung } from './essen-planung-zutat';
+import { sonstigesKategorie, zutatDerPlanung } from './essen-planung-zutat';
 
 /**
  * Dishes of a Planung and the ingredients they use (`docs/essensplanung.md`, „Gerichte“). Every
@@ -85,6 +85,7 @@ export async function ladeGerichte(
         'pz.vegetarisch',
         'pz.vegan',
         'pz.lebensmittel',
+        'pz.angaben_offen',
         'z.name as z_name',
         'z.kategorie_id as z_kategorie_id',
         'z.einheitenart as z_einheitenart',
@@ -176,6 +177,7 @@ export async function ladeGerichte(
             kategorie: zentral && row.kategorie_id !== null,
             einheitenart: zentral && row.einheitenart !== null,
           },
+          angabenOffen: !zentral && Boolean(row.angaben_offen),
           zeilen: Number(row.zeilen),
           geschaeftId: row.geschaeft_id,
         };
@@ -300,15 +302,18 @@ export async function eigeneZutatAnlegen(
       }
       await pruefeEigenenNamen(trx, input.name!);
       await pruefeVerweise(trx, input.kategorieId, input.allergene ?? []);
+      // Only the name is needed; what is missing is a guess until someone sets it
+      const angabenOffen = input.kategorieId === null || input.einheitenart === null;
       const { id } = await trx
         .insertInto('essen.planung_zutat')
         .values({
           planung_id: zugang.planungId,
           name: input.name!,
-          kategorie_id: input.kategorieId,
-          einheitenart: input.einheitenart,
+          kategorie_id: input.kategorieId ?? (await sonstigesKategorie(trx)),
+          einheitenart: einheitenartFuerNeue(input),
           vegetarisch: input.vegetarisch ?? null,
           vegan: input.vegan ?? null,
+          angaben_offen: angabenOffen,
         })
         .output('inserted.id')
         .executeTakeFirstOrThrow();
@@ -345,6 +350,7 @@ export async function planungZutatAendern(
                 einheitenart: input.einheitenart,
                 vegetarisch: input.vegetarisch ?? null,
                 vegan: input.vegan ?? null,
+                angaben_offen: false,
               }
             : { kategorie_id: input.kategorieId, einheitenart: input.einheitenart }
         )

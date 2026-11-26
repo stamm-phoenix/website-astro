@@ -4,6 +4,7 @@
   import ModalDialog from '../ui/ModalDialog.svelte';
   import ActionButton from '../ui/ActionButton.svelte';
   import FormField from '../pflege/FormField.svelte';
+  import StatusLabel from '../ui/StatusLabel.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
@@ -15,7 +16,7 @@
 
   /**
    * The ingredients the dishes of a Planung use. Central ones may get another category or kind
-   * of unit for this Planung; own ones are changed entirely. Unused ones can be deleted.
+   * of unit for this Planung; own ones are changed entirely. They go with their last use; one never used can be deleted.
    */
 
   interface Props {
@@ -53,7 +54,9 @@
     form = {
       name: zutat.name,
       // A central ingredient shows its differences; null means as in the list
-      kategorieId: zentral && !zutat.abweichend.kategorie ? null : zutat.kategorieId,
+      // Open details of an own one were guessed: they are chosen, not taken over unseen
+      kategorieId:
+        (zentral && !zutat.abweichend.kategorie) || zutat.angabenOffen ? null : zutat.kategorieId,
       einheitenart: zentral && !zutat.abweichend.einheitenart ? null : zutat.einheitenart,
       ernaehrung: zutat.vegan
         ? 'vegan'
@@ -173,6 +176,7 @@
           <p class="text-neutral-900 [overflow-wrap:anywhere]">
             {zutat.name}
             {#if zutat.zutatId === null}<span class="text-sm text-neutral-700">(eigene)</span>{/if}
+            {#if zutat.angabenOffen}<StatusLabel label="Angaben fehlen" tone="warning" />{/if}
           </p>
           <p class="flex flex-wrap gap-x-3 text-sm text-neutral-700">
             <span>{kategorien.get(zutat.kategorieId) ?? ''}</span>

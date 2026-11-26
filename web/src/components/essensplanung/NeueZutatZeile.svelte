@@ -115,10 +115,9 @@
     if (speichert) return;
     fehler = null;
     const zahl = leseMenge(eingabe.menge);
-    if (!auswahl) {
-      fehler = eingabe.name.trim()
-        ? `„${eingabe.name.trim()}“ steht nicht in der Liste. Lege sie über „Mehr Angaben …“ als eigene Zutat an.`
-        : 'Bitte eine Zutat aus der Liste wählen.';
+    const name = eingabe.name.trim();
+    if (!auswahl && !name) {
+      fehler = 'Bitte eine Zutat eintragen.';
       return;
     }
     if (Number.isNaN(zahl)) {
@@ -130,13 +129,17 @@
       return;
     }
     const ziel = auswahl;
-    const name = eingabe.name.trim();
     const { einheit, hinweis } = eingabe;
     speichert = true;
     const ok = await kontext.aendern(
       () =>
         kontext.api.senden('POST', `/gerichte/${gericht.id}/zutaten`, {
-          ...(ziel.art === 'planung' ? { planungZutatId: ziel.id } : { zutatId: ziel.id }),
+          // A name not in the lists becomes an ingredient of the Planung's own
+          ...(!ziel
+            ? { neueZutat: name }
+            : ziel.art === 'planung'
+              ? { planungZutatId: ziel.id }
+              : { zutatId: ziel.id }),
           menge: zahl,
           einheit: zahl === null ? null : einheit,
           fest: false,
@@ -267,8 +270,7 @@
     <p class="text-sm text-danger" role="alert">{fehler}</p>
   {:else if ohneTreffer}
     <p class="text-sm text-neutral-700">
-      „{eingabe.name.trim()}“ steht nicht in der Liste. Über „Mehr Angaben …“ legst du sie als
-      eigene Zutat an.
+      „{eingabe.name.trim()}“ steht nicht in der Liste und wird eine eigene Zutat dieser Planung.
     </p>
   {/if}
 </div>

@@ -18,7 +18,7 @@ import {
   validateGericht,
   validateNeuesGericht,
   validateGerichtZutat,
-  validatePlanungZutat,
+  validateNeuePlanungZutat,
   readKopf,
   readPersonenSetzen,
 } from '../../api/lib/essen-gerichte-validation';
@@ -56,7 +56,7 @@ route('GET', '/api/essensplanung/planung/katalog', (req) => {
 });
 
 route('POST', '/api/essensplanung/planung/zutaten', (req) => {
-  const input = validatePlanungZutat(req.json, { eigene: true });
+  const input = validateNeuePlanungZutat(req.json);
   return essenAendern(req, (z) => ({ id: essenGerichte.eigeneZutatAnlegen(z, input) }), 201);
 });
 

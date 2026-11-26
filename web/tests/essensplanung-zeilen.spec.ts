@@ -32,11 +32,14 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   await expect(zutat).toHaveValue('');
   await expect(zutat).toBeFocused();
 
-  // A name not in the list points to the dialog
+  // A name not in the list becomes an ingredient of the Planung's own with just its amount
   await zutat.fill('Drachenfrucht-Sirup');
+  await expect(gericht.getByText(/wird eine eigene Zutat dieser Planung/)).toBeVisible();
+  await gericht.getByLabel('Menge der neuen Zutat').fill('2');
+  await gericht.getByLabel('Einheit der neuen Zutat').fill('Flaschen');
+  await gericht.getByLabel('Einheit der neuen Zutat').press('Escape');
   await gericht.getByRole('button', { name: 'Zeile zu Nudeln mit Soße hinzufügen' }).click();
-  await expect(gericht.getByText(/steht nicht in der Liste/)).toBeVisible();
-  await zutat.fill('');
+  await expect.poll(() => zeilenMenge(gericht, 'Drachenfrucht-Sirup')).toBe('2 Flaschen');
 
   // Changing the amount in the row saves when the row is left
   const menge = gericht.getByLabel('Menge von Hackfleisch');

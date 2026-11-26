@@ -22,6 +22,7 @@ const petersilie: PlanungZutat = {
   vegan: true,
   allergene: [],
   abweichend: { kategorie: false, einheitenart: false },
+  angabenOffen: false,
   zeilen: 2,
   geschaeftId: null,
 };

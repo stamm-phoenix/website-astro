@@ -69,6 +69,7 @@ const SPAGHETTI: PlanungZutat = {
   vegan: true,
   allergene: [7],
   abweichend: { kategorie: false, einheitenart: false },
+  angabenOffen: false,
   zeilen: 1,
   geschaeftId: null,
 };
