@@ -6,9 +6,13 @@ ALTER TABLE essen.planung_zutat
   ADD angaben_offen bit NOT NULL CONSTRAINT df_essen_planung_zutat_angaben_offen DEFAULT 0;
 GO
 -- Zutaten der Planung, die nichts mehr nutzt, verschwinden seit diesem Stand mit ihrer letzten
--- Nutzung (essen-zutat-aufraeumen.ts). Die bisher liegen gebliebenen werden einmal entfernt.
+-- Nutzung (essen-zutat-aufraeumen.ts). Einmal entfernt werden nur bisher liegen gebliebene
+-- zentrale Zutaten ohne eigene Angaben (keine Abweichung, kein Geschäft); eigene Zutaten bleiben,
+-- weil sich „nie genutzt“ und „nicht mehr genutzt“ hier nicht unterscheiden lassen.
 DELETE pz FROM essen.planung_zutat pz
-WHERE NOT EXISTS (SELECT 1 FROM essen.gericht_zutat x WHERE x.planung_zutat_id = pz.id)
+WHERE pz.zutat_id IS NOT NULL
+  AND pz.kategorie_id IS NULL AND pz.einheitenart IS NULL AND pz.geschaeft_id IS NULL
+  AND NOT EXISTS (SELECT 1 FROM essen.gericht_zutat x WHERE x.planung_zutat_id = pz.id)
   AND NOT EXISTS (SELECT 1 FROM essen.bestand x WHERE x.planung_zutat_id = pz.id)
   AND NOT EXISTS (SELECT 1 FROM essen.zusatzbedarf x WHERE x.planung_zutat_id = pz.id)
   AND NOT EXISTS (SELECT 1 FROM essen.einkauf_posten x WHERE x.planung_zutat_id = pz.id)

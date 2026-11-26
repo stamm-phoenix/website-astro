@@ -351,7 +351,10 @@ export interface GerichtInput {
 /** A line of a dish; the ingredient is a central one or one of the Planung. */
 export interface GerichtZutatInput {
   /** `neuerName`: a name not in the lists, added as an ingredient of the Planung's own. */
-  zutat: { zutatId: number } | { planungZutatId: number } | { neuerName: string };
+  zutat:
+    | { zutatId: number }
+    | { planungZutatId: number; /** Taken when the id is gone meanwhile. */ ersatzName?: string }
+    | { neuerName: string };
   menge: number | null;
   einheit: GerichtEinheit | null;
   fest: boolean;

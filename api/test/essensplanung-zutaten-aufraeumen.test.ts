@@ -116,11 +116,23 @@ dbTest('a typed name becomes an own ingredient that goes with its last line', as
   let jetzt = json<PlanungAnsicht>(bestand);
   jetzt = await zeileLoeschen(t, token, jetzt, 'Hackfleisch');
   jetzt = await zeileLoeschen(t, token, jetzt, 'Hackfleisch');
+  const alteId = eigene.id;
   jetzt = await zeileLoeschen(t, token, jetzt, 'Omas Chiligewürz');
   assert.deepEqual(
     jetzt.zutaten.map((z) => z.name),
     ['Hackfleisch']
   );
+
+  // A page that still holds the removed id sends the name along: it picks the ingredient again
+  const wieder = await zeile(t, token, gerichtId, {
+    planungZutatId: alteId,
+    neueZutat: 'Omas Chiligewürz',
+    menge: 20,
+    einheit: 'g',
+  });
+  const neu = wieder.zutaten.find((z) => z.name === 'Omas Chiligewürz')!;
+  assert.notEqual(neu.id, alteId);
+  assert.equal(neu.angabenOffen, true);
   assert.equal(jetzt.zutaten[0].zeilen, 1);
 });
 

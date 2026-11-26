@@ -28,6 +28,7 @@ import type { MockPlanung, MockZugang } from './essensplanung-planung';
 import { MockPlanungFehler, aendere, neueId, neuesEtag } from './essensplanung-planung';
 import { einplanungVorbereiten } from './essensplanung-einplanung';
 import type { EinplanungInput } from '../../../api/lib/essen-planung-model';
+import { neuerNameFuer } from './essensplanung-zutat-neu';
 
 export interface MockPlanungZutat {
   id: number;
@@ -75,7 +76,7 @@ function nutzungen(planung: MockPlanung, id: number): { einheit: GerichtZutat['e
   ].filter((nutzung) => nutzung.planungZutatId === id);
 }
 
-function wirksam(planung: MockPlanung, zutat: MockPlanungZutat): PlanungZutat {
+export function wirksam(planung: MockPlanung, zutat: MockPlanungZutat): PlanungZutat {
   const zentral = zutat.zutatId
     ? essenKatalog().zutaten.find((z) => z.id === zutat.zutatId)
     : undefined;
@@ -199,7 +200,11 @@ export function zutatFuer(
   if ('neuerName' in zutat) return neuerNameFuer(z, zutat.neuerName, einheit);
   if ('planungZutatId' in zutat) {
     const vorhanden = z.planung.zutaten.find((entry) => entry.id === zutat.planungZutatId);
-    if (!vorhanden) throw feld('zutat', 'Bitte eine Zutat wählen.');
+    if (!vorhanden) {
+      // Gone with its last use since the page picked it: the name picks again
+      if (zutat.ersatzName) return neuerNameFuer(z, zutat.ersatzName, einheit);
+      throw feld('zutat', 'Bitte eine Zutat wählen.');
+    }
     const wirksame = wirksam(z.planung, vorhanden);
     if (lebensmittel && !wirksame.lebensmittel)
       throw feld('zutat', `${wirksame.name} ist kein Lebensmittel und gehört in kein Gericht.`);
@@ -229,7 +234,7 @@ export function zutatFuer(
 }
 
 /** „Sonstiges“, added again when the Steuerung renamed or deleted it, like the API. */
-function sonstigesKategorie(): number {
+export function sonstigesKategorie(): number {
   const vorhanden = essenKatalog().kategorien.find((k) => k.name === 'Sonstiges');
   if (vorhanden) return vorhanden.id;
   const neu = createEssenEintrag('kategorien', 'Sonstiges');
@@ -422,29 +427,4 @@ export function gerichtZutatAendern(
     Object.assign(zeile, werte, { etag: neuesEtag() });
     if (input.position !== undefined) nummeriere(gericht, zeile, input.position);
   });
-}
-
-/** Like `zutatFuerNeuenNamen`: a typed name becomes a food of the Planung's own. */
-function neuerNameFuer(z: MockZugang, name: string, einheit: GerichtEinheit | null): PlanungZutat {
-  const zentral = essenKatalog().zutaten.find((entry) => collator.compare(entry.name, name) === 0);
-  if (zentral) return zutatFuer(z, { zutatId: zentral.id }, { lebensmittel: true });
-  const eigene = z.planung.zutaten.find(
-    (entry) => entry.name && collator.compare(entry.name, name) === 0
-  );
-  if (eigene) return zutatFuer(z, { planungZutatId: eigene.id }, { lebensmittel: true });
-  const eintrag: MockPlanungZutat = {
-    id: neueId(),
-    etag: neuesEtag(),
-    zutatId: null,
-    name,
-    kategorieId: sonstigesKategorie(),
-    einheitenart: einheitenartFuerNeue({ kategorieId: null, einheitenart: null, einheit }),
-    vegetarisch: null,
-    vegan: null,
-    allergene: [],
-    geschaeftId: null,
-    angabenOffen: true,
-  };
-  z.planung.zutaten.push(eintrag);
-  return wirksam(z.planung, eintrag);
 }

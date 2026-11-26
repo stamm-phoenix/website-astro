@@ -138,7 +138,7 @@
           ...(!ziel
             ? { neueZutat: name }
             : ziel.art === 'planung'
-              ? { planungZutatId: ziel.id }
+              ? { planungZutatId: ziel.id, neueZutat: name }
               : { zutatId: ziel.id }),
           menge: zahl,
           einheit: zahl === null ? null : einheit,

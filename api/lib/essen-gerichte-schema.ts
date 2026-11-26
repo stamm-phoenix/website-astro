@@ -227,7 +227,11 @@ export const gerichtZutatSchema = lenientObject({
     zutat: value.zutatId
       ? { zutatId: value.zutatId }
       : value.planungZutatId
-        ? { planungZutatId: value.planungZutatId }
+        ? {
+            planungZutatId: value.planungZutatId,
+            // The name, in case the ingredient went with its last use meanwhile
+            ...(value.neueZutat ? { ersatzName: value.neueZutat } : {}),
+          }
         : { neuerName: value.neueZutat },
     menge: value.menge,
     einheit: value.menge === null ? null : value.einheit,
