@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { zustaendigAus } from '../src/lib/essensplanungPlan.ts';
 import { zustaendigeJeGericht } from '../src/lib/essensplanungZustaendige.ts';
 import type { Einplanung, PlanungMitglied, PlanungTag } from '../../api/lib/essen-planung-model.ts';
 
@@ -67,4 +68,12 @@ test('marks dishes of the viewer, as member or as their name typed freely', () =
   assert.equal(ergebnis.get(1)?.ich, true);
   assert.equal(ergebnis.get(2)?.ich, true);
   assert.equal(ergebnis.get(3)?.ich, false);
+});
+
+test('the plan and the mark compare names alike, also with doubled spaces', () => {
+  const mitglieder = [mitglied(7, 'Nico  Welles')];
+  assert.deepEqual(zustaendigAus('nico welles', mitglieder), {
+    zustaendigId: 7,
+    zustaendigText: '',
+  });
 });

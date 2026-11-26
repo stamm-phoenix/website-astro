@@ -18,7 +18,10 @@ export interface KalenderZeile {
   mahlzeiten: Map<number, PlanungMahlzeit>;
 }
 
-const schluessel = (name: string): string => name.trim().toLocaleLowerCase('de');
+/** A name as it is compared: without outer spaces, single spaces inside, ignoring case. */
+export function schluessel(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de');
+}
 
 /**
  * The rows of the calendar: every name of a meal once, in the order the days have them (a meal
