@@ -7,6 +7,8 @@
   import EssenZutaten from './EssenZutaten.svelte';
   import EssenListe from './EssenListe.svelte';
   import ZentraleZutatenKi from './ZentraleZutatenKi.svelte';
+  import DoppelteZutaten from './DoppelteZutaten.svelte';
+  import PlanungsZutatenUebernehmen from './PlanungsZutatenUebernehmen.svelte';
 
   /**
    * The central lists all Planungen share: ingredients, categories and allergens. Same data and
@@ -46,6 +48,7 @@
       <div class="skeleton-element h-96 rounded-[var(--radius-lg)]"></div>
     {/snippet}
     {#snippet children(data)}
+      <PlanungsZutatenUebernehmen {data} {onnotice} />
       <EssenZutaten
         bind:this={liste}
         {data}
@@ -59,6 +62,7 @@
               {data}
               onaendern={(id) => liste?.bearbeiten(id)}
             />
+            <DoppelteZutaten {data} {onnotice} />
           </div>
         {/snippet}
       </EssenZutaten>

@@ -176,6 +176,7 @@ const AENDERUNGEN: Record<string, string> = {
   'gericht-zutat-geloescht': 'hat eine Zutat entfernt',
   'zutat-neu': 'hat eine eigene Zutat angelegt',
   'zutat-geaendert': 'hat eine Zutat der Planung geändert',
+  'zutat-zentral': 'hat eine Zutat mit der zentralen Zutatenliste zusammengeführt',
   'zutat-geloescht': 'hat eine Zutat der Planung gelöscht',
   'einplanung-neu': 'hat ein Gericht eingeplant',
   'einplanung-geaendert': 'hat eine Einplanung geändert',
@@ -248,7 +249,8 @@ const ABGEHAKT: Record<string, string> = {
 
 /** „Kim hat eine Mahlzeit geändert: Brunch (1.8.)“. */
 export function aenderungText(aenderung: PlanungAenderung): string {
-  const wer = aenderung.wer || 'Jemand';
+  // Changes of the Steuerung (the central list) have no member
+  const wer = aenderung.wer || (aenderung.aktion === 'zutat-zentral' ? 'Die Steuerung' : 'Jemand');
   if (aenderung.aktion === 'gericht-zutaten-neu')
     return zutatenHinzugefuegt(wer, aenderung.details);
   const {

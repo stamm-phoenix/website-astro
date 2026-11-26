@@ -96,21 +96,32 @@ async function setAllergene(db: Db, zutatId: number, allergene: number[]): Promi
 
 const ZUTAT_EXISTS = 'Eine Zutat mit diesem Namen gibt es schon.';
 
+/** Adds a central ingredient in the transaction `trx`; a taken-over one comes with its Planungen. */
+export async function createZutatIn(
+  trx: Db,
+  input: ZutatInput,
+  actor: string,
+  aktion = 'zutat-angelegt'
+): Promise<number> {
+  await checkReferences(trx, input);
+  const { id } = await trx
+    .insertInto('essen.zutat')
+    .values(zutatColumns(input, actor))
+    .output('inserted.id')
+    .executeTakeFirstOrThrow();
+  await setAllergene(trx, id, input.allergene);
+  await katalogGeaendert(trx);
+  await audit(trx, actor, aktion, { id, name: input.name });
+  return id;
+}
+
 export async function createZutat(input: ZutatInput, actor: string): Promise<number> {
-  return uniqueName(ZUTAT_EXISTS, () =>
-    inTransaction(async (trx) => {
-      await checkReferences(trx, input);
-      const { id } = await trx
-        .insertInto('essen.zutat')
-        .values(zutatColumns(input, actor))
-        .output('inserted.id')
-        .executeTakeFirstOrThrow();
-      await setAllergene(trx, id, input.allergene);
-      await katalogGeaendert(trx);
-      await audit(trx, actor, 'zutat-angelegt', { id, name: input.name });
-      return id;
-    })
-  );
+  return uniqueName(ZUTAT_EXISTS, () => inTransaction((trx) => createZutatIn(trx, input, actor)));
+}
+
+/** A unique violation of the name, as the field error of `name`. */
+export function eindeutigerZutatName<T>(work: () => Promise<T>): Promise<T> {
+  return uniqueName(ZUTAT_EXISTS, work);
 }
 
 const ZUTAT_FIELDS: Record<keyof ZutatInput, string> = {

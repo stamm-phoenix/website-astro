@@ -106,6 +106,7 @@ import './endpoints/essensplanung-einkaeufe';
 import './endpoints/intern-essensplanung-meine';
 import './endpoints/intern-essensplanung-steuerung';
 import './endpoints/intern-essensplanung-zutaten';
+import './endpoints/intern-essensplanung-zutaten-zentral';
 import './endpoints/sammelbestellungen';
 import './endpoints/intern-pflege-sammelbestellungen';
 import './endpoints/intern-sammelbestellung-payments';

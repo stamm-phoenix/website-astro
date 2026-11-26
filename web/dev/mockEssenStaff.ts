@@ -19,6 +19,7 @@ import { error, json, notFound, route } from './mockCore';
 import { PRINCIPAL } from './mockAuth';
 import { ESSEN_NOT_ALLOWED, essenListe, essenResult } from './mockEssenCommon';
 import { kiZentraleZutaten } from './mock-data/essensplanung-ki-zutaten';
+import * as zentral from './mock-data/essensplanung-zutat-zentral';
 import { MockKiBesetzt } from './mock-data/essensplanung-ki';
 import { readKiZutatIds } from '../../api/lib/essen-ki-zutaten-antwort';
 import { ValidationError } from '../../api/lib/validation/errors';
@@ -127,4 +128,49 @@ route('POST', '/api/intern/pflege/essensplanung-zutaten/sammel', (req) => {
     return { id, fehler };
   });
   return json({ ergebnisse, view: essenSteuerungView() });
+});
+
+route('GET', '/api/intern/essensplanung/planungs-zutaten', () => {
+  const denied = ESSEN_NOT_ALLOWED();
+  if (denied) return denied;
+  return json({ zutaten: zentral.planungsZutaten() });
+});
+
+route('POST', '/api/intern/pflege/essensplanung-zutaten/uebernehmen', (req) => {
+  const denied = ESSEN_NOT_ALLOWED();
+  if (denied) return denied;
+  const name = typeof req.json?.name === 'string' ? req.json.name.trim() : '';
+  const zielId = typeof req.json?.zielId === 'number' ? req.json.zielId : null;
+  if (!name) return notFound();
+  const result = zentral.uebernehmen(
+    name,
+    zielId,
+    zielId === null ? validateZutat(req.json?.zutat) : null
+  );
+  if ('field' in result)
+    return error(400, 'INVALID', 'Die Eingaben sind unvollständig oder ungültig.', {
+      [result.field]: result.message,
+    });
+  return json({
+    ...result,
+    view: essenSteuerungView(),
+    planungsZutaten: zentral.planungsZutaten(),
+  });
+});
+
+route('POST', '/api/intern/pflege/essensplanung-zutaten/zusammenlegen', (req) => {
+  const denied = ESSEN_NOT_ALLOWED();
+  if (denied) return denied;
+  const planungen = zentral.zusammenlegen(Number(req.json?.von), Number(req.json?.nach));
+  if (planungen === null)
+    return error(400, 'INVALID', 'Bitte zwei verschiedene Zutaten wählen.', {
+      von: 'Bitte zwei verschiedene Zutaten wählen.',
+    });
+  return json({ planungen, view: essenSteuerungView() });
+});
+
+route('POST', '/api/intern/essensplanung/ki/doppelte', () => {
+  const denied = ESSEN_NOT_ALLOWED();
+  if (denied) return denied;
+  return json(zentral.kiDoppelte());
 });
