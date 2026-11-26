@@ -6,6 +6,7 @@
   import { essensplanungSteuerung } from '../../lib/pflegeStore.svelte';
   import EssenZutaten from './EssenZutaten.svelte';
   import EssenListe from './EssenListe.svelte';
+  import ZentraleZutatenKi from './ZentraleZutatenKi.svelte';
 
   /**
    * The central lists all Planungen share: ingredients, categories and allergens. Same data and
@@ -15,6 +16,8 @@
   const store = essensplanungSteuerung.state;
   let message = $state<string | null>(null);
   let messageKind = $state<'success' | 'error'>('success');
+  let liste = $state<EssenZutaten>();
+  let kiPruefung = $state<ZentraleZutatenKi>();
 
   function onnotice(text: string | null, kind: 'success' | 'error' = 'success'): void {
     message = text;
@@ -43,7 +46,22 @@
       <div class="skeleton-element h-96 rounded-[var(--radius-lg)]"></div>
     {/snippet}
     {#snippet children(data)}
-      <EssenZutaten {data} {onnotice} />
+      <EssenZutaten
+        bind:this={liste}
+        {data}
+        {onnotice}
+        onpruefen={(zutat) => void kiPruefung?.pruefen([zutat.id])}
+      >
+        {#snippet ki()}
+          <div class="space-y-3">
+            <ZentraleZutatenKi
+              bind:this={kiPruefung}
+              {data}
+              onaendern={(id) => liste?.bearbeiten(id)}
+            />
+          </div>
+        {/snippet}
+      </EssenZutaten>
       <div class="grid gap-8 lg:grid-cols-2">
         <EssenListe
           {onnotice}

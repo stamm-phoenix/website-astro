@@ -18,6 +18,10 @@ import {
 import { error, json, notFound, route } from './mockCore';
 import { PRINCIPAL } from './mockAuth';
 import { ESSEN_NOT_ALLOWED, essenListe, essenResult } from './mockEssenCommon';
+import { kiZentraleZutaten } from './mock-data/essensplanung-ki-zutaten';
+import { MockKiBesetzt } from './mock-data/essensplanung-ki';
+import { readKiZutatIds } from '../../api/lib/essen-ki-zutaten-antwort';
+import { ValidationError } from '../../api/lib/validation/errors';
 
 route('GET', '/api/intern/essensplanung/meine', () =>
   json({ planungen: leitungPlanungen(PRINCIPAL.userDetails) })
@@ -86,4 +90,41 @@ route(['PATCH', 'DELETE'], '/api/intern/pflege/essensplanung/:liste/:id', (req) 
     return essenResult(deleteEssenEintrag(liste, id, req.headers['if-match']), essenSteuerungView);
   const input = liste === 'zutaten' ? validateZutat(req.json) : validateListName(req.json);
   return essenResult(changeEssenEintrag(liste, id, input, req.json?.etag), essenSteuerungView);
+});
+
+route('POST', '/api/intern/essensplanung/ki/zutaten', (req) => {
+  const denied = ESSEN_NOT_ALLOWED();
+  if (denied) return denied;
+  const ids = readKiZutatIds(req.json);
+  try {
+    return json(kiZentraleZutaten(ids));
+  } catch (caught) {
+    if (!(caught instanceof MockKiBesetzt)) throw caught;
+    return error(429, 'KI_NICHT_VERFUEGBAR', caught.message);
+  }
+});
+
+// „Alle übernehmen“: each entry on its own, like the API
+route('POST', '/api/intern/pflege/essensplanung-zutaten/sammel', (req) => {
+  const denied = ESSEN_NOT_ALLOWED();
+  if (denied) return denied;
+  const zutaten: unknown = req.json?.zutaten;
+  if (!Array.isArray(zutaten) || !zutaten.length || zutaten.length > 50)
+    return error(400, 'INVALID', 'Bitte 1 bis 50 Zutaten auf einmal senden.');
+  const ergebnisse = zutaten.map((eintrag: Record<string, unknown>) => {
+    const id = Number(eintrag?.id);
+    let fehler: string | null = null;
+    try {
+      const result = changeEssenEintrag('zutaten', id, validateZutat(eintrag), eintrag?.etag);
+      if (result === 'conflict')
+        fehler = 'Jemand hat die Zutat inzwischen geändert. Prüf sie noch einmal.';
+      else if (result === 'not-found') fehler = 'Die Zutat gibt es nicht mehr.';
+      else if ('field' in result) fehler = result.message;
+    } catch (caught) {
+      if (!(caught instanceof ValidationError)) throw caught;
+      fehler = Object.values(caught.fields ?? {})[0] ?? caught.message;
+    }
+    return { id, fehler };
+  });
+  return json({ ergebnisse, view: essenSteuerungView() });
 });

@@ -5,6 +5,7 @@
   import ActionButton from '../ui/ActionButton.svelte';
   import FormField from '../pflege/FormField.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
+  import PlanZutatenKi from './PlanZutatenKi.svelte';
   import { ApiError } from '../../lib/api';
   import { confirmAction } from '../../lib/confirm';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
@@ -25,6 +26,7 @@
     bearbeiten: boolean;
   }
   let { kontext, katalog, bearbeiten }: Props = $props();
+  let ki = $state<PlanZutatenKi>();
   const ansicht = $derived(kontext.ansicht);
   const kategorien = $derived(new Map((katalog?.kategorien ?? []).map((k) => [k.id, k.name])));
 
@@ -174,6 +176,16 @@
     Zutaten dieser Planung ({ansicht.zutaten.length})
     <AufklappPfeil />
   </summary>
+  <div class="mt-2 space-y-3">
+    <PlanZutatenKi
+      bind:this={ki}
+      {kontext}
+      {bearbeiten}
+      onaendern={(zutat) => {
+        if (katalog) oeffne(zutat);
+      }}
+    />
+  </div>
   <ul class="mt-2 divide-y divide-neutral-200 border-y border-neutral-200">
     {#each ansicht.zutaten as zutat (zutat.id)}
       <li class="flex flex-wrap items-center justify-between gap-2 py-2">
@@ -203,6 +215,16 @@
             >
               Ändern
             </ActionButton>
+            {#if zutat.zutatId === null}
+              <ActionButton
+                type="button"
+                aria-label="{zutat.name} prüfen lassen (KI)"
+                disabled={kontext.busy}
+                onclick={() => void ki?.pruefen([zutat.id])}
+              >
+                Prüfen (KI)
+              </ActionButton>
+            {/if}
             {#if zutat.zeilen === 0}
               <ActionButton
                 type="button"
