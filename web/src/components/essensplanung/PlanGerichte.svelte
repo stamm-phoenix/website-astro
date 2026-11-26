@@ -76,7 +76,8 @@
   });
   const zurueckText = $derived(navigation.von === 'plan' ? 'Zurück zum Plan' : 'Alle Gerichte');
 
-  // A dish just opened gets the focus on its name, or on its heading for those who only read
+  // A dish just opened gets the focus on its heading, so a phone shows no keyboard; a new one on
+  // its name, to fill it in
   $effect(() => {
     if (!navigation.geoeffnet) return;
     const id = untrack(() => navigation.gericht);
@@ -85,7 +86,7 @@
   async function fokus(id: number): Promise<void> {
     await tick();
     const feld =
-      document.getElementById(`gericht-${id}-name`) ??
+      (navigation.zumNamen && document.getElementById(`gericht-${id}-name`)) ||
       document.getElementById(`gericht-${id}-titel`);
     feld?.focus({ preventScroll: true });
   }
@@ -144,8 +145,8 @@
     if (name === gesendet) name = '';
     if (personen === gesendetPersonen) personen = '';
     if (zustaendig === gesendetZustaendig) zustaendig = '';
-    // A new dish opens on its own page, to fill it in
-    await navigation.oeffnen(id);
+    // A new dish opens on its own page, with the focus on its name to fill it in
+    await navigation.oeffnen(id, true);
   }
 
   /** Recipe cards as PDF; only with the central list, so they name all allergens. */

@@ -93,12 +93,16 @@ test(
       'aria-selected',
       'true'
     );
-    await expect(
-      page.getByRole('tabpanel', { name: 'Gerichte' }).getByLabel('Name', { exact: true })
-    ).toBeFocused();
+    await expect(page.getByRole('heading', { name: 'Nudeln', exact: true })).toBeFocused();
     await expect(
       page.getByRole('tabpanel', { name: 'Gerichte' }).getByLabel('Name', { exact: true })
     ).toHaveValue('Nudeln');
+
+    // The tab leads to the list of dishes, the browser's back button to the dish again
+    await page.getByRole('tab', { name: 'Gerichte' }).click();
+    await expect(page.getByLabel('Neues Gericht')).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole('heading', { name: 'Nudeln', exact: true })).toBeVisible();
 
     // „Zurück“ leads to the plan again; the choice stays after a reload
     await page.getByRole('button', { name: 'Zurück zum Plan' }).click();

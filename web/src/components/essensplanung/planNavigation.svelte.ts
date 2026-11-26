@@ -39,6 +39,8 @@ export class PlanNavigation {
   von = $state<Bereich | null>(null);
   /** Counts the dishes opened, so the page puts the focus into the one just opened. */
   geoeffnet = $state(0);
+  /** Whether the focus goes to the name of the dish just opened (a new one), not its heading. */
+  zumNamen = false;
   #token = '';
 
   /** Reads the address once the token is known; returns the cleanup. */
@@ -86,7 +88,12 @@ export class PlanNavigation {
   /** Shows an area; the tab of the dishes, clicked again on a dish, goes back to the list. */
   waehle(bereich: Bereich): void {
     if (bereich === 'gerichte' && this.bereich === 'gerichte' && this.gericht !== null) {
-      this.zurueck();
+      // A step of its own, so the browser's back button returns to the dish
+      history.replaceState(this.#eintrag(), '');
+      this.gericht = null;
+      this.von = null;
+      history.pushState(this.#eintrag(0), '', planungHash(this.#token));
+      window.scrollTo(0, 0);
       return;
     }
     this.bereich = bereich;
@@ -99,7 +106,7 @@ export class PlanNavigation {
   }
 
   /** Opens a dish on its own page, e.g. from the list or the plan. */
-  async oeffnen(id: number): Promise<void> {
+  async oeffnen(id: number, zumNamen = false): Promise<void> {
     if (this.bereich === 'gerichte' && this.gericht === id) return;
     // The entry left keeps its scroll position, so going back lands where it was
     history.replaceState(this.#eintrag(), '');
@@ -107,6 +114,7 @@ export class PlanNavigation {
     this.bereich = 'gerichte';
     this.gericht = id;
     history.pushState(this.#eintrag(0), '', planungHash(this.#token, id));
+    this.zumNamen = zumNamen;
     this.geoeffnet++;
     await tick();
     window.scrollTo(0, 0);
