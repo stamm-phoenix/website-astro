@@ -100,23 +100,32 @@ export async function aufZentraleZutat(
   trx: Transaction<Database>,
   ids: readonly number[],
   zentralId: number,
-  details: Record<string, unknown>
+  details: Record<string, unknown>,
+  /** The central ingredients to lock; the target, and for a merge the one merged. */
+  sperren: readonly number[] = [zentralId]
 ): Promise<number> {
   if (!ids.length) return 0;
-  await lockResource(trx, zutatSperre(zentralId));
+  const vorher = await trx
+    .selectFrom('essen.planung_zutat')
+    .select('planung_id')
+    .distinct()
+    .where('id', 'in', [...ids])
+    .execute();
+  // The same order as a change of a Planung (`aendere`, then `zutatDerPlanungFuer`): first the
+  // Planungen, in the order of their ids, then the central ingredients, else the two could wait
+  // for each other
+  const planungen = vorher.map((row) => row.planung_id).sort((a, b) => a - b);
+  for (const planungId of planungen) await steuerungAenderung(trx, planungId, details);
+  for (const id of [...new Set(sperren)].sort((a, b) => a - b))
+    await lockResource(trx, zutatSperre(id));
+  // Read again under the locks: an ingredient may have gone with its last use meanwhile
   const zeilen = await trx
     .selectFrom('essen.planung_zutat')
     .select(['id', 'planung_id', 'zutat_id'])
     .where('id', 'in', [...ids])
-    .orderBy('planung_id')
+    .where('planung_id', 'in', planungen.length ? planungen : [0])
     .execute();
-  const planungen = new Set<number>();
   for (const zeile of zeilen) {
-    if (!planungen.has(zeile.planung_id)) {
-      // The change first: it locks the Planung against its own changes meanwhile
-      await steuerungAenderung(trx, zeile.planung_id, details);
-      planungen.add(zeile.planung_id);
-    }
     const vorhanden = await trx
       .selectFrom('essen.planung_zutat')
       .select('id')
@@ -152,5 +161,5 @@ export async function aufZentraleZutat(
         .execute();
     }
   }
-  return planungen.size;
+  return planungen.length;
 }
