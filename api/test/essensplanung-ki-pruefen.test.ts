@@ -58,7 +58,6 @@ test('the check sends tools and instructions, never notes or contact data', asyn
     geprueftFuer: 10,
     personenQuelle: 'gericht',
     anleitungGeprueft: true,
-    etag: 'g-21',
   });
   const format = gesendet[0].body.response_format as {
     json_schema: { strict: boolean; name: string };
@@ -341,6 +340,8 @@ test('contact data is taken out of the instructions', () => {
     anleitungFuerModell('500 g Nudeln 10 Minuten kochen.'),
     '500 g Nudeln 10 Minuten kochen.'
   );
+  // Names cannot be told apart from the recipe: they go with the instructions, as the docs say
+  assert.equal(anleitungFuerModell('Kim Küche rührt um.'), 'Kim Küche rührt um.');
   assert.equal(anleitungFuerModell('  \n '), null);
 });
 
@@ -396,4 +397,43 @@ test('those present are counted at the meals the dish is planned at', () => {
   ausgelassen.tage[1].mahlzeiten[0].einplanungen = [];
   assert.equal(anwesendBeimGericht(ausgelassen, 21), 35);
   assert.equal(anwesendBeimGericht(planung, 99), null);
+});
+
+test('another ingredient never stays for diets it does not suit, nor empties a note', async (t) => {
+  const gericht: Gericht = {
+    ...GERICHT,
+    zutaten: [{ ...GERICHT.zutaten[0], fuerVegan: true, hinweis: 'gehackt' }],
+  };
+  modell(t, {
+    einschaetzung: '',
+    hinweise: [
+      // Meat instead of pasta: only for those who eat everything
+      hinweis({ aktion: 'zeile_aendern', zeile: 1, text: 'Hack?', zutatKey: 'p12' }),
+      // Only for vegetarians before: meat would be for nobody, so the swap goes
+      hinweis({
+        aktion: 'zeile_aendern',
+        zeile: 1,
+        text: 'Nur Hack?',
+        zutatKey: 'p12',
+        fuerAlles: false,
+      }),
+      // "" is no new note: the amount changes, the note stays
+      hinweis({ zeile: 1, text: 'Mehr.', menge: 120, einheit: 'kg', hinweisNeu: '' }),
+      hinweis({ zeile: 1, text: 'Nichts.', hinweisNeu: '  ' }),
+    ],
+  });
+  const { hinweise } = await pruefeGericht(gericht, [SPAGHETTI, HACK], KATALOG);
+  assert.deepEqual(
+    hinweise.map((eintrag) => eintrag.aenderung),
+    [
+      {
+        zutat: { wahl: { planungZutatId: 12 }, name: 'Hackfleisch (Rind)' },
+        fuerVegetarisch: false,
+        fuerVegan: false,
+      },
+      { fuerAlles: false },
+      { menge: 120, einheit: 'kg' },
+      undefined,
+    ]
+  );
 });

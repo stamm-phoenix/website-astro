@@ -60,10 +60,6 @@
   /** The hints as checked; a take-over updates the versions of those it builds on. */
   // svelte-ignore state_referenced_locally
   let hinweise = $state<KiHinweis[]>(structuredClone($state.snapshot(pruefung.hinweise)));
-  /** The version of the dish's own fields the next change of the tools is sent with. */
-  // svelte-ignore state_referenced_locally
-  let kopfEtag = pruefung.etag;
-
   /** The people of the dish changed since the check: its amounts no longer fit. */
   const personenGeaendert = $derived(pruefung.personen !== gericht.personen);
 
@@ -136,7 +132,8 @@
     for (const [weiterer, andere] of hinweise.entries()) {
       if (weiterer === index || andere.zeile?.id !== zeile.id) continue;
       if (eigene) andere.zeile.etag = geschrieben!.etag;
-      else if (andere.aenderung || andere.entfernen) veralten(weiterer);
+      else if ((andere.aenderung || andere.entfernen) && !uebernommen.includes(weiterer))
+        veralten(weiterer);
     }
   }
 
@@ -199,6 +196,8 @@
   async function werkzeugAendern(index: number, hinweis: KiHinweis): Promise<void> {
     const aenderung = hinweis.werkzeug;
     if (!aenderung) return;
+    // Checked against the tools as the page shows them now, and sent with their version: an own
+    // edit of the dish since the check does not get in the way, a change of others is a conflict
     const werkzeuge = werkzeugeNach(gericht.werkzeuge, aenderung);
     if (!werkzeuge) {
       veralten(index);
@@ -207,20 +206,12 @@
     const ansicht = await speichern(
       () =>
         kontext.api.senden<PlanungAnsicht>('PATCH', `/gerichte/${gericht.id}`, {
-          etag: kopfEtag,
+          etag: gericht.etag,
           werkzeuge,
         }),
       werkzeugErfolg(aenderung)
     );
-    if (!ansicht) return;
-    uebernommen = [...uebernommen, index];
-    const jetzt = ansicht.gerichte.find((g) => g.id === gericht.id);
-    // Further changes of the tools build on this write only, as with the lines
-    if (jetzt && JSON.stringify(jetzt.werkzeuge) === JSON.stringify(werkzeuge))
-      kopfEtag = jetzt.etag;
-    else
-      for (const [weiterer, andere] of hinweise.entries())
-        if (andere.werkzeug && !uebernommen.includes(weiterer)) veralten(weiterer);
+    if (ansicht) uebernommen = [...uebernommen, index];
   }
 
   function uebernehmen(index: number, hinweis: KiHinweis): Promise<void> {

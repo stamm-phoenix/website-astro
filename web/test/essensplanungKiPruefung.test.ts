@@ -146,7 +146,6 @@ test('the result says for how many people it was checked', () => {
     geprueftFuer: 10,
     personenQuelle: 'gericht',
     anleitungGeprueft: true,
-    etag: 'g',
   };
   assert.equal(geprueftText(pruefung), 'Geprüft für 10 Personen.');
   assert.equal(
