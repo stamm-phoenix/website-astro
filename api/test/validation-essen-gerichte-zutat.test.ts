@@ -325,3 +325,11 @@ test('Planung zutat: a new own ingredient needs only its name', () => {
     { name: 'Bitte einen Namen eintragen.' }
   );
 });
+
+test('Zeile: an ingredient of the Planung carries the typed name in case it is gone', () => {
+  assert.deepEqual(
+    validateGerichtZutat(zeile({ zutatId: undefined, planungZutatId: 7, neueZutat: ' Reis ' }))
+      .zutat,
+    { planungZutatId: 7, ersatzName: 'Reis' }
+  );
+});

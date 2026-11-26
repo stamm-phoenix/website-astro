@@ -54,9 +54,14 @@
     form = {
       name: zutat.name,
       // A central ingredient shows its differences; null means as in the list
-      // Open details of an own one were guessed: they are chosen, not taken over unseen
+      // The guessed category of an own one („Sonstiges“ with open details) is chosen, not taken
+      // over unseen; one the user picked stays. The kind of unit shows its guess, which follows
+      // the unit of the first line, and saving confirms it.
       kategorieId:
-        (zentral && !zutat.abweichend.kategorie) || zutat.angabenOffen ? null : zutat.kategorieId,
+        (zentral && !zutat.abweichend.kategorie) ||
+        (zutat.angabenOffen && kategorien.get(zutat.kategorieId) === 'Sonstiges')
+          ? null
+          : zutat.kategorieId,
       einheitenart: zentral && !zutat.abweichend.einheitenart ? null : zutat.einheitenart,
       ernaehrung: zutat.vegan
         ? 'vegan'

@@ -45,7 +45,8 @@ const keinLebensmittel = (name: string) =>
   new ValidationError({ zutat: `${name} ist kein Lebensmittel und gehört in kein Gericht.` });
 
 /** What picks an ingredient: one of the Planung, or one of the central list. */
-export type ZutatWahl = { zutatId: number } | { planungZutatId: number } | { neuerName: string };
+export type ZutatWahl =
+  { zutatId: number } | { planungZutatId: number; ersatzName?: string } | { neuerName: string };
 
 /**
  * The ingredient of the Planung that `wahl` picks; a central one is added to the Planung first.
@@ -66,7 +67,11 @@ export async function zutatDerPlanungFuer(
   if ('neuerName' in wahl) return zutatFuerNeuenNamen(trx, zugang, wahl.neuerName, einheit);
   if ('planungZutatId' in wahl) {
     const row = await zutatDerPlanung(trx, zugang, wahl.planungZutatId).catch(() => null);
-    if (!row) throw new ValidationError({ zutat: 'Bitte eine Zutat wählen.' });
+    if (!row) {
+      // It went with its last use since the page picked it: the name picks again
+      if (wahl.ersatzName) return zutatFuerNeuenNamen(trx, zugang, wahl.ersatzName, einheit);
+      throw new ValidationError({ zutat: 'Bitte eine Zutat wählen.' });
+    }
     // The Steuerung may have marked a central ingredient as not food since it was first used;
     // things put on the shopping list by name are no food either
     if (lebensmittel && (row.zutat_id !== null ? !row.z_lebensmittel : !row.lebensmittel))

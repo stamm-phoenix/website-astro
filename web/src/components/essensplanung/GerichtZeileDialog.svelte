@@ -270,7 +270,9 @@
     }
     let abgelehnt: unknown = null;
     const body = {
-      ...(ziel!.art === 'planung' ? { planungZutatId: ziel!.id } : { zutatId: ziel!.id }),
+      ...(ziel!.art === 'planung'
+        ? { planungZutatId: ziel!.id, neueZutat: zutatText.trim() }
+        : { zutatId: ziel!.id }),
       menge: zahl,
       einheit: zahl === null ? null : einheit,
       fest: zahl !== null && fest,
