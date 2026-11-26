@@ -87,7 +87,19 @@
    * kept when the filter changes or someone else takes the dish over.
    */
   function versteckt(id: number): boolean {
-    return filter === 'meine' && !zustaendige.get(id)?.ich;
+    if (filter !== 'meine' || zustaendige.get(id)?.ich) return false;
+    // Taken over by someone else while open: stays until it is closed, so typing goes on
+    return !(offen.has(id) && warMeins.has(id));
+  }
+  /** The dishes that were the viewer's while „Meine“ is shown. */
+  const warMeins = new SvelteSet<number>();
+  $effect(() => {
+    if (filter !== 'meine') return;
+    for (const gericht of meine) untrack(() => warMeins.add(gericht.id));
+  });
+  function waehleFilter(wert: 'alle' | 'meine'): void {
+    warMeins.clear();
+    filter = wert;
   }
   /** Shows all dishes when the filter hides one that is to be opened. */
   function zeige(id: number): void {
@@ -271,7 +283,7 @@
           { value: 'meine', label: 'Meine', count: meine.length },
         ]}
         value={filter}
-        onselect={(value) => (filter = value)}
+        onselect={waehleFilter}
       />
     {/if}
     {#if bearbeiten}

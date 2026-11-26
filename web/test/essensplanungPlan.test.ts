@@ -115,6 +115,7 @@ test('a typed name finds a dish and who is responsible', () => {
   const gerichte = [{ id: 1, name: 'Chili sin Carne' }];
   assert.equal(gerichtNamens(gerichte, '  chili SIN carne ')?.id, 1);
   assert.equal(gerichtNamens(gerichte, 'Chili'), undefined);
+  assert.equal(gerichtNamens(gerichte, 'Chili  sin   Carne')?.id, 1);
   const mitglieder = [
     { id: 5, name: 'Kim Küche', entzogen: false },
     { id: 6, name: 'Ben', entzogen: true },

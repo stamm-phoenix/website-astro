@@ -53,7 +53,7 @@ export function kalenderZeilen(tage: Pick<PlanungTag, 'id' | 'mahlzeiten'>[]): K
   return zeilen.map(({ name, mahlzeiten }) => ({ name, mahlzeiten }));
 }
 
-/** The dish of a planning with this name, ignoring case and spaces at the ends. */
+/** The dish of a planning with this name, ignoring case and spaces at the ends and doubled inside. */
 export function gerichtNamens(
   gerichte: Pick<Gericht, 'id' | 'name'>[],
   name: string
