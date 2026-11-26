@@ -29,6 +29,8 @@ export interface KiZutatEingabe {
   werte: KiZutatWerte;
   /** Central ingredients have the conversion help and can be no food. */
   zentral: boolean;
+  /** An own one whose category and kind of unit were guessed: confirming them is a proposal too. */
+  angabenOffen?: boolean;
 }
 
 /** The lists names in the question and answer stand for. */
@@ -242,6 +244,9 @@ export function leseKiZutaten(
         };
       const vorschlag = neueWerte(eingabe, eintrag, listen);
       const aenderungen = kiZutatAenderungen(eingabe.werte, vorschlag, listen);
+      // Guessed details the AI confirms are taken over too, which clears „Angaben fehlen“
+      if (!aenderungen.length && eingabe.angabenOffen)
+        aenderungen.push({ feld: 'kategorie', label: 'Angaben', alt: 'geraten', neu: 'bestätigt' });
       return aenderungen.length
         ? { ...basis, status: 'vorschlag', text: eintrag.begruendung, aenderungen, vorschlag }
         : { ...basis, status: 'passt', text: '', aenderungen: [], vorschlag: null };
@@ -256,6 +261,7 @@ export function kiEingabeDerPlanung(zutat: PlanungZutat): KiZutatEingabe {
     id: zutat.id,
     etag: zutat.etag,
     zentral: false,
+    angabenOffen: zutat.angabenOffen,
     werte: {
       name: zutat.name,
       kategorieId: zutat.kategorieId,
