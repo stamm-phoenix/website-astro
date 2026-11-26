@@ -84,7 +84,7 @@ test('the maintenance mode asks before it is switched on', async ({ page }) => {
   await expect(save).toBeDisabled();
 });
 
-test('ingredients are filtered, checked and added', async ({ page }) => {
+test('ingredients are filtered, edited and added', async ({ page }) => {
   await page.goto('/leitendenbereich/essensplanung-zutaten');
   const status = page.getByText(/von \d+ Zutaten/);
   await expect(status).toBeVisible();
@@ -96,15 +96,14 @@ test('ingredients are filtered, checked and added', async ({ page }) => {
     .getByRole('listitem')
     .filter({ has: page.getByText('Honig', { exact: true }) });
   await expect(honig).toContainText('vegetarisch');
-  await expect(honig).toContainText('Merkmale ungeprüft');
 
   await page.getByRole('button', { name: 'Bearbeiten: Honig', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Zutat bearbeiten' });
   await expect(dialog.getByLabel('Ernährung', { exact: true })).toHaveValue('vegetarisch');
-  await dialog.getByLabel('Ernährung und Allergene sind geprüft').check();
+  await dialog.getByLabel('Hinweis').fill('Nicht für Babys');
   await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(honig).not.toContainText('Merkmale ungeprüft');
+  await expect(honig).toContainText('Nicht für Babys');
 
   await page.getByLabel('Zutat suchen').fill('');
   await page.getByRole('button', { name: 'Neue Zutat' }).click();
@@ -123,10 +122,6 @@ test('ingredients are filtered, checked and added', async ({ page }) => {
   await expect(
     page.getByRole('listitem').filter({ has: page.getByText('Testzutat Dinkel', { exact: true }) })
   ).toContainText('enthält Gluten');
-  // Nobody ticked „geprüft“, so the new ingredient waits for a check
-  await expect(
-    page.getByRole('listitem').filter({ has: page.getByText('Testzutat Dinkel', { exact: true }) })
-  ).toContainText('Merkmale ungeprüft');
 
   // Remove the new ingredient again for the following tests of this worker
   await page.getByRole('button', { name: 'Bearbeiten: Testzutat Dinkel' }).click();

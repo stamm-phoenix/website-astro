@@ -90,7 +90,7 @@ export function planungZutatKiBody(ergebnis: KiZutatErgebnis): Record<string, un
 
 /**
  * A central ingredient with the proposal, at the checked version: what the AI does not check
- * (drained weight, the hint) stays; „Merkmale geprüft“ only while diet and allergens stay as they were.
+ * (drained weight, the hint) stays.
  */
 export function zentraleZutatKiBody(
   aktuell: EssenZutat,
@@ -108,13 +108,6 @@ export function zentraleZutatKiBody(
     lebensmittel: neu.lebensmittel,
     vegetarisch: neu.vegetarisch,
     vegan: neu.vegan,
-    // Diet and allergens the AI changed are no longer checked by a person
-    merkmaleGeprueft:
-      aktuell.merkmaleGeprueft &&
-      neu.lebensmittel === aktuell.lebensmittel &&
-      neu.vegetarisch === aktuell.vegetarisch &&
-      neu.vegan === aktuell.vegan &&
-      neu.allergene.join() === [...aktuell.allergene].sort((a, b) => a - b).join(),
     hinweis: aktuell.hinweis,
     grammProTl: neu.grammProTl,
     grammProEl: neu.grammProEl,

@@ -172,7 +172,6 @@ export const zutatSchema = lenient(
       lebensmittel: flag,
       vegetarisch: merkmal,
       vegan: merkmal,
-      merkmaleGeprueft: flag,
       hinweis: z.preprocess(
         (value) => (typeof value === 'string' ? value.trim() : ''),
         z.string().max(200, { error: 'Höchstens 200 Zeichen.' })

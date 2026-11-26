@@ -1,6 +1,5 @@
 <script lang="ts">
   import ActionButton from '../ui/ActionButton.svelte';
-  import StatusLabel from '../ui/StatusLabel.svelte';
   import { einheitKurz, ernaehrungLabel } from '../../lib/essensplanungSteuerung';
   import type { EssenZutat } from '../../../../api/lib/essen-validation';
 
@@ -33,9 +32,6 @@
     </p>
     {#if zutat.hinweis}
       <p class="text-sm text-neutral-700 italic">{zutat.hinweis}</p>
-    {/if}
-    {#if zutat.lebensmittel && !zutat.merkmaleGeprueft}
-      <StatusLabel label="Merkmale ungeprüft" tone="warning" dot />
     {/if}
   </div>
   <div class="flex shrink-0 gap-2 print:hidden">

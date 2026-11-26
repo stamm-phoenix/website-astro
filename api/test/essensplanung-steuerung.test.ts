@@ -97,7 +97,6 @@ function zutatInput(patch: Record<string, unknown> = {}) {
     lebensmittel: true,
     vegetarisch: true,
     vegan: true,
-    merkmaleGeprueft: true,
     hinweis: '',
     grammProTl: null,
     grammProEl: 15,
@@ -245,7 +244,6 @@ dbTest('the migration brings the start data from the kitchen sheet', async (t) =
   assert.equal(data.kategorien.length, 28);
   assert.equal(data.unvertraeglichkeiten.length, 14);
   assert.deepEqual(data.einstellungen, EINSTELLUNGEN);
-  assert.ok(data.zutaten.every((zutat) => !zutat.merkmaleGeprueft));
 
   const byName = (name: string): EssenZutat => data.zutaten.find((zutat) => zutat.name === name)!;
   const gluten = data.unvertraeglichkeiten.find((u) => u.schluessel === 'gluten')!;

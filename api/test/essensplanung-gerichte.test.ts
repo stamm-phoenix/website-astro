@@ -455,7 +455,6 @@ dbTest('open pages see changes of the central lists', async (t) => {
     lebensmittel: zentral.lebensmittel,
     vegetarisch: zentral.vegetarisch,
     vegan: zentral.vegan,
-    merkmaleGeprueft: zentral.merkmaleGeprueft,
     hinweis: zentral.hinweis,
     grammProTl: zentral.grammProTl,
     grammProEl: zentral.grammProEl,

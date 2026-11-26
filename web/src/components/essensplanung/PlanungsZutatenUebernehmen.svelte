@@ -115,7 +115,6 @@
               lebensmittel: zutat.lebensmittel,
               vegetarisch: f.ernaehrung === '' ? null : f.ernaehrung !== 'fleisch',
               vegan: f.ernaehrung === '' ? null : f.ernaehrung === 'vegan',
-              merkmaleGeprueft: false,
               hinweis: '',
               grammProTl: null,
               grammProEl: null,

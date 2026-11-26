@@ -30,7 +30,6 @@ const HONIG: EssenZutat = {
   lebensmittel: true,
   vegetarisch: true,
   vegan: false,
-  merkmaleGeprueft: false,
   hinweis: '',
   grammProTl: 7.5,
   grammProEl: null,

@@ -10,6 +10,7 @@ const entry: ChangelogEntry = {
       href: '/leitendenbereich/essensplanung-zutaten',
     },
     'Mit „Doppelte finden (KI)“ sucht die KI Zutaten der Liste, die dasselbe sind, z. B. „Zwiebel“ und „Zwiebeln“. Du wählst, welche bleibt, und legst sie mit „Zusammenlegen“ zusammen; Planungen nutzen dann die, die bleibt.',
+    'Die Markierung „Merkmale ungeprüft“, der Filter „Nur ungeprüfte“ und das Häkchen „Ernährung und Allergene sind geprüft“ sind aus der zentralen Zutatenliste entfernt.',
   ],
 };
 
