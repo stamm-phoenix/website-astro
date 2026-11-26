@@ -113,12 +113,20 @@ const MAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
 /** A run that may be a phone number; it is one with at least 9 digits (dates and times have 8). */
 const TELEFON = /(?:\+|\(?\b0)\d[\d ()./-]{5,}\d/g;
 const TELEFON_ZIFFERN = 9;
-/** Dates and times inside such a run („01.08.2027 07.30“); their digits do not count. */
-const DATUM_ZEIT = /\b\d{1,2}\.\d{1,2}\.(?:\d{4}|\d{2})\b|\b\d{1,2}[.:]\d{2}\b/g;
+/** A date or a time, e.g. „01.08.2027“, „07.30“ or „7:30“. */
+const DATUM_ODER_ZEIT = String.raw`(?:\d{1,2}\.\d{1,2}\.(?:\d{4}|\d{2})|\d{1,2}[.:]\d{2})`;
+/**
+ * A run made only of dates and times, maybe with a short number after them („07.30-08.00 10“
+ * Minuten): no phone number, however many digits it has.
+ */
+const NUR_DATUM_ZEIT = new RegExp(
+  String.raw`^${DATUM_ODER_ZEIT}(?:[\s/-]+${DATUM_ODER_ZEIT})*(?:\s+\d{1,3})?$`
+);
 
-/** Whether a run is a phone number: enough digits that are no date or time. */
+/** Whether a run is a phone number: enough digits, and not only dates and times. */
 function istTelefon(treffer: string): boolean {
-  return (treffer.replace(DATUM_ZEIT, '').match(/\d/g)?.length ?? 0) >= TELEFON_ZIFFERN;
+  if (NUR_DATUM_ZEIT.test(treffer.trim())) return false;
+  return (treffer.match(/\d/g)?.length ?? 0) >= TELEFON_ZIFFERN;
 }
 
 /**

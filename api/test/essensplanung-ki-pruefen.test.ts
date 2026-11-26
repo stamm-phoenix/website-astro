@@ -339,6 +339,9 @@ test('contact data is taken out of the instructions', () => {
     anleitungFuerModell('Tel. (0170) 1234567, +49 (0)170 1234567 oder 0170.1234567'),
     'Tel. [Telefon], [Telefon] oder [Telefon]'
   );
+  // Numbers in pairs with dots are no dates for that
+  for (const nummer of ['0170 12.34.56.78', '06.12.34.56.78', '0170.12.34.567'])
+    assert.equal(anleitungFuerModell(`Tel. ${nummer}`), 'Tel. [Telefon]');
   // Amounts, dates and times stay
   assert.equal(
     anleitungFuerModell('Am 01.08.2027 von 07.30-08.00 Uhr vorkochen.'),

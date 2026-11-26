@@ -360,7 +360,12 @@ function nummeriere(gericht: Gericht, zeile?: GerichtZutat, position?: number): 
     .sort((a, b) => a.position - b.position);
   if (zeile)
     liste.splice(Math.min(Math.max((position ?? liste.length + 1) - 1, 0), liste.length), 0, zeile);
-  liste.forEach((entry, index) => (entry.position = index + 1));
+  liste.forEach((entry, index) => {
+    // A line that moves gets a new version, as its row does on the server
+    if (entry.position === index + 1) return;
+    entry.position = index + 1;
+    entry.etag = neuesEtag();
+  });
   gericht.zutaten = liste;
 }
 

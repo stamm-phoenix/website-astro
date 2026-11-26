@@ -170,6 +170,7 @@
     });
     if (!ok) return;
     const etag = hinweis.zeile.etag;
+    const vorher = $state.snapshot(gericht.zutaten);
     const ansicht = await speichern(
       () =>
         kontext.api.senden<PlanungAnsicht>(
@@ -180,7 +181,19 @@
         ),
       `${name} entfernt.`
     );
-    if (ansicht) uebernommen = [...uebernommen, index];
+    if (!ansicht) return;
+    uebernommen = [...uebernommen, index];
+    // The lines below move up, which gives them a new version. Hints on a line that was as
+    // checked and only moved go on with that version; others would overwrite a change.
+    const nachher = ansicht.gerichte.find((g) => g.id === gericht.id)?.zutaten ?? [];
+    for (const [weiterer, andere] of hinweise.entries()) {
+      if (!andere.zeile || andere.zeile.id === zeile.id || uebernommen.includes(weiterer)) continue;
+      const alt = vorher.find((z) => z.id === andere.zeile!.id);
+      const neu = nachher.find((z) => z.id === andere.zeile!.id);
+      if (alt?.etag !== andere.zeile.etag || !neu) continue;
+      if (gleicheZeile(neu, aenderungBody(alt, {}, alt.etag))) andere.zeile.etag = neu.etag;
+      else if (andere.aenderung || andere.entfernen) veralten(weiterer);
+    }
   }
 
   async function zeileHinzufuegen(index: number, hinweis: KiHinweis): Promise<void> {
