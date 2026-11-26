@@ -195,6 +195,8 @@ export interface PlanungZutat {
   abweichend: { kategorie: boolean; einheitenart: boolean };
   /** How many lines of dishes, stock and extra needs use it; a used one cannot be deleted. */
   zeilen: number;
+  /** An own one added with just its name: category or kind of unit are guesses until set. */
+  angabenOffen: boolean;
   /** The shop it is bought at; null: none yet. */
   geschaeftId: number | null;
 }
@@ -348,7 +350,8 @@ export interface GerichtInput {
 
 /** A line of a dish; the ingredient is a central one or one of the Planung. */
 export interface GerichtZutatInput {
-  zutat: { zutatId: number } | { planungZutatId: number };
+  /** `neuerName`: a name not in the lists, added as an ingredient of the Planung's own. */
+  zutat: { zutatId: number } | { planungZutatId: number } | { neuerName: string };
   menge: number | null;
   einheit: GerichtEinheit | null;
   fest: boolean;
@@ -368,4 +371,14 @@ export interface PlanungZutatInput {
   vegetarisch?: boolean | null;
   vegan?: boolean | null;
   allergene?: number[];
+  /** Only for a new one: the unit of its first line, for the kind of unit when none is chosen. */
+  einheit?: GerichtEinheit | null;
+}
+
+/**
+ * The kind of unit a new ingredient of the Planung's own gets: the chosen one, else the kind of
+ * the unit of its first line, else pieces.
+ */
+export function einheitenartFuerNeue(input: PlanungZutatInput): EssenEinheitenart {
+  return input.einheitenart ?? (input.einheit ? einheitenartVon(input.einheit) : null) ?? 'stueck';
 }

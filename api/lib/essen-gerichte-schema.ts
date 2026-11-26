@@ -188,6 +188,8 @@ const unlessFalse = z.preprocess((value) => value !== false, z.boolean());
 export const gerichtZutatSchema = lenientObject({
   zutatId: id,
   planungZutatId: id,
+  /** A name not in the lists: it becomes an ingredient of the Planung's own with open details. */
+  neueZutat: line(150),
   menge,
   einheit,
   fest: z.preprocess((value) => value === true, z.boolean()),
@@ -198,11 +200,14 @@ export const gerichtZutatSchema = lenientObject({
   nur: ids,
   hinweis: line(100),
 })
-  .refine((value) => value.zutatId !== null || value.planungZutatId !== null, {
-    error: 'Bitte eine Zutat wählen.',
-    path: ['zutat'],
-    when: ALWAYS,
-  })
+  .refine(
+    (value) => value.zutatId !== null || value.planungZutatId !== null || value.neueZutat !== '',
+    {
+      error: 'Bitte eine Zutat wählen.',
+      path: ['zutat'],
+      when: ALWAYS,
+    }
+  )
   .refine((value) => value.menge === null || value.einheit !== null, {
     error: 'Bitte eine Einheit wählen.',
     path: ['einheit'],
@@ -219,7 +224,11 @@ export const gerichtZutatSchema = lenientObject({
     when: ALWAYS,
   })
   .transform((value) => ({
-    zutat: value.zutatId ? { zutatId: value.zutatId } : { planungZutatId: value.planungZutatId! },
+    zutat: value.zutatId
+      ? { zutatId: value.zutatId }
+      : value.planungZutatId
+        ? { planungZutatId: value.planungZutatId }
+        : { neuerName: value.neueZutat },
     menge: value.menge,
     einheit: value.menge === null ? null : value.einheit,
     fest: value.fest && value.menge !== null,
@@ -260,5 +269,23 @@ export const planungZutatEigeneSchema = lenientObject({
 }).transform((value) => ({
   ...value,
   // Vegan includes vegetarian, as in the central list
+  vegetarisch: value.vegan ? true : value.vegetarisch,
+}));
+
+/**
+ * A new ingredient of the Planung's own: the name is enough. Without a category or kind of unit,
+ * the API takes „Sonstiges“ and the kind of `einheit` (the unit of its first line) and marks the
+ * details as open.
+ */
+export const planungZutatNeuSchema = lenientObject({
+  name: line(150).refine((value) => value !== '', { error: 'Bitte einen Namen eintragen.' }),
+  kategorieId: id,
+  einheitenart,
+  einheit: einheitFeld.catch(null),
+  vegetarisch: merkmal,
+  vegan: merkmal,
+  allergene: ids,
+}).transform((value) => ({
+  ...value,
   vegetarisch: value.vegan ? true : value.vegetarisch,
 }));

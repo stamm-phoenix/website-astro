@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateGerichtZutat, validatePlanungZutat } from '../lib/essen-gerichte-validation';
+import {
+  validateGerichtZutat,
+  validateNeuePlanungZutat,
+  validatePlanungZutat,
+} from '../lib/essen-gerichte-validation';
 import { fields } from './fixtures/essen-fields';
 
 const MENGE_UNGUELTIG = 'Bitte eine Menge größer als 0 eintragen oder leer lassen.';
@@ -282,4 +286,42 @@ test('Planung zutat: the differences of a central ingredient never fail', () => 
     kategorieId: 2,
     einheitenart: 'volumen',
   });
+});
+
+test('Zeile: a typed name not in the lists is a new ingredient of the Planung', () => {
+  assert.deepEqual(
+    validateGerichtZutat(zeile({ zutatId: undefined, neueZutat: '  Omas  Gewürz ' })).zutat,
+    {
+      neuerName: 'Omas Gewürz',
+    }
+  );
+  // An id wins over a name
+  assert.deepEqual(validateGerichtZutat(zeile({ neueZutat: 'Omas Gewürz' })).zutat, { zutatId: 4 });
+  assert.deepEqual(zeileFehler({ zutatId: undefined, neueZutat: '   ' }), {
+    zutat: 'Bitte eine Zutat wählen.',
+  });
+  assert.deepEqual(zeileFehler({ zutatId: undefined, neueZutat: 'n'.repeat(151) }), {
+    neueZutat: 'Höchstens 150 Zeichen.',
+  });
+});
+
+test('Planung zutat: a new own ingredient needs only its name', () => {
+  assert.deepEqual(validateNeuePlanungZutat({ name: ' Vanillepaste ', einheit: ' Tube ' }), {
+    name: 'Vanillepaste',
+    kategorieId: null,
+    einheitenart: null,
+    einheit: 'Tube',
+    vegetarisch: null,
+    vegan: null,
+    allergene: [],
+  });
+  assert.deepEqual(validateNeuePlanungZutat({ ...EIGENE, einheit: 5 }), {
+    ...EIGENE,
+    einheit: null,
+    allergene: [1, 3],
+  });
+  assert.deepEqual(
+    fields(() => validateNeuePlanungZutat({ name: ' ', kategorieId: 'x', einheitenart: 'x' })),
+    { name: 'Bitte einen Namen eintragen.' }
+  );
 });

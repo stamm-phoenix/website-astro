@@ -18,7 +18,7 @@ import {
   validateGericht,
   validateNeuesGericht,
   validateGerichtZutat,
-  validatePlanungZutat,
+  validateNeuePlanungZutat,
 } from '../lib/essen-gerichte-validation';
 import { ok, planungHandler, readEtag, readId, zugangVon } from '../lib/essen-planung-http';
 import { readJsonBody } from '../lib/response-utils';
@@ -29,12 +29,15 @@ export const EssensplanungKatalog = planungHandler(async (request) => {
   return ok(await ladeKatalog());
 });
 
-/** POST `{ name, kategorieId, einheitenart, vegetarisch?, vegan?, allergene? }`: an own ingredient. */
+/**
+ * POST `{ name, kategorieId?, einheitenart?, einheit?, vegetarisch?, vegan?, allergene? }`: an own
+ * ingredient; without a category or kind of unit its details stay open (`angabenOffen`).
+ */
 export const EssensplanungZutaten = planungHandler(async (request) => {
   const zugang = await zugangVon(request);
   const id = await eigeneZutatAnlegen(
     zugang,
-    validatePlanungZutat(await readJsonBody(request), { eigene: true })
+    validateNeuePlanungZutat(await readJsonBody(request))
   );
   return ok({ id, ansicht: await ladeAnsicht(zugang) }, 201);
 });

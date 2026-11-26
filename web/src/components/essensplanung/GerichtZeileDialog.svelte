@@ -230,9 +230,6 @@
     if (zahl !== null && !einheit)
       felder.einheit = 'Bitte eine Einheit eintragen, z. B. g oder Bund.';
     if (!auswahl && !eigene) felder.zutat = 'Bitte eine Zutat aus der Liste wählen.';
-    if (eigene && !eigene.kategorieId) felder.kategorie = 'Bitte eine Kategorie wählen.';
-    if (eigene && !eigene.einheitenart)
-      felder.einheitenart = 'Bitte wählen, worin sie gemessen wird.';
     if (Object.keys(felder).length) return;
 
     let ziel = auswahl;
@@ -244,7 +241,7 @@
           const antwort = await kontext.api.senden<{ id: number; ansicht: PlanungAnsicht }>(
             'POST',
             '/zutaten',
-            eigeneBody(zutatText.trim(), neu)
+            eigeneBody(zutatText.trim(), neu, zahl === null ? null : einheit)
           );
           id = antwort.id;
           return antwort;

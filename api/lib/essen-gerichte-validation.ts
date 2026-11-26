@@ -10,6 +10,7 @@ import {
   gerichtZutatSchema,
   planungZutatAbweichungSchema,
   planungZutatEigeneSchema,
+  planungZutatNeuSchema,
 } from './essen-gerichte-schema';
 import type { GerichtInput, GerichtZutatInput, PlanungZutatInput } from './essen-gerichte-model';
 import type { EinplanungInput } from './essen-planung-model';
@@ -125,4 +126,9 @@ export function readKopf(body: Record<string, unknown> | null): GerichtKopfInput
       Object.fromEntries(Object.entries(error.fields).map(([feld, text]) => [`kopf.${feld}`, text]))
     );
   }
+}
+
+/** A new ingredient of the Planung's own; only the name is needed (`planungZutatNeuSchema`). */
+export function validateNeuePlanungZutat(input: unknown): PlanungZutatInput {
+  return parseWith(planungZutatNeuSchema, input);
 }

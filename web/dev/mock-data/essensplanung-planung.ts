@@ -322,6 +322,21 @@ export function ansichtVon(
 const NICHT_ERLAUBT = () =>
   new MockPlanungFehler(403, 'NICHT_ERLAUBT', 'Das dürfen nur die Besitzer:innen der Planung.');
 
+/** The ingredients of the Planung a line, stock, extra need, purchase or cooked dish uses. */
+function genutzteZutaten(planung: MockPlanung): Set<number> {
+  return new Set(
+    [
+      ...planung.gerichte.flatMap((g) => g.zutaten),
+      ...planung.bestand,
+      ...planung.zusatzbedarf,
+      ...planung.tage
+        .flatMap((t) => t.mahlzeiten.flatMap((m) => m.einplanungen))
+        .flatMap((e) => e.verbrauch),
+      ...planung.einkaeufe.flatMap((e) => [...e.posten, ...e.regeln]),
+    ].map((nutzung) => nutzung.planungZutatId)
+  );
+}
+
 /** Checks the right, bumps the counter and logs the change. */
 export function aendere(
   z: MockZugang,
@@ -341,7 +356,13 @@ export function aendere(
   if (recht === 'verwalten' && !darfMitgliederVerwalten(z.zugang, z.planung.mitgliederVerwalten)) {
     throw NICHT_ERLAUBT();
   }
+  // Like `essen-zutat-aufraeumen.ts`: ingredients go with their last use
+  const genutzt = genutzteZutaten(z.planung);
   work();
+  const jetzt = genutzteZutaten(z.planung);
+  z.planung.zutaten = z.planung.zutaten.filter(
+    (zutat) => !genutzt.has(zutat.id) || jetzt.has(zutat.id)
+  );
   z.planung.seq++;
   z.planung.etag = etag();
   z.planung.geaendert = new Date().toISOString();

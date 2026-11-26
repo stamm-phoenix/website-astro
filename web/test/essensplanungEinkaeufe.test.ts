@@ -29,6 +29,7 @@ const zutat = (
   vegan: true,
   allergene: [],
   abweichend: { kategorie: false, einheitenart: false },
+  angabenOffen: false,
   zeilen: 1,
   geschaeftId,
 });

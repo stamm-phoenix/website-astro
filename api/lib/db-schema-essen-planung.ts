@@ -90,6 +90,8 @@ export interface EssenPlanungZutatTable {
   geschaeft_id: Generated<number | null>;
   /** Only for ingredients of the Planung's own; central ones take the value of the list. */
   lebensmittel: Generated<boolean>;
+  /** An own one added with just its name; cleared when someone sets its details (`0091`). */
+  angaben_offen: Generated<boolean>;
 }
 
 export interface EssenPlanungZutatUnvertraeglichkeitTable {
