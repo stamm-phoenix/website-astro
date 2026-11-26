@@ -100,6 +100,7 @@ test('ingredients are filtered, edited and added', async ({ page }) => {
   await page.getByRole('button', { name: 'Bearbeiten: Honig', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Zutat bearbeiten' });
   await expect(dialog.getByLabel('Ernährung', { exact: true })).toHaveValue('vegetarisch');
+  const hinweis = await dialog.getByLabel('Hinweis').inputValue();
   await dialog.getByLabel('Hinweis').fill('Nicht für Babys');
   await dialog.getByRole('button', { name: 'Speichern' }).click();
   await expect(dialog).toHaveCount(0);
@@ -132,11 +133,11 @@ test('ingredients are filtered, edited and added', async ({ page }) => {
   await answerConfirm(page, 'Zutat „Testzutat Dinkel“ löschen?', 'Löschen');
   await expect(status).toHaveText('0 von 433 Zutaten');
 
-  // The mobile run shares the demo state: Honig is unchecked again
+  // The mobile run shares the demo state: Honig gets its hint back
   await page.getByLabel('Zutat suchen').fill('Honig');
   await page.getByRole('button', { name: 'Bearbeiten: Honig', exact: true }).click();
   const zurueck = page.getByRole('dialog', { name: 'Zutat bearbeiten' });
-  await zurueck.getByLabel('Ernährung und Allergene sind geprüft').uncheck();
+  await zurueck.getByLabel('Hinweis').fill(hinweis);
   await zurueck.getByRole('button', { name: 'Speichern' }).click();
   await expect(zurueck).toHaveCount(0);
 });
