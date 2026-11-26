@@ -99,7 +99,6 @@ export interface ZutatForm {
   lebensmittel: boolean;
   /** `vegan`, `vegetarisch`, `nein` or `unbekannt`. */
   ernaehrung: 'vegan' | 'vegetarisch' | 'nein' | 'unbekannt';
-  merkmaleGeprueft: boolean;
   hinweis: string;
   grammProTl: string;
   grammProEl: string;
@@ -122,7 +121,6 @@ export function toZutatForm(zutat: EssenZutat | null, kategorieId?: number): Zut
       abtropfgewicht: false,
       lebensmittel: true,
       ernaehrung: 'unbekannt',
-      merkmaleGeprueft: false,
       hinweis: '',
       grammProTl: '',
       grammProEl: '',
@@ -145,7 +143,6 @@ export function toZutatForm(zutat: EssenZutat | null, kategorieId?: number): Zut
         : zutat.vegetarisch === false
           ? 'nein'
           : 'unbekannt',
-    merkmaleGeprueft: zutat.merkmaleGeprueft,
     hinweis: zutat.hinweis,
     grammProTl: numberText(zutat.grammProTl),
     grammProEl: numberText(zutat.grammProEl),
@@ -167,7 +164,6 @@ export function fromZutatForm(form: ZutatForm): EssenZutatInput {
     lebensmittel: form.lebensmittel,
     vegetarisch: form.ernaehrung === 'unbekannt' ? null : form.ernaehrung !== 'nein',
     vegan: form.ernaehrung === 'unbekannt' ? null : form.ernaehrung === 'vegan',
-    merkmaleGeprueft: form.merkmaleGeprueft,
     hinweis: form.hinweis,
     grammProTl: optionalNumber(form.grammProTl),
     grammProEl: optionalNumber(form.grammProEl),

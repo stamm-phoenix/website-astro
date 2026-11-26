@@ -95,7 +95,6 @@ function initialState(): MockState {
       lebensmittel: food,
       vegetarisch: food ? bit(merkmal?.vegetarisch) : null,
       vegan: food ? bit(merkmal?.vegan) : null,
-      merkmaleGeprueft: false,
       hinweis: merkmal?.hinweis ?? '',
       grammProTl: gramm(umrechnung.get(row.name)?.gramm_pro_tl),
       grammProEl: gramm(umrechnung.get(row.name)?.gramm_pro_el),

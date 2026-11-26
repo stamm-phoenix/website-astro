@@ -82,7 +82,6 @@ dbTest('the stand changes with a change of the Planung and with the central list
             lebensmittel: true,
             vegetarisch: true,
             vegan: true,
-            merkmaleGeprueft: false,
             hinweis: '',
             grammProTl: null,
             grammProEl: null,

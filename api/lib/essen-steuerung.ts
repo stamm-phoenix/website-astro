@@ -136,7 +136,6 @@ export async function listZutaten(db: Db = getDb()): Promise<EssenZutat[]> {
       lebensmittel: row.lebensmittel,
       vegetarisch: row.vegetarisch,
       vegan: row.vegan,
-      merkmaleGeprueft: row.merkmale_geprueft,
       hinweis: row.hinweis,
       grammProTl: number(row.gramm_pro_tl),
       grammProEl: number(row.gramm_pro_el),

@@ -98,7 +98,6 @@ test('the bodies take the proposal at the checked version', () => {
     id: 7,
     etag: 'neuer',
     abtropfgewicht: true,
-    merkmaleGeprueft: true,
     lebensmittel: true,
     vegetarisch: true,
     vegan: true,
@@ -110,10 +109,6 @@ test('the bodies take the proposal at the checked version', () => {
     etag: 'e7',
     ...WERTE,
     abtropfgewicht: true,
-    merkmaleGeprueft: true,
     hinweis: 'Hartweizen',
   });
-  // Diet or allergens the AI changed are no longer checked by a person
-  const ohneGluten = { ...mitVorschlag, vorschlag: { ...WERTE, allergene: [] } };
-  assert.equal(zentraleZutatKiBody(aktuell, ohneGluten)?.merkmaleGeprueft, false);
 });

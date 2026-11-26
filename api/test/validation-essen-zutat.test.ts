@@ -11,7 +11,6 @@ const ZUTAT = {
   lebensmittel: true,
   vegetarisch: true,
   vegan: true,
-  merkmaleGeprueft: true,
   hinweis: '',
   grammProTl: null,
   grammProEl: null,
@@ -70,7 +69,6 @@ test('Zutat: something that is no object reports the required fields', () => {
     einheitenart: 'Bitte eine Einheit wählen.',
     lebensmittel: 'Bitte ja oder nein wählen.',
     abtropfgewicht: 'Bitte ja oder nein wählen.',
-    merkmaleGeprueft: 'Bitte ja oder nein wählen.',
     allergene: 'Bitte eine Liste angeben.',
   };
   for (const body of [undefined, null, [], 'text'])
@@ -92,7 +90,6 @@ test('Zutat: every rule reports its message', () => {
           lebensmittel: 'ja',
           vegetarisch: 'nein',
           vegan: 'x',
-          merkmaleGeprueft: null,
           hinweis: 'x'.repeat(201),
           grammProTl: 1000.01,
           grammProEl: 0.001,
@@ -109,7 +106,6 @@ test('Zutat: every rule reports its message', () => {
       lebensmittel: 'Bitte ja oder nein wählen.',
       vegetarisch: 'Bitte ja, nein oder unbekannt wählen.',
       vegan: 'Bitte ja, nein oder unbekannt wählen.',
-      merkmaleGeprueft: 'Bitte ja oder nein wählen.',
       hinweis: 'Höchstens 200 Zeichen.',
       grammProTl: 'Bitte eine Zahl von 0,01 bis 1.000 eintragen oder das Feld leer lassen.',
       grammProEl: 'Bitte eine Zahl von 0,01 bis 1.000 eintragen oder das Feld leer lassen.',

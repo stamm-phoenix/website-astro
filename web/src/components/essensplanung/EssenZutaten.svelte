@@ -32,7 +32,6 @@
 
   let search = $state('');
   let kategorieFilter = $state('');
-  let nurUngeprueft = $state(false);
   let form = $state<ZutatForm | null>(null);
   const dialog = createDialogForm(
     (error, fallback) =>
@@ -43,18 +42,13 @@
 
   const kategorieName = $derived(new Map(data.kategorien.map((k) => [k.id, k.name])));
   const allergenName = $derived(new Map(data.unvertraeglichkeiten.map((u) => [u.id, u.name])));
-  // Only food has diet and allergens to check.
-  const ungeprueft = $derived(
-    data.zutaten.filter((z) => z.lebensmittel && !z.merkmaleGeprueft).length
-  );
 
   const gefiltert = $derived.by(() => {
     const query = search.trim().toLocaleLowerCase('de');
     return data.zutaten.filter(
       (zutat) =>
         (!query || zutat.name.toLocaleLowerCase('de').includes(query)) &&
-        (!kategorieFilter || String(zutat.kategorieId) === kategorieFilter) &&
-        (!nurUngeprueft || (zutat.lebensmittel && !zutat.merkmaleGeprueft))
+        (!kategorieFilter || String(zutat.kategorieId) === kategorieFilter)
     );
   });
 
@@ -188,7 +182,7 @@
     </h2>
     <InfoHint
       label="Zentrale Zutatenliste"
-      text="Alle Planungen wählen ihre Zutaten aus dieser Liste. Abweichungen in einer Planung gelten nur dort. Vegetarisch, vegan und Allergene sind bei den Startdaten Vorschläge; bitte prüfen und dann als geprüft markieren."
+      text="Alle Planungen wählen ihre Zutaten aus dieser Liste. Abweichungen in einer Planung gelten nur dort."
     />
   </div>
 
@@ -206,10 +200,6 @@
         {/each}
       </select>
     </div>
-    <label class="flex items-center gap-2 pb-2 text-sm font-semibold text-neutral-800">
-      <input type="checkbox" bind:checked={nurUngeprueft} />
-      Nur ungeprüfte ({ungeprueft})
-    </label>
     <ActionButton
       variant="primary"
       type="button"
@@ -250,7 +240,6 @@
         onclick={() => {
           search = '';
           kategorieFilter = '';
-          nurUngeprueft = false;
         }}
       >
         Filter zurücksetzen
@@ -367,10 +356,6 @@
             />
           {/snippet}
         </FormField>
-        <label class="flex items-center gap-2 text-sm font-semibold text-neutral-800">
-          <input type="checkbox" bind:checked={form.merkmaleGeprueft} />
-          Ernährung und Allergene sind geprüft
-        </label>
       {/if}
 
       <fieldset class="min-w-0">

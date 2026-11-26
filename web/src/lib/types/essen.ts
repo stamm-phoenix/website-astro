@@ -22,7 +22,6 @@ export interface EssenZutatInput {
   /** null: not known yet. */
   vegetarisch: boolean | null;
   vegan: boolean | null;
-  merkmaleGeprueft: boolean;
   hinweis: string;
   grammProTl: number | null;
   grammProEl: number | null;
