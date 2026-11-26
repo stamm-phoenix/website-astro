@@ -21,7 +21,7 @@ export interface PlanKontext {
   readonly fehler: string | null;
   hinweis(text: string | null, art?: 'success' | 'error'): void;
   zeige(ansicht: PlanungAnsicht): void;
-  /** Switches to the area of the dishes and opens this one to edit it, e.g. from the plan. */
+  /** Opens this dish on its own page in the area of the dishes, e.g. from the plan. */
   oeffneGericht(gerichtId: number): void;
 }
 

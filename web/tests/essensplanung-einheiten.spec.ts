@@ -1,20 +1,20 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import { anlegen, zeilenMenge } from './essensplanung-helpers';
+import { gerichtOeffnen } from './essensplanung-vorbereitung';
 
 test('a line takes a unit of its own, and units of one ingredient are brought into line', async ({
   page,
 }) => {
   test.slow();
   await anlegen(page, 'E2E Einheiten eigene');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
   for (const name of ['Kräuterquark', 'Kartoffelsuppe']) {
+    // A new dish opens on its own page; the tab leads back to the list
+    await page.getByRole('tab', { name: 'Gerichte' }).click();
     await page.getByLabel('Neues Gericht').fill(name);
     await page.getByRole('button', { name: 'Anlegen' }).click();
     await expect(page.getByText(`${name} angelegt.`).first()).toBeVisible();
   }
-  const quark = page
-    .locator('li', { has: page.getByText('Kräuterquark', { exact: true }) })
-    .first();
+  const quark = await gerichtOeffnen(page, 'Kräuterquark');
   const suppe = page
     .locator('li', { has: page.getByText('Kartoffelsuppe', { exact: true }) })
     .first();
@@ -34,7 +34,8 @@ test('a line takes a unit of its own, and units of one ingredient are brought in
   await einheit.press('Enter');
   await expect.poll(() => zeilenMenge(quark, 'TK-Petersilie')).toBe('3 Bund');
 
-  // The same herbs in grams in another dish (a new dish is open already)
+  // The same herbs in grams in another dish
+  await gerichtOeffnen(page, 'Kartoffelsuppe');
   const zweite = suppe.getByLabel('Neue Zutat für Kartoffelsuppe');
   await zweite.pressSequentially('TK-Peters');
   await zweite.press('Enter');
@@ -42,7 +43,8 @@ test('a line takes a unit of its own, and units of one ingredient are brought in
   await suppe.getByLabel('Menge der neuen Zutat').press('Enter');
   await expect.poll(() => zeilenMenge(suppe, 'TK-Petersilie')).toBe('200 g');
 
-  // The page offers to bring them into one unit; the demo AI proposes Bund at 20 g
+  // The list of dishes offers to bring them into one unit; the demo AI proposes Bund at 20 g
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page
     .getByRole('button', { name: 'TK-Petersilie steht in g, Bund: vereinheitlichen' })
     .click();
@@ -65,6 +67,7 @@ test('a line takes a unit of its own, and units of one ingredient are brought in
   await expectNoHorizontalOverflow(page);
   await dialog.getByRole('button', { name: 'Eine Menge umrechnen' }).click();
   await expect(page.getByText('TK-Petersilie steht jetzt in Bund.').first()).toBeVisible();
+  await gerichtOeffnen(page, 'Kartoffelsuppe');
   await expect.poll(() => zeilenMenge(suppe, 'TK-Petersilie')).toBe('20 Bund');
   await expect(page.getByRole('button', { name: /vereinheitlichen/ })).toHaveCount(0);
 });

@@ -17,6 +17,19 @@ export function tokenAusHash(hash: string, param: string): string | null {
   return value && TOKEN.test(value) ? value : null;
 }
 
+/** The dish shown on its own page (`#t=…&g=12`), or null for the areas. */
+export function gerichtAusHash(hash: string): number | null {
+  const value = new URLSearchParams(hash.replace(/^#/, '')).get('g');
+  return value && /^[1-9]\d{0,9}$/.test(value) ? Number(value) : null;
+}
+
+/** The fragment of the page of a Planung, with the dish shown on its own page. */
+export function planungHash(token: string, gerichtId: number | null = null): string {
+  const params = new URLSearchParams({ t: token });
+  if (gerichtId !== null) params.set('g', String(gerichtId));
+  return `#${params}`;
+}
+
 export function planungUrl(token: string, origin = window.location.origin): string {
   return `${origin}/essensplanung/planung#${new URLSearchParams({ t: token })}`;
 }

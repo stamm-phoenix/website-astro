@@ -1,5 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow } from './fixtures';
 import { anlegen } from './essensplanung-helpers';
+import { gerichtOeffnen } from './essensplanung-vorbereitung';
 
 test('the shop of an ingredient is typed in the line of a dish, a new name adds it', async ({
   page,
@@ -70,6 +71,7 @@ test('the shop of an ingredient is typed in the line of a dish, a new name adds 
   await expect(dialog).toBeHidden();
 
   // The shop belongs to the ingredient, so another dish with it shows it too
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill('Nudelsalat');
   await page.getByRole('button', { name: 'Anlegen' }).click();
   await expect(page.getByText('Nudelsalat angelegt.').first()).toBeVisible();
@@ -89,7 +91,7 @@ test('the shop of an ingredient is typed in the line of a dish, a new name adds 
   await page.getByRole('tab', { name: 'Einkauf' }).click();
   await expect(geschaefte).toContainText('Metro');
   await expect(geschaefte).toContainText('Bäckerei Krume');
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
+  await gerichtOeffnen(page, 'Nudeln');
   await nudeln.getByRole('button', { name: 'Nudeln (Spaghetti) ändern' }).click();
   await expect(feld).toHaveValue('');
 });

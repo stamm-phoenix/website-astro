@@ -53,7 +53,7 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   expect((await gespeichert).ok()).toBe(true);
   await page.reload();
   await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByText('Nudeln mit Soße', { exact: true }).click();
+  await gerichtOeffnen(page, 'Nudeln mit Soße');
   await expect(menge).toBeVisible();
   await expect.poll(() => zeilenMenge(gericht, 'Hackfleisch')).toBe('750 g');
   await expect(gericht.getByLabel('Hinweis zu Hackfleisch')).toHaveValue('gemischt');
@@ -74,7 +74,7 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   await page.reload();
   await page.getByRole('tab', { name: 'Gerichte' }).click();
   await expect.poll(() => zeilenMenge(gericht, 'Hackfleisch')).toBe('1 kg');
-  await page.getByText('Nudeln mit Soße', { exact: true }).click();
+  await gerichtOeffnen(page, 'Nudeln mit Soße');
   await expect(menge).toBeVisible();
 
   // „Mehr Angaben …“ takes what was typed, the unit too
@@ -106,7 +106,7 @@ test('lines are typed and changed right in the rows, like in a sheet', async ({
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Nudeln mit Soße', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Nudeln mit Soße');
   await menge.focus();
   await anderes.getByLabel('Hinweis zu Hackfleisch').fill('vom Metzger');
   await anderes.getByLabel('Hinweis zu Hackfleisch').press('Enter');
@@ -160,7 +160,7 @@ test('typed input survives a slow save, removing and a read-only phase', async (
   await expect(gericht.getByRole('alert')).toHaveCount(0);
   await page.reload();
   await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByText('Gulasch', { exact: true }).click();
+  await gerichtOeffnen(page, 'Gulasch');
   await expect(menge).toHaveValue('900');
 
   // A read-only phase, e.g. maintenance, keeps a started new line
@@ -238,7 +238,7 @@ test('Enter in the name adds a chosen ingredient; saved text and amounts are not
   await expect(gericht.getByRole('alert')).toHaveCount(0);
   await page.reload();
   await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByText('Gulasch', { exact: true }).click();
+  await gerichtOeffnen(page, 'Gulasch');
   await expect(menge).toHaveValue('800');
   await expect(gericht.getByLabel('Hinweis zu Hackfleisch')).toHaveValue('mit Schale');
 });
@@ -277,7 +277,7 @@ test(
     await expect(gericht.locator('ol > li').first()).toContainText('Zwiebeln', { timeout: 10_000 });
     await page.reload();
     await page.getByRole('tab', { name: 'Gerichte' }).click();
-    await page.getByText('Gulasch', { exact: true }).click();
+    await gerichtOeffnen(page, 'Gulasch');
     await expect(menge).toHaveValue('800');
   }
 );

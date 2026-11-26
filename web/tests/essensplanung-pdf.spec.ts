@@ -39,6 +39,7 @@ test('plan, recipe cards, eaters and shopping list download as PDF', async ({ pa
   expect(karte.text).toContain('ins Wasser');
   // A long name wraps on the card instead of running off the page
   const lang = `Nudeln ${'mit sehr viel Soße '.repeat(6).trim()} Ende`;
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill(lang);
   await page.getByRole('button', { name: 'Anlegen' }).click();
   await expect(page.getByText(`${lang} angelegt.`).first()).toBeVisible();
@@ -46,6 +47,7 @@ test('plan, recipe cards, eaters and shopping list download as PDF', async ({ pa
     page.getByRole('button', { name: `Rezeptkarte als PDF: ${lang}` }).click()
   );
   expect(langeKarte.breiteste).toBeLessThanOrEqual(210 - 14 + 0.5);
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
   const alle = await pdfLaden(page, () =>
     page.getByRole('button', { name: 'Alle Rezeptkarten als PDF' }).click()
   );

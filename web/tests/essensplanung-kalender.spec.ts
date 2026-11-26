@@ -100,7 +100,9 @@ test(
       page.getByRole('tabpanel', { name: 'Gerichte' }).getByLabel('Name', { exact: true })
     ).toHaveValue('Nudeln');
 
-    // The choice stays after a reload; the list is one tap away
+    // „Zurück“ leads to the plan again; the choice stays after a reload
+    await page.getByRole('button', { name: 'Zurück zum Plan' }).click();
+    await expect(page.getByRole('tab', { name: 'Plan' })).toHaveAttribute('aria-selected', 'true');
     await page.reload();
     await expect(page.getByRole('grid', { name: 'Plan als Kalender' })).toBeVisible({
       timeout: 15_000,

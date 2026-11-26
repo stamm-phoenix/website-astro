@@ -25,7 +25,7 @@ test('a change of others is only saved over with Enter; a cancelled removal stil
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Gulasch', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Gulasch');
   const andereMenge = anderes.getByLabel('Menge von Hackfleisch');
 
   // Typed while others save: Enter warns, leaving the row keeps theirs, a second Enter saves
@@ -44,7 +44,7 @@ test('a change of others is only saved over with Enter; a cancelled removal stil
   await settle(page);
   await anderes.reload();
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Gulasch', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Gulasch');
   await expect(andereMenge).toHaveValue('750');
   await expect(menge).toHaveValue('600');
   await menge.press('Enter');
@@ -86,7 +86,7 @@ test('an amount typed for one ingredient does not go to another one others chose
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Eintopf', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Eintopf');
   await menge.fill('600');
   await anderes.getByRole('button', { name: 'Kidneybohnen ändern' }).click();
   const dialog = anderes.getByRole('dialog');
@@ -101,7 +101,7 @@ test('an amount typed for one ingredient does not go to another one others chose
   await settle(page);
   await anderes.reload();
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Eintopf', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Eintopf');
   await expect(anderes.getByLabel('Menge von Zwiebeln')).not.toHaveValue('600');
 });
 
@@ -211,7 +211,7 @@ test('a fixed amount set by others is a conflict; PDF and deleting wait for the 
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Gulasch', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Gulasch');
   await menge.fill('600');
   await anderes.getByRole('button', { name: 'Hackfleisch ändern' }).click();
   const dialog = anderes.getByRole('dialog');
@@ -289,7 +289,7 @@ test('a conflict is settled with buttons, without Enter or Escape', async ({ pag
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Gulasch', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Gulasch');
   const andereMenge = anderes.getByLabel('Menge von Hackfleisch');
   /** Others save `wert` while the row holds `eigene`, then the row tries to save. */
   const konflikt = async (eigene: string, wert: string) => {
@@ -341,12 +341,13 @@ test('a new row follows an ingredient of the list that others take over and meas
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Pfannkuchen', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Pfannkuchen');
   const andereZutat = anderes.getByLabel('Neue Zutat für Pfannkuchen');
   await andereZutat.pressSequentially('Ahornsir');
   await andereZutat.press('Enter');
   await andereZutat.press('Enter');
   await expect(anderes.getByLabel('Menge von Ahornsirup')).toBeVisible();
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
   await anderes.getByText(/Zutaten dieser Planung/).click();
   await anderes
     .getByRole('group')
@@ -367,7 +368,7 @@ test('a new row follows an ingredient of the list that others take over and meas
   await expect(gericht.getByLabel('Einheit von Ahornsirup').nth(1)).toHaveValue('l');
   await page.reload();
   await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByText('Pfannkuchen', { exact: true }).click();
+  await gerichtOeffnen(page, 'Pfannkuchen');
   await expect(page.getByLabel('Menge von Ahornsirup').nth(1)).toHaveValue('1,5');
   await expect(page.getByLabel('Einheit von Ahornsirup').nth(1)).toHaveValue('l');
   await anderes.context().close();

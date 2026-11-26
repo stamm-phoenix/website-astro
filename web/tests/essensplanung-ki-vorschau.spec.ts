@@ -8,8 +8,10 @@ import { quiet } from './settle';
  * a deletion by others shows the text to copy, and the rows are easy to hit on a phone.
  */
 
-/** Creates a dish without a Personenzahl on the open tab „Gerichte“, over the page. */
+/** Creates a dish without a Personenzahl on the tab „Gerichte“, over the page. */
 async function gerichtAnlegen(page: Page, name: string): Promise<Locator> {
+  // The tab leads back to the list from a dish open on its own page
+  await page.getByRole('tab', { name: 'Gerichte' }).click();
   await page.getByLabel('Neues Gericht').fill(name);
   await page.getByRole('button', { name: 'Anlegen' }).click();
   await expect(page.getByText(`${name} angelegt.`).first()).toBeVisible();
@@ -76,7 +78,7 @@ test('a dish deleted by someone else shows the pasted recipe to copy', async ({
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Eintopf', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Eintopf');
   await anderes.getByRole('button', { name: 'Gericht löschen' }).click();
   await answerConfirm(anderes, '„Eintopf“ löschen?', 'Gericht löschen');
   await expect(anderes.getByText('Eintopf gelöscht.').first()).toBeVisible();
@@ -238,7 +240,7 @@ test('a recipe sets the people of a dish without any in the same save, never hal
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Suppe', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Suppe');
   const personen = anderes
     .locator('li', { has: anderes.getByText('Suppe', { exact: true }) })
     .first()

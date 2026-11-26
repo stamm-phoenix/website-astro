@@ -202,10 +202,25 @@ export function nudelnVorbereiten(
   });
 }
 
-/** Unfolds a dish on the tab „Gerichte“, as a new one is unfolded after creating it. */
+/**
+ * Opens a dish on its own page from the list on the tab „Gerichte“, as a new one opens after
+ * creating it; leaves another dish open there first. Returns the item holding its page.
+ */
 export async function gerichtOeffnen(page: Page, name: string): Promise<Locator> {
-  const karte = page.locator('li', { has: page.getByText(name, { exact: true }) }).first();
-  await karte.getByText(name, { exact: true }).click();
-  await expect(karte.locator('details')).toHaveAttribute('open', '');
+  // The area of the dishes, also while hidden; the plan lists the dishes too
+  const karte = page
+    .locator('#bereich-panel-gerichte li', { has: page.getByText(name, { exact: true }) })
+    .first();
+  const zurueck = karte.getByRole('button', { name: /^(Alle Gerichte|Zurück zum Plan)$/ });
+  if (await zurueck.isVisible()) return karte;
+  const tab = page.getByRole('tab', { name: 'Gerichte' });
+  const zeile = karte.getByRole('link').first();
+  // The tab shows the area of the dishes; clicked again on another dish, it shows the list
+  for (let klick = 0; klick < 2 && !(await zeile.isVisible()); klick++) {
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+  }
+  await zeile.click();
+  await expect(zurueck).toBeVisible();
   return karte;
 }
