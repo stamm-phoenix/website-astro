@@ -134,8 +134,6 @@ export async function zentraleZutatenZusammenlegen(
 ): Promise<number> {
   if (von === nach) throw new ValidationError({ von: 'Bitte zwei verschiedene Zutaten wählen.' });
   return inTransaction(async (trx) => {
-    // In order of the ids, so two merges at the same time cannot wait for each other
-    for (const id of [von, nach].sort((a, b) => a - b)) await lockResource(trx, zutatSperre(id));
     const zutaten = await trx
       .selectFrom('essen.zutat')
       .select(['id', 'name'])
@@ -144,10 +142,32 @@ export async function zentraleZutatenZusammenlegen(
     const alt = zutaten.find((z) => z.id === von);
     const bleibt = zutaten.find((z) => z.id === nach);
     if (!alt || !bleibt) throw new RecordNotFoundError();
-    const ids = (
-      await trx.selectFrom('essen.planung_zutat').select('id').where('zutat_id', '=', von).execute()
-    ).map((row) => row.id);
-    const planungen = await aufZentraleZutat(trx, ids, nach, { name: alt.name, nach: bleibt.name });
+    const details = { name: alt.name, nach: bleibt.name };
+    // The Planungen are locked before the ingredients (`aufZentraleZutat`); one that picked
+    // `von` in between is handled in the next round
+    let planungen = 0;
+    for (let runde = 0; runde < 3; runde++) {
+      const ids = (
+        await trx
+          .selectFrom('essen.planung_zutat')
+          .select('id')
+          .where('zutat_id', '=', von)
+          .execute()
+      ).map((row) => row.id);
+      if (!ids.length) break;
+      planungen += await aufZentraleZutat(trx, ids, nach, details, [von, nach]);
+    }
+    // In the order of the ids, like `aufZentraleZutat`; held already when Planungen used it
+    for (const id of [von, nach].sort((a, b) => a - b)) await lockResource(trx, zutatSperre(id));
+    const nochGenutzt = await trx
+      .selectFrom('essen.planung_zutat')
+      .select('id')
+      .where('zutat_id', '=', von)
+      .executeTakeFirst();
+    if (nochGenutzt)
+      throw new ValidationError({
+        von: `Eine Planung hat „${alt.name}“ gerade genutzt. Tippe noch einmal auf „Zusammenlegen“.`,
+      });
     await trx.deleteFrom('essen.zutat').where('id', '=', von).execute();
     await katalogGeaendert(trx);
     await audit(trx, actor, 'zutat-zusammengelegt', {
