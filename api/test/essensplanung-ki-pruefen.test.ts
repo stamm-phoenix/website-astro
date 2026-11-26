@@ -344,6 +344,8 @@ test('contact data is taken out of the instructions', () => {
     anleitungFuerModell('Am 01.08.2027 von 07.30-08.00 Uhr vorkochen.'),
     'Am 01.08.2027 von 07.30-08.00 Uhr vorkochen.'
   );
+  for (const zeit of ['Am 01.08.2027 07.30 Uhr vorkochen.', '07.30-08.00 10 Minuten ruhen lassen.'])
+    assert.equal(anleitungFuerModell(zeit), zeit);
   assert.equal(
     anleitungFuerModell('500 g Nudeln 10 Minuten kochen.'),
     '500 g Nudeln 10 Minuten kochen.'
@@ -444,6 +446,16 @@ test('another ingredient never stays for diets it does not suit, nor empties a n
         menge: 3,
         einheit: 'stueck',
       }),
+      // An invented key without a name: meant for an unknown ingredient, so nothing changes
+      hinweis({
+        aktion: 'zeile_aendern',
+        zeile: 1,
+        text: 'Etwas anderes?',
+        zutatKey: 'z999',
+        menge: 2,
+        einheit: 'kg',
+        fuerVegetarisch: false,
+      }),
       // "" is no new note: the amount changes, the note stays
       hinweis({ zeile: 1, text: 'Mehr.', menge: 120, einheit: 'kg', hinweisNeu: '' }),
       hinweis({ zeile: 1, text: 'Nichts.', hinweisNeu: '  ' }),
@@ -458,6 +470,7 @@ test('another ingredient never stays for diets it does not suit, nor empties a n
         fuerVegetarisch: false,
         fuerVegan: false,
       },
+      undefined,
       undefined,
       undefined,
       undefined,
