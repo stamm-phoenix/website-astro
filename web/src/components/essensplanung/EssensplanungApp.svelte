@@ -16,6 +16,7 @@
   import PlanEinstellungen from './PlanEinstellungen.svelte';
   import PlanAenderungen from './PlanAenderungen.svelte';
   import type { PlanKontext } from './planKontext';
+  import { PlanNavigation, type Bereich } from './planNavigation.svelte';
 
   /**
    * The page of a Planung. The token comes from the link (`#t=…`); the page asks every 2.5
@@ -37,20 +38,9 @@
   let busy = $state(false);
   let meldung = $state<string | null>(null);
   let meldungArt = $state<'success' | 'error'>('success');
-  let bereich = $state<
-    | 'plan'
-    | 'gerichte'
-    | 'teilnehmende'
-    | 'einkauf'
-    | 'lager'
-    | 'packliste'
-    | 'belege'
-    | 'mitglieder'
-    | 'einstellungen'
-  >('plan');
+  const navigation = new PlanNavigation();
+  const bereich = $derived(navigation.bereich);
   let offline = $state(false);
-  /** The dish to open in the area of the dishes; `n` counts, so the same one opens again. */
-  let zielGericht = $state<{ id: number; n: number } | null>(null);
 
   const bereiche = $derived([
     { id: 'plan', label: 'Plan' },
@@ -64,7 +54,7 @@
     ...(ansicht && ansicht.zugang !== 'lesen'
       ? [{ id: 'einstellungen', label: 'Einstellungen' }]
       : []),
-  ] as { id: typeof bereich; label: string }[]);
+  ] as { id: Bereich; label: string }[]);
 
   /** Arrow keys, Home and End move between the areas (WAI-ARIA tabs pattern). */
   async function bereichTaste(event: KeyboardEvent): Promise<void> {
@@ -81,9 +71,9 @@
               : -1;
     if (next < 0) return;
     event.preventDefault();
-    bereich = bereiche[next].id;
+    navigation.waehle(bereiche[next].id);
     await tick();
-    document.getElementById(`bereich-${bereich}`)?.focus();
+    document.getElementById(`bereich-${navigation.bereich}`)?.focus();
   }
 
   function zeige(neu: PlanungAnsicht): void {
@@ -184,8 +174,7 @@
     hinweis,
     zeige,
     oeffneGericht(id: number) {
-      bereich = 'gerichte';
-      zielGericht = { id, n: (zielGericht?.n ?? 0) + 1 };
+      void navigation.oeffnen(id);
     },
   };
 
@@ -210,6 +199,7 @@
       ladeFehler = 'Der Link ist unvollständig. Öffne ihn bitte noch einmal aus der Mail.';
       return () => window.removeEventListener('hashchange', onHash);
     }
+    const navigationEnde = navigation.start(token);
     void laden();
 
     let wait = POLL_MS;
@@ -247,6 +237,7 @@
       controller?.abort();
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('hashchange', onHash);
+      navigationEnde();
     };
   });
 </script>
@@ -321,7 +312,7 @@
               eintrag.id
                 ? 'border-brand-900 text-brand-900'
                 : 'border-transparent text-neutral-700 hover:border-neutral-400 hover:text-brand-900'}"
-              onclick={() => (bereich = eintrag.id)}
+              onclick={() => navigation.waehle(eintrag.id)}
               onkeydown={bereichTaste}
             >
               {eintrag.label}
@@ -346,7 +337,7 @@
       aria-labelledby="bereich-gerichte"
       hidden={bereich !== 'gerichte'}
     >
-      <PlanGerichte {kontext} sichtbar={bereich === 'gerichte'} ziel={zielGericht} />
+      <PlanGerichte {kontext} {navigation} sichtbar={bereich === 'gerichte'} />
     </div>
     <div
       role="tabpanel"

@@ -1,6 +1,6 @@
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import { pdfLaden, zeilenMenge } from './essensplanung-helpers';
-import { planungVorbereiten } from './essensplanung-vorbereitung';
+import { gerichtOeffnen, planungVorbereiten } from './essensplanung-vorbereitung';
 import { quiet } from './settle';
 
 test('dishes get ingredients from the list, warnings and a recipe card', async ({
@@ -71,7 +71,7 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   await adressen.nth(1).press('Enter');
   await expect(page.getByText('Chili gespeichert.').first()).toBeVisible();
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Chili', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Chili');
   await expect(anderes.getByLabel('Anleitung (optional)')).toContainText('Hack anbraten', {
     timeout: 15_000,
   });
@@ -94,6 +94,20 @@ test('dishes get ingredients from the list, warnings and a recipe card', async (
   expect(karte.text).toContain('https://example.org/chili');
   expect(karte.text).toContain('Omas Chiligewürz');
   await expectNoHorizontalOverflow(page);
+
+  // The dish has a page of its own: „Alle Gerichte“ leads to the list, a reload keeps the dish
+  // open, and the browser's back button leads to the list again
+  const titel = page.getByRole('heading', { name: 'Chili', exact: true });
+  await chili.getByRole('button', { name: 'Alle Gerichte' }).click();
+  await expect(page.getByLabel('Neues Gericht')).toBeVisible();
+  await expect(titel).toBeHidden();
+  await chili.getByRole('link').click();
+  await expect(titel).toBeVisible();
+  await page.reload();
+  await expect(titel).toBeVisible();
+  await page.goBack();
+  await expect(page.getByLabel('Neues Gericht')).toBeVisible();
+  await expect(titel).toBeHidden();
   await anderes.context().close();
 });
 
@@ -117,7 +131,7 @@ test('the read-only link shows dishes without editing', async ({ page, browser }
   const leser = await (await browser.newContext()).newPage();
   await leser.goto(lesen!.trim());
   await leser.getByRole('tab', { name: 'Gerichte' }).click();
-  await leser.getByText('Brotzeit', { exact: true }).click();
+  await gerichtOeffnen(leser, 'Brotzeit');
   await expect(leser.getByText('Noch keine Zutaten.')).toBeVisible();
   await expect(leser.getByRole('button', { name: 'Mehr Angaben …' })).toHaveCount(0);
   await expect(leser.getByLabel('Neues Gericht')).toHaveCount(0);
@@ -162,7 +176,7 @@ test('an open line keeps its version, a deleted one is not added again; closing 
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Kakao', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Kakao');
   await anderes.getByRole('button', { name: 'H-Milch ändern' }).click();
   await anderes.getByRole('dialog').getByLabel('Hinweis (optional)').fill('warm');
   await anderes.getByRole('dialog').getByRole('button', { name: 'Speichern' }).click();
@@ -197,7 +211,7 @@ test('a dish deleted by someone else shows the unsaved input', async ({ page, br
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Waffeln', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Waffeln');
   await anderes.getByRole('button', { name: 'Gericht löschen' }).click();
   await answerConfirm(anderes, '„Waffeln“ löschen?', 'Gericht löschen');
   await expect(anderes.getByText('Waffeln gelöscht.').first()).toBeVisible();
@@ -251,6 +265,7 @@ test('drained weight is marked; a typed unit is saved when others change the ing
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
+  await anderes.getByRole('tab', { name: 'Gerichte' }).click();
   await anderes.getByText(/Zutaten dieser Planung/).click();
   await anderes.getByRole('button', { name: 'Hausbrühe ändern' }).click();
   await anderes
@@ -283,7 +298,7 @@ test('without the central list the card does not hide allergens', async ({ page 
   await page.route('**/api/essensplanung/planung/katalog', (route) => route.abort());
   await page.reload();
   await page.getByRole('tab', { name: 'Gerichte' }).click();
-  await page.getByText('Milchreis', { exact: true }).click();
+  await gerichtOeffnen(page, 'Milchreis');
   await expect(reis.getByText('enthält Allergene (Namen nicht geladen)')).toBeVisible();
   await expect(reis.getByRole('button', { name: 'Rezeptkarte als PDF: Milchreis' })).toBeDisabled();
 });
@@ -301,7 +316,7 @@ test('a dish changed during the delete question is not deleted', async ({ page, 
   const anderes = await (await browser.newContext()).newPage();
   await anderes.goto(page.url());
   await anderes.getByRole('tab', { name: 'Gerichte' }).click();
-  await anderes.getByText('Suppe', { exact: true }).click();
+  await gerichtOeffnen(anderes, 'Suppe');
   await anderes
     .locator('li[id^="gericht-"]')
     .getByLabel('Name', { exact: true })
@@ -323,7 +338,7 @@ test('a dish changed during the delete question is not deleted', async ({ page, 
   await dialog.getByRole('option', { name: 'H-Milch', exact: true }).click();
   await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
   await expect(anderes.getByText('H-Milch').first()).toBeVisible();
-  await expect(suppe.getByText('1 Zutaten', { exact: false })).toBeAttached({ timeout: 15_000 });
+  await expect(suppe.getByLabel('Menge von H-Milch')).toBeVisible({ timeout: 15_000 });
   await answerConfirm(page, '„Kürbissuppe“ löschen?', 'Gericht löschen');
   await expect(page.getByText(/Jemand anderes hat das gerade geändert/).first()).toBeVisible();
   await expect(suppe.getByText('Kürbissuppe', { exact: true })).toBeVisible();

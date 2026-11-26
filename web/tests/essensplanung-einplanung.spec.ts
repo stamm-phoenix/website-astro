@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect, expectNoHorizontalOverflow, answerConfirm } from './fixtures';
 import { anlegen } from './essensplanung-helpers';
+import { gerichtOeffnen } from './essensplanung-vorbereitung';
 
 async function gerichtAnlegen(page: Page, name: string): Promise<void> {
   await page.getByRole('tab', { name: 'Gerichte' }).click();
@@ -106,9 +107,8 @@ test('dishes are planned, ordered, copied, moved and taken off meals', async ({
   ).toHaveCount(0);
 
   // The dish shows where it is planned
-  await page.getByRole('tab', { name: 'Gerichte' }).click();
-  // Dishes created on this page are open already
-  await expect(page.getByText('Eingeplant: 1_2_1 Mittagessen')).toBeVisible();
+  const chili = await gerichtOeffnen(page, 'Chili');
+  await expect(chili.getByText('Eingeplant: 1_2_1 Mittagessen')).toBeVisible();
   await page.getByRole('tab', { name: 'Plan' }).click();
   await expectNoHorizontalOverflow(page);
   await anderes.context().close();

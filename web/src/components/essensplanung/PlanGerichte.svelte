@@ -1,13 +1,12 @@
 <script lang="ts">
-  import AufklappPfeil from '../ui/AufklappPfeil.svelte';
   import { tick, untrack } from 'svelte';
-  import { SvelteSet } from 'svelte/reactivity';
   import ActionButton from '../ui/ActionButton.svelte';
   import FilterTabs from '../ui/FilterTabs.svelte';
   import StatusLabel from '../ui/StatusLabel.svelte';
   import VorschlagFeld from '../ui/VorschlagFeld.svelte';
   import FormField from '../pflege/FormField.svelte';
   import { zustaendigAus } from '../../lib/essensplanungPlan';
+  import { planungHash } from '../../lib/essensplanung';
   import { zustaendigeJeGericht } from '../../lib/essensplanungZustaendige';
   import { ApiError, errorMessage } from '../../lib/api';
   import { guardUnsavedChanges } from '../../lib/unsavedChanges';
@@ -18,17 +17,22 @@
   import PlanZutaten from './PlanZutaten.svelte';
   import EinheitenHinweis from './EinheitenHinweis.svelte';
   import type { PlanKontext } from './planKontext';
+  import type { PlanNavigation } from './planNavigation.svelte';
 
-  /** The dishes of a Planung and the ingredients they use; dishes download as recipe cards. */
+  /**
+   * The dishes of a Planung and the ingredients they use; dishes download as recipe cards. Each
+   * dish opens on a page of its own. All dishes stay in the page, hidden, so input started in one
+   * is kept while another area or the list is shown.
+   */
 
   interface Props {
     kontext: PlanKontext;
+    /** Which dish is shown on its own page. */
+    navigation: PlanNavigation;
     /** False while another tab is shown. */
     sichtbar: boolean;
-    /** A dish to open for editing, e.g. clicked in the plan; `n` counts the requests. */
-    ziel?: { id: number; n: number } | null;
   }
-  let { kontext, sichtbar, ziel = null }: Props = $props();
+  let { kontext, navigation, sichtbar }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
   const bearbeiten = $derived(ansicht.zugang !== 'lesen' && !ansicht.wartung);
 
@@ -61,53 +65,47 @@
     ansicht.mitglieder.filter((m) => !m.entzogen).map((m) => ({ value: m.name }))
   );
 
-  // A dish clicked in the plan opens, scrolled into view with its name field focused
+  /** The dish shown on its own page; a deleted one gives way to the list. */
+  const offenId = $derived(
+    navigation.gericht !== null && ansicht.gerichte.some((g) => g.id === navigation.gericht)
+      ? navigation.gericht
+      : null
+  );
   $effect(() => {
-    void ziel?.n;
-    const id = ziel?.id;
-    if (id === undefined) return;
-    untrack(() => void oeffne(id));
+    if (navigation.gericht !== null && offenId === null) untrack(() => navigation.weg());
   });
-  async function oeffne(id: number): Promise<void> {
-    zeige(id);
-    offen.add(id);
+  const zurueckText = $derived(navigation.von === 'plan' ? 'Zurück zum Plan' : 'Alle Gerichte');
+
+  // A dish just opened gets the focus on its name, or on its heading for those who only read
+  $effect(() => {
+    if (!navigation.geoeffnet) return;
+    const id = untrack(() => navigation.gericht);
+    if (id !== null) void fokus(id);
+  });
+  async function fokus(id: number): Promise<void> {
     await tick();
-    const karte = document.getElementById(`gericht-${id}`);
-    karte?.scrollIntoView({ block: 'start' });
-    const feld = document.getElementById(`gericht-${id}-name`) ?? karte?.querySelector('summary');
+    const feld =
+      document.getElementById(`gericht-${id}-name`) ??
+      document.getElementById(`gericht-${id}-titel`);
     feld?.focus({ preventScroll: true });
+  }
+
+  /** Opens a dish on its own page; a click with Ctrl or the middle button opens a new tab. */
+  function oeffnen(event: MouseEvent, id: number): void {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
+      return;
+    event.preventDefault();
+    void navigation.oeffnen(id);
   }
 
   /** Who is responsible for each dish anywhere in the plan, and whether it is the viewer. */
   const zustaendige = $derived(zustaendigeJeGericht(ansicht));
   let filter = $state<'alle' | 'meine'>('alle');
   const meine = $derived(ansicht.gerichte.filter((g) => zustaendige.get(g.id)?.ich));
-  /**
-   * Whether the filter hides a dish. Hidden dishes stay in the page, so input started in one is
-   * kept when the filter changes or someone else takes the dish over.
-   */
+  /** Whether the filter hides a dish in the list. */
   function versteckt(id: number): boolean {
-    if (filter !== 'meine' || zustaendige.get(id)?.ich) return false;
-    // Taken over by someone else while open: stays until it is closed, so typing goes on
-    return !(offen.has(id) && warMeins.has(id));
+    return filter === 'meine' && !zustaendige.get(id)?.ich;
   }
-  /** The dishes that were the viewer's while „Meine“ is shown. */
-  const warMeins = new SvelteSet<number>();
-  $effect(() => {
-    if (filter !== 'meine') return;
-    for (const gericht of meine) untrack(() => warMeins.add(gericht.id));
-  });
-  function waehleFilter(wert: 'alle' | 'meine'): void {
-    warMeins.clear();
-    filter = wert;
-  }
-  /** Shows all dishes when the filter hides one that is to be opened. */
-  function zeige(id: number): void {
-    if (versteckt(id)) filter = 'alle';
-  }
-
-  /** The dishes shown open; a new one opens itself. */
-  const offen = new SvelteSet<number>();
 
   async function anlegen(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -146,10 +144,8 @@
     if (name === gesendet) name = '';
     if (personen === gesendetPersonen) personen = '';
     if (zustaendig === gesendetZustaendig) zustaendig = '';
-    zeige(id);
-    offen.add(id);
-    await tick();
-    document.getElementById(`gericht-${id}`)?.scrollIntoView({ block: 'start' });
+    // A new dish opens on its own page, to fill it in
+    await navigation.oeffnen(id);
   }
 
   /** Recipe cards as PDF; only with the central list, so they name all allergens. */
@@ -163,11 +159,6 @@
   async function alleRezeptkarten(): Promise<void> {
     const { essenDateiName } = await import('../../lib/essensplanungPdf');
     await rezeptkarten(ansicht.gerichte, essenDateiName('Rezeptkarten', ansicht));
-  }
-
-  function umschalten(id: number, auf: boolean): void {
-    if (auf) offen.add(id);
-    else offen.delete(id);
   }
 </script>
 
@@ -185,171 +176,216 @@
     </p>
   {/if}
 
-  {#if bearbeiten}
-    <form class="surface flex flex-wrap items-end gap-3 p-3 print:hidden" onsubmit={anlegen}>
-      <FormField
-        id="gericht-neu-name"
-        label="Neues Gericht"
-        class="min-w-48 flex-[2]"
-        error={felder.name}
-      >
-        {#snippet children(attrs)}
-          <input
-            {...attrs}
-            class="form-input"
-            maxlength="150"
-            placeholder="z. B. Chili sin Carne"
-            bind:value={name}
-          />
-        {/snippet}
-      </FormField>
-      <FormField
-        id="gericht-neu-personen"
-        label="Personen"
-        class="w-48"
-        error={felder.personen}
-        info="Für so viele Personen gelten die Mengen und wachsen mit den Essern. Leer gelten sie fest für jede Einplanung, z. B. 2 Brote fürs Frühstück."
-      >
-        {#snippet children(attrs)}
-          <input
-            {...attrs}
-            class="form-input"
-            inputmode="numeric"
-            placeholder="leer: feste Mengen"
-            bind:value={personen}
-          />
-        {/snippet}
-      </FormField>
-      <FormField
-        id="gericht-neu-mahlzeit"
-        label="Einplanen bei"
-        optional
-        class="min-w-48 flex-1"
-        error={felder.mahlzeitId}
-      >
-        {#snippet children(attrs)}
-          <select {...attrs} class="form-input" bind:value={mahlzeitId}>
-            <option value="">nicht einplanen</option>
-            {#each ansicht.tage as tag (tag.id)}
-              <optgroup label="Tag {tag.nummer}">
-                {#each tag.mahlzeiten as mahlzeit (mahlzeit.id)}
-                  <option value={String(mahlzeit.id)}>{mahlzeit.kennung} {mahlzeit.name}</option>
-                {/each}
-              </optgroup>
-            {/each}
-          </select>
-        {/snippet}
-      </FormField>
-      {#if mahlzeitId}
+  <!-- The list stays in the page while a dish is open, so a started new dish is kept -->
+  <div class="space-y-6" hidden={offenId !== null}>
+    {#if bearbeiten}
+      <form class="surface flex flex-wrap items-end gap-3 p-3 print:hidden" onsubmit={anlegen}>
         <FormField
-          id="gericht-neu-zustaendig"
-          label="Zuständig"
-          optional
-          class="min-w-40 flex-1"
-          error={felder.zustaendigText ?? felder.zustaendigId}
+          id="gericht-neu-name"
+          label="Neues Gericht"
+          class="min-w-48 flex-[2]"
+          error={felder.name}
         >
           {#snippet children(attrs)}
-            <VorschlagFeld
+            <input
               {...attrs}
-              options={mitglieder}
-              listLabel="Mitglieder"
-              maxlength={100}
-              placeholder="Name"
-              bind:value={zustaendig}
+              class="form-input"
+              maxlength="150"
+              placeholder="z. B. Chili sin Carne"
+              bind:value={name}
             />
           {/snippet}
         </FormField>
-      {/if}
-      <ActionButton type="submit" variant="primary" disabled={kontext.busy}>Anlegen</ActionButton>
-    </form>
-  {/if}
+        <FormField
+          id="gericht-neu-personen"
+          label="Personen"
+          class="w-48"
+          error={felder.personen}
+          info="Für so viele Personen gelten die Mengen und wachsen mit den Essern. Leer gelten sie fest für jede Einplanung, z. B. 2 Brote fürs Frühstück."
+        >
+          {#snippet children(attrs)}
+            <input
+              {...attrs}
+              class="form-input"
+              inputmode="numeric"
+              placeholder="leer: feste Mengen"
+              bind:value={personen}
+            />
+          {/snippet}
+        </FormField>
+        <FormField
+          id="gericht-neu-mahlzeit"
+          label="Einplanen bei"
+          optional
+          class="min-w-48 flex-1"
+          error={felder.mahlzeitId}
+        >
+          {#snippet children(attrs)}
+            <select {...attrs} class="form-input" bind:value={mahlzeitId}>
+              <option value="">nicht einplanen</option>
+              {#each ansicht.tage as tag (tag.id)}
+                <optgroup label="Tag {tag.nummer}">
+                  {#each tag.mahlzeiten as mahlzeit (mahlzeit.id)}
+                    <option value={String(mahlzeit.id)}>{mahlzeit.kennung} {mahlzeit.name}</option>
+                  {/each}
+                </optgroup>
+              {/each}
+            </select>
+          {/snippet}
+        </FormField>
+        {#if mahlzeitId}
+          <FormField
+            id="gericht-neu-zustaendig"
+            label="Zuständig"
+            optional
+            class="min-w-40 flex-1"
+            error={felder.zustaendigText ?? felder.zustaendigId}
+          >
+            {#snippet children(attrs)}
+              <VorschlagFeld
+                {...attrs}
+                options={mitglieder}
+                listLabel="Mitglieder"
+                maxlength={100}
+                placeholder="Name"
+                bind:value={zustaendig}
+              />
+            {/snippet}
+          </FormField>
+        {/if}
+        <ActionButton type="submit" variant="primary" disabled={kontext.busy}>Anlegen</ActionButton>
+      </form>
+    {/if}
 
-  <!-- Stays during maintenance, locked, so an open conversion keeps what is typed -->
-  {#if ansicht.zugang !== 'lesen'}<EinheitenHinweis {kontext} />{/if}
+    <!-- Stays during maintenance, locked, so an open conversion keeps what is typed -->
+    {#if ansicht.zugang !== 'lesen'}<EinheitenHinweis {kontext} />{/if}
+
+    {#if ansicht.gerichte.length}
+      <PdfKnopf
+        {kontext}
+        label="Alle Rezeptkarten als PDF"
+        disabled={!katalog}
+        erstellen={alleRezeptkarten}
+      />
+      {#if ansicht.ichId !== null}
+        <FilterTabs
+          label="Gerichte zeigen"
+          countNouns={['Gericht', 'Gerichte']}
+          options={[
+            { value: 'alle', label: 'Alle', count: ansicht.gerichte.length },
+            { value: 'meine', label: 'Meine', count: meine.length },
+          ]}
+          value={filter}
+          onselect={(wert) => (filter = wert)}
+        />
+      {/if}
+      {#if filter === 'meine' && !meine.length}
+        <p class="text-neutral-700">Du bist bei keinem Gericht zuständig.</p>
+      {/if}
+    {:else}
+      <p class="text-neutral-700">Die Planung hat noch keine Gerichte.</p>
+    {/if}
+  </div>
 
   {#if ansicht.gerichte.length}
-    <PdfKnopf
-      {kontext}
-      label="Alle Rezeptkarten als PDF"
-      disabled={!katalog}
-      erstellen={alleRezeptkarten}
-    />
-    {#if ansicht.ichId !== null}
-      <FilterTabs
-        label="Gerichte zeigen"
-        countNouns={['Gericht', 'Gerichte']}
-        options={[
-          { value: 'alle', label: 'Alle', count: ansicht.gerichte.length },
-          { value: 'meine', label: 'Meine', count: meine.length },
-        ]}
-        value={filter}
-        onselect={waehleFilter}
-      />
-    {/if}
-    {#if bearbeiten}
-      <p class="text-sm text-neutral-700">Wird sofort gespeichert.</p>
-    {/if}
-    {#if filter === 'meine' && !meine.length}
-      <p class="text-neutral-700">Du bist bei keinem Gericht zuständig.</p>
-    {/if}
-    <ul class="space-y-3">
+    <!-- While a dish is open, the list holds only its page -->
+    <ul class="space-y-3" role={offenId !== null ? 'none' : undefined}>
       {#each ansicht.gerichte as gericht (gericht.id)}
         {@const wer = zustaendige.get(gericht.id)}
+        {@const offen = offenId === gericht.id}
         <li
           id="gericht-{gericht.id}"
-          class="surface scroll-mt-24 lg:scroll-mt-0"
-          class:meins={wer?.ich}
-          hidden={versteckt(gericht.id)}
+          role={offenId !== null ? 'none' : undefined}
+          hidden={offenId !== null ? !offen : versteckt(gericht.id)}
         >
-          <details
-            open={offen.has(gericht.id)}
-            ontoggle={(event) => umschalten(gericht.id, event.currentTarget.open)}
-          >
-            <summary
-              class="flex min-h-11 cursor-pointer list-none flex-wrap items-baseline gap-x-3 px-4 py-3 [&::-webkit-details-marker]:hidden"
+          {#if !offen}
+            <a
+              href={planungHash(kontext.token, gericht.id)}
+              class="surface flex min-h-11 items-center gap-3 px-4 py-3 no-underline hover:border-brand-900"
+              class:meins={wer?.ich}
+              onclick={(event) => oeffnen(event, gericht.id)}
             >
-              <span class="font-serif text-lg font-bold text-brand-900 [overflow-wrap:anywhere]">
-                {gericht.name}
-              </span>
-              <span class="text-sm text-neutral-700">
-                {gericht.zutaten.length} Zutaten{gericht.personen === null
-                  ? ' · feste Mengen'
-                  : ` · für ${gericht.personen} Personen`}
-              </span>
-              {#if wer?.ich}<StatusLabel label="Du bist zuständig" tone="success" dot />{/if}
-              <AufklappPfeil class="ml-auto self-center" />
-              {#if wer?.namen.length}
-                <span class="basis-full text-sm text-neutral-700 [overflow-wrap:anywhere]">
-                  Zuständig: {wer.namen.join(', ')}
+              <span class="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3">
+                <span class="font-serif text-lg font-bold text-brand-900 [overflow-wrap:anywhere]">
+                  {gericht.name}
                 </span>
+                <span class="text-sm text-neutral-700">
+                  {gericht.zutaten.length} Zutaten{gericht.personen === null
+                    ? ' · feste Mengen'
+                    : ` · für ${gericht.personen} Personen`}
+                </span>
+                {#if wer?.ich}<StatusLabel label="Du bist zuständig" tone="success" dot />{/if}
+                {#if wer?.namen.length}
+                  <span class="basis-full text-sm text-neutral-700 [overflow-wrap:anywhere]">
+                    Zuständig: {wer.namen.join(', ')}
+                  </span>
+                {/if}
+              </span>
+              <svg
+                class="size-5 shrink-0 text-neutral-700"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </a>
+          {/if}
+          <article class="space-y-4" hidden={!offen} aria-labelledby="gericht-{gericht.id}-titel">
+            <button
+              type="button"
+              class="inline-flex min-h-11 items-center gap-1 font-semibold text-link hover:underline print:hidden"
+              onclick={() => navigation.zurueck()}
+            >
+              <span aria-hidden="true">←</span>
+              {zurueckText}
+            </button>
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2
+                id="gericht-{gericht.id}-titel"
+                tabindex="-1"
+                class="font-serif text-2xl font-bold text-brand-900 [overflow-wrap:anywhere] focus:outline-none"
+              >
+                {gericht.name}
+              </h2>
+              {#if wer?.ich}<StatusLabel label="Du bist zuständig" tone="success" dot />{/if}
+              {#if wer?.namen.length}
+                <p class="basis-full text-sm text-neutral-700 [overflow-wrap:anywhere]">
+                  Zuständig: {wer.namen.join(', ')}
+                </p>
               {/if}
-            </summary>
-            <div class="px-4 pb-4">
-              <GerichtKarte
-                {kontext}
-                {katalog}
-                {gericht}
-                {bearbeiten}
-                sichtbar={sichtbar && offen.has(gericht.id)}
-                onpdf={async () => {
-                  const { dateiName } = await import('../../lib/pdfBasis');
-                  await rezeptkarten(
-                    [gericht],
-                    dateiName('Rezeptkarte', 'Rezeptkarte', gericht.name)
-                  );
-                }}
-              />
             </div>
-          </details>
+            {#if bearbeiten}
+              <p class="text-sm text-neutral-700 print:hidden">Wird sofort gespeichert.</p>
+            {/if}
+            <GerichtKarte
+              {kontext}
+              {katalog}
+              {gericht}
+              {bearbeiten}
+              sichtbar={sichtbar && offen}
+              onpdf={async () => {
+                const { dateiName } = await import('../../lib/pdfBasis');
+                await rezeptkarten(
+                  [gericht],
+                  dateiName('Rezeptkarte', 'Rezeptkarte', gericht.name)
+                );
+              }}
+            />
+          </article>
         </li>
       {/each}
     </ul>
-  {:else}
-    <p class="text-neutral-700">Die Planung hat noch keine Gerichte.</p>
   {/if}
 
   {#if ansicht.zutaten.length}
-    <PlanZutaten {kontext} {katalog} {bearbeiten} />
+    <div hidden={offenId !== null}>
+      <PlanZutaten {kontext} {katalog} {bearbeiten} />
+    </div>
   {/if}
 </div>
 
