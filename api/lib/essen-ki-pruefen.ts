@@ -110,14 +110,21 @@ Einheiten sind g, kg, ml, l, stueck, packung oder bund. Die Anleitung änderst d
 
 /** Addresses and phone numbers someone may have written into the instructions. */
 const MAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
-const TELEFON = /(?:\+|\b0)\d[\d /-]{5,}\d/g;
+/** A run that may be a phone number; it is one with at least 9 digits (dates and times have 8). */
+const TELEFON = /(?:\+|\(?\b0)\d[\d ()./-]{5,}\d/g;
+const TELEFON_ZIFFERN = 9;
 
 /**
  * The instructions as the model sees them: without mail addresses and phone numbers; null for
  * none. Names written into them stay, as they cannot be told apart from words of the recipe.
  */
 export function anleitungFuerModell(anleitung: string): string | null {
-  const text = anleitung.replace(MAIL, '[E-Mail]').replace(TELEFON, '[Telefon]').trim();
+  const text = anleitung
+    .replace(MAIL, '[E-Mail]')
+    .replace(TELEFON, (treffer) =>
+      (treffer.match(/\d/g)?.length ?? 0) >= TELEFON_ZIFFERN ? '[Telefon]' : treffer
+    )
+    .trim();
   return text || null;
 }
 
