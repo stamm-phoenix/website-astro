@@ -1060,6 +1060,18 @@ export const ROUTES: RegisteredRoute[] = [
     route: 'essensplanung/planung/ki/einheiten',
   },
   {
+    name: 'essensplanungKiZutaten',
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'essensplanung/planung/ki/zutaten',
+  },
+  {
+    name: 'internEssensplanungKiZutaten',
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'intern/essensplanung/ki/zutaten',
+  },
+  {
     name: 'essensplanungZutatEinheiten',
     methods: ['PUT'],
     authLevel: 'anonymous',
@@ -1274,6 +1286,12 @@ export const ROUTES: RegisteredRoute[] = [
     methods: ['PATCH', 'DELETE'],
     authLevel: 'anonymous',
     route: 'intern/pflege/essensplanung/{liste}/{id}',
+  },
+  {
+    name: 'internPflegeEssensplanungZutatenSammel',
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'intern/pflege/essensplanung-zutaten/sammel',
   },
   {
     name: 'sammelCampaignLookup',
