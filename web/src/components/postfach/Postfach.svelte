@@ -152,7 +152,7 @@
 </script>
 
 <div class="space-y-3">
-  <div class="flex flex-wrap items-center gap-2" class:max-lg:hidden={aktiv}>
+  <div class="flex flex-wrap items-center gap-2" class:max-xl:hidden={aktiv}>
     <a
       class="btn-primary inline-flex items-center gap-1"
       href={outlook}
@@ -177,12 +177,8 @@
     loadingText="E-Mails werden geladen …"
     onretry={() => void ladePostfach(postfach)}
   >
-    <div class="grid gap-4 lg:grid-cols-[minmax(18rem,26rem)_1fr]">
-      <section
-        aria-label="Posteingang"
-        class="surface min-w-0 lg:flex lg:max-h-[calc(100dvh-11rem)] lg:flex-col"
-        class:max-lg:hidden={aktiv}
-      >
+    <div class="grid gap-4 xl:grid-cols-[minmax(18rem,26rem)_1fr]">
+      <section aria-label="Posteingang" class="surface min-w-0" class:max-xl:hidden={aktiv}>
         <PostfachFilterLeiste bind:filter {anzahl}>
           {#snippet vorne()}
             {#if zeilen.length}
@@ -211,7 +207,7 @@
           onfertig={mehrfachFertig}
           onaufheben={() => ausgewaehlt.clear()}
         />
-        <div class="min-h-0 flex-1 overflow-y-auto">
+        <div class="min-w-0">
           <KonversationListe
             {ausgewaehlt}
             auswahlGesperrt={mehrfachBusy}
@@ -235,11 +231,7 @@
         </div>
       </section>
 
-      <section
-        aria-label="Gewählte E-Mail"
-        class="min-w-0 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto lg:pr-1"
-        class:max-lg:hidden={!aktiv}
-      >
+      <section aria-label="Gewählte E-Mail" class="min-w-0" class:max-xl:hidden={!aktiv}>
         {#if aktiv}
           <KonversationAnsicht
             {postfach}
