@@ -59,6 +59,8 @@
   );
   /** Whether the change form is shown. */
   let aendernOffen = $state(false);
+  /** Ticked-off things hidden while shopping; kept while the trip shows its list. */
+  let abgehakteAus = $state(false);
 
   // Shown: the heading takes the focus, so the keyboard and screen readers start here
   let ueberschrift = $state<HTMLHeadingElement | null>(null);
@@ -279,7 +281,13 @@
     {#if ansichtArt === 'live' && !katalogGeladen}
       <p class="text-sm text-neutral-700" role="status">Liste wird geladen …</p>
     {:else if ansichtArt === 'live'}
-      <EinkaufLive {kontext} {liste} gesperrt={!bearbeiten} herkunft={herkunftVon} />
+      <EinkaufLive
+        {kontext}
+        {liste}
+        gesperrt={!bearbeiten}
+        herkunft={herkunftVon}
+        bind:abgehakteAus
+      />
     {:else}
       <div class="space-y-3">
         <EinkaufListeAnsicht {kontext} {liste} {bearbeiten} herkunft={herkunftVon} />

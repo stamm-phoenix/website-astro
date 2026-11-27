@@ -46,6 +46,8 @@
     herkunft?: Herkunft;
     /** The ingredient stands twice on the list (g and Bund): the labels name the unit. */
     zweifach?: boolean;
+    /** Ticked-off things are hidden; one with open input, an error or a save running stays. */
+    ausblenden?: boolean;
   }
   let {
     kontext,
@@ -56,6 +58,7 @@
     onoeffnen,
     herkunft,
     zweifach = false,
+    ausblenden = false,
   }: Props = $props();
   const ansicht = $derived(kontext.ansicht);
   /** How the controls of this thing are named. */
@@ -150,6 +153,34 @@
   /** Shown on a phone: opened, or with unsaved input or a conflict, which never hide. */
   const aufgeklappt = $derived(offen || geaendert || konflikt !== null);
 
+  /**
+   * Hidden, but kept on the page, so its input and a save still running stay with it (a row
+   * that goes would count as gone from the list).
+   */
+  const versteckt = $derived(
+    ausblenden && !!posten.haken && !aufgeklappt && !speichert && fehler === null
+  );
+
+  let zeile = $state<HTMLLIElement | null>(null);
+  // The box that had the focus goes: the next box still shown takes it, so the keyboard stays
+  // in the list
+  $effect.pre(() => {
+    if (!versteckt || !zeile?.contains(document.activeElement)) return;
+    const boxen = [
+      ...(zeile.closest('[data-live-liste]')?.querySelectorAll<HTMLElement>('[data-live-haken]') ??
+        []),
+    ];
+    const eigene = zeile.querySelector<HTMLElement>('[data-live-haken]');
+    const index = eigene ? boxen.indexOf(eigene) : -1;
+    void tick().then(() => {
+      const gezeigt = (b: HTMLElement): boolean => !b.closest('li')?.hidden;
+      const ziel =
+        boxen.slice(index + 1).find(gezeigt) ??
+        boxen.slice(0, Math.max(index, 0)).reverse().find(gezeigt);
+      ziel?.focus();
+    });
+  });
+
   function oeffnen(): void {
     onoeffnen(!offen);
   }
@@ -184,7 +215,7 @@
       ...((event.currentTarget as HTMLElement)
         .closest('[data-live-liste]')
         ?.querySelectorAll<HTMLElement>('[data-live-haken]') ?? []),
-    ];
+    ].filter((b) => !b.closest('li')?.hidden);
     const index = boxen.indexOf(event.currentTarget as HTMLElement);
     const ziel = boxen[index + (event.key === 'ArrowDown' ? 1 : -1)];
     if (!ziel) return;
@@ -288,7 +319,11 @@
   const erhalten = $derived(posten.haken ? hakenText(posten.haken) : '');
 </script>
 
-<li class="flex flex-wrap items-center gap-x-2 gap-y-1 py-1 md:flex-nowrap">
+<li
+  class="flex flex-wrap items-center gap-x-2 gap-y-1 py-1 md:flex-nowrap"
+  hidden={versteckt}
+  bind:this={zeile}
+>
   <button
     type="button"
     role="checkbox"
