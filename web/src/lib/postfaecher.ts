@@ -56,3 +56,8 @@ export const POSTFACH_MODULE: StaffModule = {
 export const ALTE_POSTFACH_PFADE: string[] = POSTFAECHER.map(
   (postfach) => `${POSTFACH_PATH}/${postfach.id}`
 );
+
+/** A saved favorite of a single mailbox becomes the module „Postfächer“; others stay. */
+export function aktuellerFavoritPfad(path: unknown): unknown {
+  return typeof path === 'string' && ALTE_POSTFACH_PFADE.includes(path) ? POSTFACH_PATH : path;
+}

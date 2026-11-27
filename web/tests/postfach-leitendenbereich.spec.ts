@@ -4,8 +4,10 @@ import type { PostfachAnsicht } from '../../api/lib/postfach-model';
 test('a Leitende:r reads a mail of the Kontakt-Postfach, hands it on and finds the mails on the start page', async ({
   page,
 }) => {
-  // Take the mail over first: the projects share the demo server and an earlier run handed it on
-  await page.goto('/leitendenbereich/email');
+  // Take the mail over first: the projects share the demo server and an earlier run handed it on.
+  // The old address of the mailbox (links in older mails) leads on to the module
+  await page.goto('/leitendenbereich/email/kontakt');
+  await expect(page).toHaveURL(/\/leitendenbereich\/email\?postfach=kontakt$/);
   await page
     .getByRole('region', { name: 'Posteingang' })
     .getByRole('link', { name: /Frage zum Nikolausdienst/ })
