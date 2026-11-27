@@ -1,4 +1,5 @@
 import { fetchApi, sendApi } from './api';
+import { aktuelleModulPfade } from './postfaecher';
 
 /**
  * The areas of the Leitendenbereich the logged-in person opened last, the latest first, saved on
@@ -29,7 +30,7 @@ function enqueue(request: () => Promise<{ modules: string[] }>): Promise<void> {
   const run = queue.then(async () => {
     try {
       const { modules } = await request();
-      if (generation === mine) recentStore.modules = modules;
+      if (generation === mine) recentStore.modules = aktuelleModulPfade(modules);
     } catch {
       // Not saved or loaded this time; the next opening of a module tries again
     } finally {
