@@ -133,7 +133,7 @@
 </script>
 
 <div class="space-y-3">
-  <div class="flex flex-wrap items-center gap-2 lg:hidden">
+  <div class="flex flex-wrap items-center gap-2 xl:hidden">
     <button
       type="button"
       class="text-link inline-flex min-h-11 items-center gap-1 font-semibold"
