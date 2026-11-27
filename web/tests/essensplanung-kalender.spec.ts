@@ -103,6 +103,11 @@ test(
     await expect(page.getByLabel('Neues Gericht')).toBeVisible();
     await page.goBack();
     await expect(page.getByRole('heading', { name: 'Nudeln', exact: true })).toBeVisible();
+    // Opened from the plan, the dish also leads to the list of dishes
+    await page.getByRole('button', { name: 'Alle Gerichte' }).click();
+    await expect(page.getByLabel('Neues Gericht')).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole('heading', { name: 'Nudeln', exact: true })).toBeVisible();
 
     // „Zurück“ leads to the plan again; the choice stays after a reload
     await page.getByRole('button', { name: 'Zurück zum Plan' }).click();

@@ -211,7 +211,7 @@ export async function gerichtOeffnen(page: Page, name: string): Promise<Locator>
   const karte = page
     .locator('#bereich-panel-gerichte li', { has: page.getByText(name, { exact: true }) })
     .first();
-  const zurueck = karte.getByRole('button', { name: /^(Alle Gerichte|Zurück zum Plan)$/ });
+  const zurueck = karte.getByRole('button', { name: 'Alle Gerichte' });
   if (await zurueck.isVisible()) return karte;
   const tab = page.getByRole('tab', { name: 'Gerichte' });
   const zeile = karte.getByRole('link').first();
