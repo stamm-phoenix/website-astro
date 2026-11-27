@@ -57,7 +57,22 @@ export const ALTE_POSTFACH_PFADE: string[] = POSTFAECHER.map(
   (postfach) => `${POSTFACH_PATH}/${postfach.id}`
 );
 
-/** A saved favorite of a single mailbox becomes the module „Postfächer“; others stay. */
-export function aktuellerFavoritPfad(path: unknown): unknown {
+/** A saved path of a single mailbox (favorite, recent, count) becomes the module „Postfächer“. */
+export function aktuellerModulPfad(path: unknown): unknown {
   return typeof path === 'string' && ALTE_POSTFACH_PFADE.includes(path) ? POSTFACH_PATH : path;
+}
+
+/** Recently opened areas with the old mailbox paths merged into the module, without repeats. */
+export function aktuelleModulPfade(paths: string[]): string[] {
+  return [...new Set(paths.map((path) => aktuellerModulPfad(path) as string))];
+}
+
+/** Counts of opened areas with the old mailbox paths added to the module. */
+export function aktuelleZaehler(counts: Record<string, number>): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const [path, count] of Object.entries(counts)) {
+    const key = aktuellerModulPfad(path) as string;
+    result[key] = (result[key] ?? 0) + count;
+  }
+  return result;
 }

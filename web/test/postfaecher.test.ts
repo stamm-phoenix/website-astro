@@ -3,7 +3,9 @@ import { test } from 'node:test';
 import { POSTFAECHER, postfachRoles } from '../../api/lib/postfach-liste';
 import {
   POSTFACH_MODULE,
-  aktuellerFavoritPfad,
+  aktuelleModulPfade,
+  aktuelleZaehler,
+  aktuellerModulPfad,
   postfachAusAdresse,
   postfachHref,
   postfachKurzname,
@@ -31,7 +33,26 @@ test('the choice names a mailbox without „-Postfach“', () => {
 });
 
 test('a favorite of a single mailbox becomes the module „Postfächer“', () => {
-  assert.equal(aktuellerFavoritPfad('/leitendenbereich/email/vorstand'), '/leitendenbereich/email');
-  assert.equal(aktuellerFavoritPfad('/leitendenbereich/aufgaben'), '/leitendenbereich/aufgaben');
-  assert.equal(aktuellerFavoritPfad(42), 42);
+  assert.equal(aktuellerModulPfad('/leitendenbereich/email/vorstand'), '/leitendenbereich/email');
+  assert.equal(aktuellerModulPfad('/leitendenbereich/aufgaben'), '/leitendenbereich/aufgaben');
+  assert.equal(aktuellerModulPfad(42), 42);
+});
+
+test('recent areas and counts of single mailboxes merge into the module', () => {
+  assert.deepEqual(
+    aktuelleModulPfade([
+      '/leitendenbereich/email/kontakt',
+      '/leitendenbereich/aufgaben',
+      '/leitendenbereich/email/vorstand',
+    ]),
+    ['/leitendenbereich/email', '/leitendenbereich/aufgaben']
+  );
+  assert.deepEqual(
+    aktuelleZaehler({
+      '/leitendenbereich/email/kontakt': 5,
+      '/leitendenbereich/email': 2,
+      '/leitendenbereich/belege': 1,
+    }),
+    { '/leitendenbereich/email': 7, '/leitendenbereich/belege': 1 }
+  );
 });

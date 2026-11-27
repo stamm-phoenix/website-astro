@@ -4,6 +4,7 @@
   import type { StaffModule } from '../lib/staffModuleTypes';
   import { fetchApi } from '../lib/api';
   import { commonTaskModules } from '../lib/staffCommonTasks';
+  import { aktuelleZaehler } from '../lib/postfaecher';
   interface Props {
     modules: StaffModule[];
     /** Areas the start page already shows as tiles. */
@@ -15,7 +16,8 @@
   onMount(() => {
     void fetchApi<{ counts: Record<string, number> }>('/intern/haeufig')
       .then((result) => {
-        counts = result.counts;
+        // Visits of the former single mailboxes count for the module „Postfächer“
+        counts = aktuelleZaehler(result.counts);
       })
       .catch(() => {
         /* Keep the established fallback if unavailable. */
