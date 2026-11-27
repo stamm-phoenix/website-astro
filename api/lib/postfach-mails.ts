@@ -20,9 +20,14 @@ interface Mail {
   html: string;
 }
 
+/** The module „Postfächer“ with the mailbox chosen (`web/src/lib/postfaecher.ts`). */
+export function postfachLink(siteUrl: string, postfach: string): string {
+  return `${siteUrl}/leitendenbereich/email?postfach=${encodeURIComponent(postfach)}`;
+}
+
 /** The page of the mailbox with the conversation open (`#konversation=`, `web/src/lib/postfachAnsicht.ts`). */
 export function konversationLink(siteUrl: string, postfach: string, konversation: string): string {
-  return `${siteUrl}/leitendenbereich/email/${postfach}#konversation=${encodeURIComponent(konversation)}`;
+  return `${postfachLink(siteUrl, postfach)}#konversation=${encodeURIComponent(konversation)}`;
 }
 
 function datum(iso: string): string {
@@ -78,7 +83,7 @@ export function zuweisungenMail(
     <p>${escapeHtml(vonName)} hat dir ${konversationen.length} E-Mails im ${escapeHtml(postfach.name)} (${escapeHtml(postfach.address)}) zugewiesen.</p>
     <ul style="padding-left:20px;margin:16px 0;font-size:14px;">${zeilen}</ul>
     ${mailButton(
-      `${siteUrl}/leitendenbereich/email/${postfach.id}`,
+      postfachLink(siteUrl, postfach.id),
       'Postfach öffnen',
       'Falls der Button nicht funktioniert, kopiere diese Adresse in deinen Browser:'
     )}`);

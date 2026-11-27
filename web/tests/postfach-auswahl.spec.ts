@@ -7,7 +7,7 @@ const NEWSLETTER = /Newsletter Diözesanverband/;
 const RECHNUNG = /Rechnung Zeltplatz Sommerlager/;
 
 async function oeffnen(page: Page) {
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   await expect(liste.getByRole('link', { name: NEWSLETTER })).toBeVisible();
   return liste;
@@ -196,7 +196,7 @@ test('more than 100 chosen mails are handed on in parts and counted together', a
       },
     });
   });
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   await liste.getByRole('checkbox', { name: 'Alle 150 auswählen' }).check();
   const aktionen = liste.getByRole('region', { name: 'Aktionen für die Auswahl' });

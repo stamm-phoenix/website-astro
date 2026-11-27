@@ -230,7 +230,7 @@ test('the note about an assignment escapes the mail and links the conversation',
   assert.match(mail.html, /Vera Vorstand hat dir eine E-Mail im Kontakt-Postfach/);
   assert.match(
     mail.html,
-    /https:\/\/example\.test\/leitendenbereich\/email\/kontakt#konversation=AAQk%2Fx%2By%3D/
+    /https:\/\/example\.test\/leitendenbereich\/email\?postfach=kontakt#konversation=AAQk%2Fx%2By%3D/
   );
   assert.doesNotMatch(mail.html, /Text m1/);
 });

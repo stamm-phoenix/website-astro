@@ -1,3 +1,5 @@
+import { POSTFAECHER } from '../../../api/lib/postfach-liste';
+import { POSTFACH_PATH } from './postfaecher';
 import type { StaffPage } from './staffModuleTypes';
 
 /** The start page of the Leitendenbereich. */
@@ -82,4 +84,11 @@ export const STAFF_SUBPAGES: StaffPage[] = [
       'Du bist wieder angemeldet. Schließe diesen Tab und tippe im anderen Tab noch einmal auf „Speichern“.',
     introOpen: true,
   },
+  // Old addresses of single mailboxes: they only lead on to the module „Postfächer“
+  ...POSTFAECHER.map((postfach) => ({
+    href: `${POSTFACH_PATH}/${postfach.id}`,
+    title: postfach.name,
+    description: `E-Mails an ${postfach.address}.`,
+    parent: POSTFACH_PATH,
+  })),
 ];

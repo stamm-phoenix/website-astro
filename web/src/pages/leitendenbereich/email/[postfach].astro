@@ -1,18 +1,19 @@
 ---
 import StaffLayout from '../../../layouts/StaffLayout.astro';
-import Postfach from '../../../components/postfach/Postfach.svelte';
+import PostfachWeiter from '../../../components/postfach/PostfachWeiter.svelte';
 import { POSTFAECHER } from '../../../../../api/lib/postfach-liste';
 
+// Old addresses of single mailboxes, e.g. in mails about an assignment: they lead on to the module
 export function getStaticPaths() {
   return POSTFAECHER.map((postfach) => ({
     params: { postfach: postfach.id },
-    props: { id: postfach.id, address: postfach.address },
+    props: { id: postfach.id },
   }));
 }
 
-const { id, address } = Astro.props;
+const { id } = Astro.props;
 ---
 
 <StaffLayout compact>
-  <Postfach postfach={id} {address} client:only="svelte" />
+  <PostfachWeiter postfach={id} client:only="svelte" />
 </StaffLayout>

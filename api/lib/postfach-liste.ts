@@ -13,14 +13,12 @@
 export type PostfachTeam = 'leitende' | 'kasse' | 'vorstand' | 'admin' | 'verein';
 
 export interface PostfachEintrag {
-  /** Part of the page address `/leitendenbereich/email/<id>` and of the stored rows; never change it. */
+  /** Part of the page address `/leitendenbereich/email?postfach=<id>` and of the API routes; never change it. */
   id: string;
-  /** Name of the tile and the page. */
+  /** Name in mails and on the start page; the choice on the page drops „-Postfach“. */
   name: string;
   /** Address of the shared mailbox in Exchange Online. */
   address: string;
-  /** One sentence for the start page and the search. */
-  description: string;
   /** Members of one of these teams see the mailbox; one is enough. */
   teams: readonly PostfachTeam[];
 }
@@ -30,32 +28,24 @@ export const POSTFAECHER: readonly PostfachEintrag[] = [
     id: 'kontakt',
     name: 'Kontakt-Postfach',
     address: 'kontakt@stamm-phoenix.de',
-    description:
-      'E-Mails an kontakt@stamm-phoenix.de lesen, Zuständige festlegen und in Outlook antworten.',
     teams: ['leitende'],
   },
   {
     id: 'vorstand',
     name: 'Vorstand-Postfach',
     address: 'vorstand@stamm-phoenix.de',
-    description:
-      'E-Mails an vorstand@stamm-phoenix.de lesen, Zuständige festlegen und in Outlook antworten.',
     teams: ['vorstand'],
   },
   {
     id: 'verein',
     name: 'Verein-Postfach',
     address: 'verein@stamm-phoenix.de',
-    description:
-      'E-Mails an verein@stamm-phoenix.de lesen, Zuständige festlegen und in Outlook antworten.',
     teams: ['verein'],
   },
   {
     id: 'admin',
     name: 'Admin-Postfach',
     address: 'admin@stamm-phoenix.de',
-    description:
-      'E-Mails an admin@stamm-phoenix.de lesen, Zuständige festlegen und in Outlook antworten.',
     teams: ['admin'],
   },
 ];

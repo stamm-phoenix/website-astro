@@ -1,0 +1,8 @@
+---
+import StaffLayout from '../../../layouts/StaffLayout.astro';
+import Postfaecher from '../../../components/postfach/Postfaecher.svelte';
+---
+
+<StaffLayout compact>
+  <Postfaecher client:only="svelte" />
+</StaffLayout>

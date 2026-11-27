@@ -1,4 +1,4 @@
-import { POSTFACH_MODULES } from './postfaecher';
+import { POSTFACH_MODULE } from './postfaecher';
 import { STAFF_MODULES } from './staffModuleList';
 import type { StaffModule } from './staffModuleTypes';
 
@@ -19,7 +19,7 @@ export const STAFF_MODULE_SECTIONS: { id: string; title: string; modules: StaffM
   {
     id: 'email',
     title: 'E-Mail',
-    modules: POSTFACH_MODULES,
+    modules: [POSTFACH_MODULE],
   },
   {
     id: 'gruppen',
