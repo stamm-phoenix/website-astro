@@ -4,7 +4,7 @@
   import FilterTabs from '../ui/FilterTabs.svelte';
   import Postfach from './Postfach.svelte';
   import { authStore, fetchPrincipal } from '../../lib/authStore.svelte';
-  import { postfachStart } from '../../lib/postfachStore.svelte';
+  import { postfachListe, postfachStart } from '../../lib/postfachStore.svelte';
   import { postfachAusAdresse, postfachHref, postfachKurzname } from '../../lib/postfaecher';
   import { POSTFAECHER, findPostfach, postfachRoles } from '../../../../api/lib/postfach-liste';
 
@@ -18,6 +18,13 @@
   const eintrag = findPostfach(gewaehlt) ?? POSTFAECHER[0];
 
   const start = postfachStart.state;
+  const liste = postfachListe.state;
+  /** The open mailbox counts from its own list, so a change or „Neu laden“ shows at once. */
+  const neuHier = $derived(
+    liste.data?.postfach.id === gewaehlt
+      ? liste.data.konversationen.filter((zeile) => zeile.status === 'neu').length
+      : undefined
+  );
   /** Before the API answered, the roles of the login decide; the API has the last word. */
   const nachRollen = $derived(
     POSTFAECHER.filter((postfach) =>
@@ -26,7 +33,10 @@
   );
   const optionen = $derived(
     (start.data?.postfaecher ?? nachRollen).map((postfach) => {
-      const neu = start.data?.postfaecher.find((p) => p.id === postfach.id)?.neu;
+      const neu =
+        postfach.id === gewaehlt && neuHier !== undefined
+          ? neuHier
+          : start.data?.postfaecher.find((p) => p.id === postfach.id)?.neu;
       return {
         value: postfach.id,
         label: postfachKurzname(postfach),
@@ -43,7 +53,7 @@
   onMount(() => {
     void fetchPrincipal().then(() => {
       // The counts are only worth a request where there is a choice
-      if (nachRollen.length > 1) void postfachStart.load();
+      if (nachRollen.length > 1) void postfachStart.load({ force: true });
     });
   });
 </script>

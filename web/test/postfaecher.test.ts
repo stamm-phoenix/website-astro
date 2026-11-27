@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { POSTFAECHER, postfachRoles } from '../../api/lib/postfach-liste';
 import {
   POSTFACH_MODULE,
+  aktuellerFavoritPfad,
   postfachAusAdresse,
   postfachHref,
   postfachKurzname,
@@ -27,4 +28,10 @@ test('the chosen mailbox comes from the address, otherwise the Kontakt-Postfach'
 test('the choice names a mailbox without „-Postfach“', () => {
   assert.equal(postfachKurzname(POSTFAECHER[0]), 'Kontakt');
   for (const postfach of POSTFAECHER) assert.ok(!postfachKurzname(postfach).includes('Postfach'));
+});
+
+test('a favorite of a single mailbox becomes the module „Postfächer“', () => {
+  assert.equal(aktuellerFavoritPfad('/leitendenbereich/email/vorstand'), '/leitendenbereich/email');
+  assert.equal(aktuellerFavoritPfad('/leitendenbereich/aufgaben'), '/leitendenbereich/aufgaben');
+  assert.equal(aktuellerFavoritPfad(42), 42);
 });

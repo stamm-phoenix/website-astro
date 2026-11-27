@@ -1,6 +1,6 @@
 import { errorMessage, fetchApi, sendApi } from './api';
 import { authStore, fetchPrincipal } from './authStore.svelte';
-import { ALTE_POSTFACH_PFADE, POSTFACH_PATH } from './postfaecher';
+import { aktuellerFavoritPfad } from './postfaecher';
 import { STAFF_FAVORITE_PATHS } from './staffModules';
 
 /**
@@ -45,9 +45,7 @@ export const favoritesStore = $state<FavoritesState>({
 function knownPaths(paths: unknown, known: string[]): string[] {
   if (!Array.isArray(paths)) return [];
   // A favorite of a single mailbox from before the module „Postfächer“ becomes that module
-  const current = paths.map((path) =>
-    typeof path === 'string' && ALTE_POSTFACH_PFADE.includes(path) ? POSTFACH_PATH : path
-  );
+  const current = paths.map(aktuellerFavoritPfad);
   return known.filter((path) => current.includes(path));
 }
 

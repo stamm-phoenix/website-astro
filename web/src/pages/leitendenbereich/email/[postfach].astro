@@ -14,6 +14,7 @@ export function getStaticPaths() {
 const { id } = Astro.props;
 ---
 
-<StaffLayout compact>
+<!-- bare: no menu, so the visit is recorded once, on the page it leads to -->
+<StaffLayout bare>
   <PostfachWeiter postfach={id} client:only="svelte" />
 </StaffLayout>
