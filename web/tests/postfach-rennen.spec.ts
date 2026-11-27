@@ -1,8 +1,19 @@
 import { test, expect } from './fixtures';
-import type { Request } from '@playwright/test';
+import type { Page, Request } from '@playwright/test';
 import { requestOver, settle } from './settle';
 
-/** Answers that arrive late or out of order in the module „E-Mail“; each holds one back. */
+/** Answers that arrive late or out of order in the module „Postfächer“; each holds one back. */
+
+function vorstandGewaehlt(page: Page) {
+  return page.getByRole('group', { name: 'Postfach' }).getByRole('button', { name: /^Vorstand/ });
+}
+
+/** Switches to the Vorstand-Postfach with the choice above the list. */
+async function waehleVorstand(page: Page) {
+  await vorstandGewaehlt(page).click();
+  await expect(page).toHaveURL(/\?postfach=vorstand/);
+  await expect(vorstandGewaehlt(page)).toHaveAttribute('aria-pressed', 'true');
+}
 
 test('a late assignment stays with its conversation when another one was opened meanwhile', async ({
   page,
@@ -15,7 +26,7 @@ test('a late assignment stays with its conversation when another one was opened 
     await held;
     await route.continue();
   });
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   await liste.getByRole('link', { name: /Newsletter Diözesanverband/ }).click();
   const a = page.getByRole('article', { name: 'Newsletter Diözesanverband' });
@@ -57,8 +68,11 @@ test('a late assignment stays with its conversation when another one was opened 
 test('a late reload of another mailbox and an older answer of the same mail are dropped', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop', 'switches through the sidebar of the desktop');
-  await page.goto('/leitendenbereich/email/kontakt');
+  test.skip(
+    testInfo.project.name !== 'desktop',
+    'switches next to the open mail, side by side only on desktop'
+  );
+  await page.goto('/leitendenbereich/email');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   await liste.getByRole('link', { name: /Frage zum Nikolausdienst/ }).click();
   await expect(page.getByRole('article', { name: 'Frage zum Nikolausdienst' })).toBeVisible();
@@ -116,11 +130,7 @@ test('a late reload of another mailbox and an older answer of the same mail are 
     await route.continue();
   });
   await neuLaden.click();
-  await page
-    .getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' })
-    .getByRole('link', { name: 'Vorstand-Postfach' })
-    .click();
-  await expect(page.getByRole('heading', { name: 'Vorstand-Postfach', level: 1 })).toBeVisible();
+  await waehleVorstand(page);
   await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
   releaseKontakt();
   await requestOver(kontaktRequest!);
@@ -132,7 +142,7 @@ test('a late reload answer does not undo a status just saved in the reading view
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'the reload button sits next to the open mail');
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Frage zum Nikolausdienst/ }).click();
@@ -177,8 +187,11 @@ test('a late reload answer does not undo a status just saved in the reading view
 test('a late conflict of a mailbox that was left does not take the list over', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop', 'switches through the sidebar of the desktop');
-  await page.goto('/leitendenbereich/email/kontakt');
+  test.skip(
+    testInfo.project.name !== 'desktop',
+    'switches next to the open mail, side by side only on desktop'
+  );
+  await page.goto('/leitendenbereich/email');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Newsletter Diözesanverband/ }).click();
@@ -202,15 +215,12 @@ test('a late conflict of a mailbox that was left does not take the list over', a
       ? 'Neu'
       : 'Erledigt';
   await stand.getByRole('button', { name: ziel }).click();
-  await page
-    .getByRole('navigation', { name: 'Bereiche des Leitendenbereichs' })
-    .getByRole('link', { name: 'Vorstand-Postfach' })
-    .click();
+  await waehleVorstand(page);
   await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
   const konflikt = page.waitForResponse('**/api/intern/postfach/kontakt/status');
   release();
   await konflikt;
   await settle(page);
-  await expect(page.getByRole('heading', { name: 'Vorstand-Postfach', level: 1 })).toBeVisible();
+  await expect(vorstandGewaehlt(page)).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByText('Im Posteingang liegt keine E-Mail.')).toBeVisible();
 });

@@ -33,7 +33,7 @@ test('a late „Erledigt“ does not close a conversation that got a newer messa
     }
   );
 
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   await liste.getByRole('link', { name: RECHNUNG }).click();
   const mail = page.getByRole('article', { name: 'Rechnung Zeltplatz Sommerlager' });

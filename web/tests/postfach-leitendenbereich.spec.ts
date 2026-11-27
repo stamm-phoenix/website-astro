@@ -5,7 +5,7 @@ test('a Leitende:r reads a mail of the Kontakt-Postfach, hands it on and finds t
   page,
 }) => {
   // Take the mail over first: the projects share the demo server and an earlier run handed it on
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   await page
     .getByRole('region', { name: 'Posteingang' })
     .getByRole('link', { name: /Frage zum Nikolausdienst/ })
@@ -22,7 +22,7 @@ test('a Leitende:r reads a mail of the Kontakt-Postfach, hands it on and finds t
   );
 
   await karte.getByRole('link', { name: /Frage zum Nikolausdienst/ }).click();
-  await expect(page).toHaveURL(/\/leitendenbereich\/email\/kontakt#konversation=/);
+  await expect(page).toHaveURL(/\/leitendenbereich\/email\?postfach=kontakt#konversation=/);
   const mail = page.getByRole('article', { name: 'Frage zum Nikolausdienst' });
   await expect(mail.getByText('Du bist zuständig')).toBeVisible();
   // The answer from Outlook is part of the conversation
@@ -62,7 +62,7 @@ test('„Neu laden“ also reads the open conversation again', async ({ page }, 
     testInfo.project.name !== 'desktop',
     'the reload button sits next to the open mail on desktop'
   );
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   await page
     .getByRole('region', { name: 'Posteingang' })
     .getByRole('link', { name: /Frage zum Nikolausdienst/ })
@@ -79,7 +79,7 @@ test('„Neu laden“ also reads the open conversation again', async ({ page }, 
 test('a mail marked done is ticked off for everyone and leaves the start page', async ({
   page,
 }) => {
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   // Retries on the same demo server find it done already
   await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
@@ -132,7 +132,7 @@ test('a mail marked done is ticked off for everyone and leaves the start page', 
   await expect(page.getByRole('link', { name: /Schnupperstunde für Mia/ })).toHaveCount(0);
 
   // Open again, so the next run starts the same way
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   await liste
     .getByRole('group', { name: 'Stand' })
     .getByRole('button', { name: /^Erledigt/ })
@@ -143,7 +143,7 @@ test('a mail marked done is ticked off for everyone and leaves the start page', 
 });
 
 test('opening a mail with the keyboard moves the focus to its subject', async ({ page }) => {
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   const link = page
     .getByRole('region', { name: 'Posteingang' })
     .getByRole('link', { name: /Frage zum Nikolausdienst/ });
@@ -153,7 +153,7 @@ test('opening a mail with the keyboard moves the focus to its subject', async ({
 });
 
 test('marking done after a newer message arrived says so and saves nothing', async ({ page }) => {
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Frage zum Nikolausdienst/ }).click();
@@ -187,7 +187,7 @@ test('a full inbox says that older mails are in Outlook instead of claiming all 
       json: { ...body, begrenzt: true, konversationen: body.konversationen.slice(0, 1) },
     });
   });
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   await expect(liste.getByText('Hier stehen die neuesten 100 E-Mails.')).toBeVisible();
   await expect(liste.getByRole('link', { name: /Ältere in Outlook ansehen/ })).toHaveAttribute(
@@ -234,7 +234,7 @@ test('a mailbox that failed on the start page offers a retry or names whom to te
   await expect(karte.getByText('Kontakt-Postfach konnte nicht geladen werden.')).toBeVisible();
   await expect(karte.getByRole('link', { name: 'Zum Postfach' }).first()).toHaveAttribute(
     'href',
-    '/leitendenbereich/email/kontakt'
+    '/leitendenbereich/email?postfach=kontakt'
   );
   gesperrt = true;
   await karte.getByRole('button', { name: 'Erneut versuchen' }).click();
@@ -253,7 +253,7 @@ test('a long attachment name wraps on a phone instead of being cut off', async (
       for (const anhang of nachricht.anhaenge) anhang.name = lang;
     await route.fulfill({ response, json: body });
   });
-  await page.goto('/leitendenbereich/email/kontakt');
+  await page.goto('/leitendenbereich/email');
   const liste = page.getByRole('region', { name: 'Posteingang' });
   await liste.getByRole('group', { name: 'Stand' }).getByRole('button', { name: /^Alle/ }).click();
   await liste.getByRole('link', { name: /Rechnung Zeltplatz Sommerlager/ }).click();

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { navigate } from 'astro:transitions/client';
   import ActionButton from '../ui/ActionButton.svelte';
@@ -35,8 +35,10 @@
   interface Props {
     postfach: string;
     address: string;
+    /** The choice of the mailbox above the list; hidden with it while a mail is open on a phone. */
+    auswahl?: Snippet;
   }
-  let { postfach, address }: Props = $props();
+  let { postfach, address, auswahl }: Props = $props();
 
   const store = postfachListe.state;
   let filter = $state<PostfachFilter>({ ...FILTER_START });
@@ -152,6 +154,7 @@
 </script>
 
 <div class="space-y-3">
+  {#if auswahl}<div class:max-xl:hidden={aktiv}>{@render auswahl()}</div>{/if}
   <div class="flex flex-wrap items-center gap-2" class:max-xl:hidden={aktiv}>
     <a
       class="btn-primary inline-flex items-center gap-1"

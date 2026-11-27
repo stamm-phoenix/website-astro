@@ -31,7 +31,7 @@
   import EssensplanungKarte from './essensplanung/EssensplanungKarte.svelte';
   import PostfachKarte from './postfach/PostfachKarte.svelte';
   import { postfachStart } from '../lib/postfachStore.svelte';
-  import { POSTFACH_MODULES } from '../lib/postfaecher';
+  import { POSTFACH_MODULE } from '../lib/postfaecher';
   import { meineBeitraege } from '../lib/beitraege';
   import { meineBelege } from '../lib/campflowBelege';
   import { isIch } from '../lib/ichStore.svelte';
@@ -132,8 +132,8 @@
   const essenEmpty = $derived(
     essenStore.data !== null && !essenStore.loading && !essenStore.error && essen.length === 0
   );
-  // Unread and assigned mails of the mailboxes the person sees (module „E-Mail“)
-  const postfaecher = $derived(POSTFACH_MODULES.filter(canOpenModule));
+  // Unread and assigned mails of the mailboxes the person sees (module „Postfächer“)
+  const postfaecher = $derived(canOpenModule(POSTFACH_MODULE));
   const mailStore = postfachStart.state;
   const mailsEmpty = $derived(
     mailStore.data !== null &&
@@ -149,7 +149,7 @@
     belegeEmpty,
     beitraegeEmpty,
     essenEmpty,
-    ...(postfaecher.length ? [mailsEmpty] : []),
+    ...(postfaecher ? [mailsEmpty] : []),
   ]);
   const cardCount = $derived(cards.filter((empty) => !empty).length);
   // Side by side once there is room; stacked areas are divided by lines instead
@@ -447,11 +447,11 @@
     <h2 id="for-you-heading" class="font-serif text-lg font-semibold text-brand-900">Für dich</h2>
     {#if cardCount > 0}
       <div class="surface mt-2 grid divide-y divide-neutral-200 {gridColumns}">
-        {#if postfaecher.length && !mailsEmpty}{@render card(
+        {#if postfaecher && !mailsEmpty}{@render card(
             'meine-emails-heading',
             'E-Mails',
-            postfaecher[0].href,
-            postfaecher.length > 1 ? 'Zum ersten Postfach' : 'Zum Postfach',
+            POSTFACH_MODULE.href,
+            'Zu den Postfächern',
             mailsBody
           )}{/if}
         {#if !tasksEmpty}{@render card(
@@ -509,10 +509,10 @@
               <a href="/leitendenbereich/aktionen" class="text-link">Alle Aktionen</a>
             </span>
           </li>{/if}
-        {#if postfaecher.length && mailsEmpty}<li class="flex items-center gap-2">
+        {#if postfaecher && mailsEmpty}<li class="flex items-center gap-2">
             {@render check()}<span>
               Keine neuen oder dir zugewiesenen E-Mails ·
-              <a href={postfaecher[0].href} class="text-link">Zum Postfach</a>
+              <a href={POSTFACH_MODULE.href} class="text-link">Zu den Postfächern</a>
             </span>
           </li>{/if}
         {#if tasksEmpty}<li class="flex items-center gap-2">

@@ -1,18 +1,25 @@
 # E-Mail (Gruppenpostfächer)
 
-Der Bereich „E-Mail“ im Leitendenbereich zeigt Gruppenpostfächer des Stammes:
+Das Modul „Postfächer“ im Leitendenbereich (`/leitendenbereich/email`, Abschnitt „E-Mail“) zeigt
+die Gruppenpostfächer des Stammes:
 
-| Postfach                    | Seite                              | sehen dürfen    |
-| --------------------------- | ---------------------------------- | --------------- |
-| `kontakt@stamm-phoenix.de`  | `/leitendenbereich/email/kontakt`  | `team-leitende` |
-| `vorstand@stamm-phoenix.de` | `/leitendenbereich/email/vorstand` | `team-vorstand` |
-| `verein@stamm-phoenix.de`   | `/leitendenbereich/email/verein`   | `team-verein`   |
-| `admin@stamm-phoenix.de`    | `/leitendenbereich/email/admin`    | `team-admin`    |
+| Postfach                    | Adresse der Seite                           | sehen dürfen    |
+| --------------------------- | ------------------------------------------- | --------------- |
+| `kontakt@stamm-phoenix.de`  | `/leitendenbereich/email?postfach=kontakt`  | `team-leitende` |
+| `vorstand@stamm-phoenix.de` | `/leitendenbereich/email?postfach=vorstand` | `team-vorstand` |
+| `verein@stamm-phoenix.de`   | `/leitendenbereich/email?postfach=verein`   | `team-verein`   |
+| `admin@stamm-phoenix.de`    | `/leitendenbereich/email?postfach=admin`    | `team-admin`    |
 
 Der Leitendenbereich selbst bleibt dem Team „Leitende“ vorbehalten: Wer nur in `team-verein` ist,
-kommt nicht hinein und sieht das Postfach dort nicht. Jedes Postfach hat eine eigene Seite
-(`/leitendenbereich/email/<id>`) und eine Kachel im Abschnitt „E-Mail“. Wie beim Modul „Fotos“
-wird Outlook nicht nachgebaut: Stand, Zuständigkeit und Anhänge gibt es hier, Antworten,
+kommt nicht hinein und sieht das Postfach dort nicht. Es gibt eine Kachel für alle Postfächer
+(`POSTFACH_MODULE`, `web/src/lib/postfaecher.ts`); wer mehrere sieht, wählt das Postfach oben auf
+der Seite (`Postfaecher.svelte`, mit der Zahl der neuen E-Mails je Postfach). Ohne `?postfach=`
+zeigt die Seite das Kontakt-Postfach. Die früheren Seiten je Postfach
+(`/leitendenbereich/email/<id>`, z. B. in älteren Benachrichtigungen) leiten mit der offenen
+Konversation dorthin weiter (`PostfachWeiter.svelte`); Favoriten einzelner Postfächer werden zur
+Kachel „Postfächer“.
+
+Wie beim Modul „Fotos“ wird Outlook nicht nachgebaut: Stand, Zuständigkeit und Anhänge gibt es hier, Antworten,
 Löschen und alles Weitere in Outlook („In Outlook öffnen“).
 
 Stand und Zuständigkeit speichert die Website nicht selbst, sondern **in Outlook**, an den
@@ -112,18 +119,18 @@ gelesen, damit sie dort nicht mehr fett stehen. Öffnen allein ändert nichts.
 
 Microsoft Graph kann die Berechtigungen eines Postfachs (Vollzugriff, Senden als) nicht lesen;
 das geht nur über Exchange Online PowerShell. Deshalb steht in `api/lib/postfach-liste.ts` für
-jedes Postfach, welche Teams (`CONFIG.staff.teams`) es sehen. Die Seite prüft das über die Rollen
-(`roles` der Kachel), die API in jedem Aufruf. Die Liste sollte zu den Berechtigungen in Exchange
+jedes Postfach, welche Teams (`CONFIG.staff.teams`) es sehen. Die Auswahl auf der Seite nimmt die
+Postfächer, die die API für die Person liefert (vorher die Rollen), die API prüft jeden Aufruf. Die Liste sollte zu den Berechtigungen in Exchange
 passen: Wer das Postfach hier sieht, aber in Exchange keinen Vollzugriff hat, kann „In Outlook
 öffnen“ nicht nutzen.
 
 Ein weiteres Postfach:
 
-1. Eintrag in `POSTFAECHER` (`api/lib/postfach-liste.ts`): `id` (Teil der Adresse und der
-   gespeicherten Zeilen, nie ändern), Name, Adresse, Beschreibung, Teams. Fehlt ein Team, erst in
+1. Eintrag in `POSTFAECHER` (`api/lib/postfach-liste.ts`): `id` (Teil der Adresse, nie ändern),
+   Name, Adresse, Teams. Fehlt ein Team, erst in
    `CONFIG.staff.teams` eintragen ([berechtigungen.md](berechtigungen.md)).
 2. Der App den Lesezugriff auf das Postfach geben (unten, Schritt 2).
-3. Seite, Kachel und Startseite kommen von selbst.
+3. Auswahl auf der Seite, Rollen der Kachel und Startseite kommen von selbst.
 
 ## Einrichtung in Azure und Exchange
 

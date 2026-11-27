@@ -1,28 +1,58 @@
-import { POSTFAECHER, postfachRoles } from '../../../api/lib/postfach-liste';
+import {
+  POSTFAECHER,
+  findPostfach,
+  postfachRoles,
+  type PostfachEintrag,
+} from '../../../api/lib/postfach-liste';
 import type { StaffModule } from './staffModuleTypes';
 
 /** Envelope, 24×24 stroke. */
 const ICON = 'M3 6h18v12H3zM3 7l9 6 9-6';
 
-/** Path of the page of a mailbox. */
+/** The page of the module „Postfächer“; the chosen mailbox sits in `?postfach=`. */
+export const POSTFACH_PATH = '/leitendenbereich/email';
+
+/** Path of the page with a mailbox chosen. */
 export function postfachHref(id: string): string {
-  return `/leitendenbereich/email/${id}`;
+  return `${POSTFACH_PATH}?postfach=${encodeURIComponent(id)}`;
+}
+
+/** Name of a mailbox in the choice on the page, without „-Postfach“. */
+export function postfachKurzname(postfach: Pick<PostfachEintrag, 'name'>): string {
+  return postfach.name.replace(/-Postfach$/, '');
+}
+
+/** The mailbox named in the address, or the first one (Kontakt, seen by all Leitende). */
+export function postfachAusAdresse(search: string): string {
+  const id = new URLSearchParams(search).get('postfach');
+  return (id && findPostfach(id)?.id) || POSTFAECHER[0].id;
 }
 
 /**
- * One module per shared mailbox (`api/lib/postfach-liste.ts`), only for the teams of the mailbox;
- * the start page lists them in the section „E-Mail“.
+ * One module for all shared mailboxes (`api/lib/postfach-liste.ts`); the page offers a choice
+ * between the mailboxes the person sees. Shown to the teams of any of them.
  */
-export const POSTFACH_MODULES: StaffModule[] = POSTFAECHER.map((postfach) => ({
-  href: postfachHref(postfach.id),
-  title: postfach.name,
-  description: postfach.description,
+export const POSTFACH_MODULE: StaffModule = {
+  href: POSTFACH_PATH,
+  title: 'Postfächer',
+  description:
+    'E-Mails an kontakt@, vorstand@ und die anderen Adressen des Stammes lesen, Zuständige festlegen und in Outlook antworten.',
   intro:
-    'Stand und Zuständigkeit stehen auch in Outlook: „Handlungsbedarf“ ist ein Fähnchen, „Erledigt“ heißt archiviert, die zuständige Person ist eine Kategorie mit 👤. Was du hier oder in Outlook änderst, sehen alle. Antworten und Löschen gehen in Outlook. Wer zuständig wird, bekommt eine Mail.',
-  wrap: postfach.name.replace('-', '-|'),
-  // Tiles and the bar: the envelope already says it is a mailbox, so the name fits one line
-  shortcut: postfach.name.replace(/-Postfach$/, ''),
-  keywords: ['mail', 'e-mail', 'postfach', 'outlook', 'posteingang', postfach.address],
+    'Oben wählst du das Postfach, wenn du mehrere siehst. Stand und Zuständigkeit stehen auch in Outlook: „Handlungsbedarf“ ist ein Fähnchen, „Erledigt“ heißt archiviert, die zuständige Person ist eine Kategorie mit 👤. Was du hier oder in Outlook änderst, sehen alle. Antworten und Löschen gehen in Outlook. Wer zuständig wird, bekommt eine Mail.',
+  wrap: 'Post|fächer',
+  keywords: [
+    'mail',
+    'e-mail',
+    'postfach',
+    'outlook',
+    'posteingang',
+    ...POSTFAECHER.flatMap((postfach) => [postfach.name, postfach.address]),
+  ],
   icon: ICON,
-  roles: postfachRoles(postfach),
-}));
+  roles: [...new Set(POSTFAECHER.flatMap(postfachRoles))],
+};
+
+/** Pages of single mailboxes from before the module „Postfächer“; links in old mails lead there. */
+export const ALTE_POSTFACH_PFADE: string[] = POSTFAECHER.map(
+  (postfach) => `${POSTFACH_PATH}/${postfach.id}`
+);

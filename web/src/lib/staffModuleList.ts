@@ -1,5 +1,5 @@
 import { MATERIAL_MODULES } from './staffMaterial';
-import { POSTFACH_MODULES } from './postfaecher';
+import { POSTFACH_MODULE } from './postfaecher';
 import { CHANGELOG_PATH, type StaffModule } from './staffModuleTypes';
 
 export const STAFF_MODULES: StaffModule[] = [
@@ -383,7 +383,7 @@ export const STAFF_MODULES: StaffModule[] = [
     keywords: ['changelog', 'änderungen', 'neu', 'update', 'version', 'was ist neu'],
     icon: 'M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z',
   },
-  ...POSTFACH_MODULES,
+  POSTFACH_MODULE,
 ];
 
 /** The Steuerung of the Nikolausdienst: always shown, it switches the other modules on and off. */
