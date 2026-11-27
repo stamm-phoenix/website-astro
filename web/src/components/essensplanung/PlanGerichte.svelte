@@ -74,7 +74,6 @@
   $effect(() => {
     if (navigation.gericht !== null && offenId === null) untrack(() => navigation.weg());
   });
-  const zurueckText = $derived(navigation.von === 'plan' ? 'Zurück zum Plan' : 'Alle Gerichte');
 
   // A dish just opened gets the focus on its heading, so a phone shows no keyboard; a new one on
   // its name, to fill it in
@@ -338,14 +337,24 @@
             </a>
           {/if}
           <article class="space-y-4" hidden={!offen} aria-labelledby="gericht-{gericht.id}-titel">
-            <button
-              type="button"
-              class="inline-flex min-h-11 items-center gap-1 font-semibold text-link hover:underline print:hidden"
-              onclick={() => navigation.zurueck()}
-            >
-              <span aria-hidden="true">←</span>
-              {zurueckText}
-            </button>
+            <nav class="flex flex-wrap gap-x-6 print:hidden" aria-label="Zurück">
+              <button
+                type="button"
+                class="inline-flex min-h-11 items-center gap-1 font-semibold text-link hover:underline"
+                onclick={() => navigation.zurueck('plan')}
+              >
+                <span aria-hidden="true">←</span>
+                Zurück zum Plan
+              </button>
+              <button
+                type="button"
+                class="inline-flex min-h-11 items-center gap-1 font-semibold text-link hover:underline"
+                onclick={() => navigation.zurueck('gerichte')}
+              >
+                <span aria-hidden="true">←</span>
+                Alle Gerichte
+              </button>
+            </nav>
             <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2
                 id="gericht-{gericht.id}-titel"

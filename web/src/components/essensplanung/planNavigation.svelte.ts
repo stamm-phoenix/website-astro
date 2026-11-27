@@ -139,16 +139,21 @@ export class PlanNavigation {
     window.scrollTo(0, 0);
   }
 
-  /** Back from a dish to where it was opened from, or to the list of dishes. */
-  zurueck(): void {
-    if (oeffnenderSchritt(history.state, this.gericht)) {
+  /**
+   * From a dish to the plan or the list of dishes. Back to where it was opened from, the history
+   * steps back, so the position there stays; otherwise a step of its own, so the browser's back
+   * button returns to the dish.
+   */
+  zurueck(ziel: 'plan' | 'gerichte'): void {
+    if (this.von === ziel && oeffnenderSchritt(history.state, this.gericht)) {
       history.back();
       return;
     }
-    this.bereich = this.von ?? 'gerichte';
+    this.#ersetzen();
+    this.bereich = ziel;
     this.gericht = null;
     this.von = null;
-    this.#ersetzen(planungHash(this.#token));
+    this.#neu(null);
     window.scrollTo(0, 0);
   }
 
