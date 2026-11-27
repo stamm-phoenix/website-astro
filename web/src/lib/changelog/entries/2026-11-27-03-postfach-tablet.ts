@@ -1,7 +1,7 @@
 import type { ChangelogEntry } from '../../changelog';
 
 const entry: ChangelogEntry = {
-  id: '2026-11-27-01-postfach-tablet',
+  id: '2026-11-27-03-postfach-tablet',
   date: '2026-11-27',
   title: 'E-Mails auf dem Tablet',
   changes: [
