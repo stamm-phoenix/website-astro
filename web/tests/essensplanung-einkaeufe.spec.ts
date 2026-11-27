@@ -94,11 +94,16 @@ test('two shop at once in the live mode; a rest goes to the next trip and into t
   );
   await page.getByRole('tab', { name: 'Einkauf' }).click();
 
-  // The other one ticks off Wednesday with one tap, then takes it back again
+  // The other one hides what is ticked off, ticks off Wednesday with one tap, then takes it back
   const dortMittwoch = await oeffnen(anderes, 'Mittwoch');
+  const ausblenden = dortMittwoch.getByRole('switch', { name: 'Abgehakte ausblenden' });
+  await ausblenden.check();
   await box(dortMittwoch, 'Nudeln (Spaghetti)').click();
   await expect(dortMittwoch.getByRole('status')).toHaveText('1 von 1 abgehakt');
+  await expect(box(dortMittwoch, 'Nudeln (Spaghetti)')).toBeHidden();
+  await expect(dortMittwoch.getByText('Alles abgehakt.')).toBeVisible();
   await expect(reihe.nth(1)).toContainText('1 von 1 abgehakt', { timeout: 15_000 });
+  await ausblenden.uncheck();
   await box(dortMittwoch, 'Nudeln (Spaghetti)').click();
   await expect(dortMittwoch.getByRole('status')).toHaveText('0 von 1 abgehakt');
   await anderes.context().close();

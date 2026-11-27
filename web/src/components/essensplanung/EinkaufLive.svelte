@@ -2,6 +2,7 @@
   import type { EinkaufListe, EinkaufListenPosten } from '../../lib/essensplanungEinkaeufe';
   import type { PostenHerkunft } from '../../lib/essensplanungHerkunft';
   import EinkaufLivePosten from './EinkaufLivePosten.svelte';
+  import Schalter from '../ui/Schalter.svelte';
   import { untrack } from 'svelte';
   import { liveOffen, offeneZeile } from './einkaufLive';
   import type { PlanKontext } from './planKontext';
@@ -18,8 +19,19 @@
     gesperrt?: boolean;
     /** The dishes a thing is for. */
     herkunft: (posten: EinkaufListenPosten) => PostenHerkunft | undefined;
+    /** Ticked-off things are hidden, so only what is still missing shows. */
+    abgehakteAus?: boolean;
   }
-  let { kontext, liste, gesperrt = false, herkunft }: Props = $props();
+  let {
+    kontext,
+    liste,
+    gesperrt = false,
+    herkunft,
+    abgehakteAus = $bindable(false),
+  }: Props = $props();
+
+  /** Everything is ticked off; with the ticked-off things hidden the list says so. */
+  const allesAbgehakt = $derived(liste.anzahl > 0 && liste.abgehakt === liste.anzahl);
 
   $effect(() => liveOffen(liste.einkauf.id));
 
@@ -39,9 +51,15 @@
 </script>
 
 <div class="max-w-5xl space-y-3" data-live-liste>
-  <p class="text-xs text-neutral-700">Häkchen werden sofort gespeichert.</p>
+  <div class="flex flex-wrap items-center justify-between gap-x-4">
+    <p class="text-xs text-neutral-700">Häkchen werden sofort gespeichert.</p>
+    <Schalter label="Abgehakte ausblenden" bind:checked={abgehakteAus} />
+  </div>
+  {#if abgehakteAus && allesAbgehakt}
+    <p class="text-sm font-semibold text-success">Alles abgehakt.</p>
+  {/if}
   {#each liste.kategorien as kategorie (kategorie.name)}
-    <section aria-label="{liste.einkauf.name}: {kategorie.name}">
+    <section class="kategorie" aria-label="{liste.einkauf.name}: {kategorie.name}">
       <h4
         class="border-b border-neutral-300 bg-neutral-100 px-2 py-0.5 text-xs font-bold tracking-wide text-neutral-700 uppercase"
       >
@@ -56,6 +74,7 @@
             {gesperrt}
             herkunft={herkunft(posten)}
             zweifach={zweifach.has(posten.planungZutatId)}
+            ausblenden={abgehakteAus}
             offen={offen === posten.key}
             onoeffnen={(auf) => (offen = auf ? posten.key : offen === posten.key ? null : offen)}
           />
@@ -66,3 +85,10 @@
     <p class="text-neutral-700">Nichts zu kaufen.</p>
   {/each}
 </div>
+
+<style>
+  /* A category whose things are all hidden goes too */
+  .kategorie:not(:has(li:not([hidden]))) {
+    display: none;
+  }
+</style>
